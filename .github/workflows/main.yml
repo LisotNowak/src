@@ -1,5 +1,24 @@
-name: Build and Deploy
+name: Clone Repository on Remote Server
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
+
+jobs:
+  clone:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v2
+
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Clone repository on remote server
+        run: |
+          ssh user@remote-server "git clone https://github.com/LisotNowak/src.git /path/to/clone"
+
