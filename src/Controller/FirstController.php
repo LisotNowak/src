@@ -16,4 +16,11 @@ class FirstController extends AbstractController
 
         return $this->render('accueil.html.twig');
     }
+
+    #[Route('/generateurSignature', name: 'app_generateur_signature')]
+    public function generateur_signature(): Response
+    {
+
+        return $this->render('generateurSignature.html.twig');
+    }
 }
