@@ -1,0 +1,37 @@
+<style>
+    .bg-vin {
+        background-color: #800000; /* Couleur vin */
+    }
+    .text-white {
+        color: white; /* Couleur du texte en blanc */
+    }
+</style>
+
+<nav class="navbar navbar-expand-lg bg-vin">
+    <a class="navbar-brand text-white ms-2" href="#"><h2>Artémis Domaines</h2></a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNavAltMarkup" aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
+        <div class="navbar-nav">
+            <a class="nav-item nav-link text-white" href="/" aria-current="page">Accueil</a>
+            {# <a class="nav-item nav-link text-white" href="/generateurSignature">Générateur de signature</a> #}
+            <a class="nav-item nav-link text-white" href="http://nic/#!/calendar">Calendrier</a>
+            <a class="nav-item nav-link text-white" href="http://nic/RP#!/repas">Repas</a>
+            <a class="nav-item nav-link text-white" href="/getEvents">Formations</a>
+        </div>
+        <div class="ms-auto"> 
+            {% if app.user %}
+                <a class="nav-item nav-link text-white">{{ app.user.userIdentifier }}</a>
+                <span class="text-white">
+                    <button class="btn btn-primary me-2" onclick="window.location.href='/profil'">Mon profil</button>
+                    <button class="btn btn-danger me-2" onclick="window.location.href='/logout'">Deconnexion</button>
+                </span>
+            {% else %}
+                <span class="text-white">
+                    <button class="btn btn-success me-2" onclick="window.location.href='/login'">Connexion</button>
+                </span>
+            {% endif %}
+        </div>
+    </div>
+</nav>
