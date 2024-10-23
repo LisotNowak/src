@@ -6,15 +6,25 @@
     <title>Semaine</title>
     <!-- Inclure Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    {# <style>
-        .event {
-            border: 1px solid #ccc;
-            padding: 10px;
-            margin: 5px 0;
-            border-radius: 5px;
-            background-color: #f9f9f9;
+
+    <style>
+        /* Ajustements pour les petits écrans */
+        @media (max-width: 768px) {
+            .table th, .table td {
+                font-size: 0.8rem;
+                padding: 0.5rem;
+            }
+
+            .card {
+                margin-bottom: 1rem;
+            }
         }
-    </style> #}
+
+        /* Améliorer la lisibilité des modals sur mobile */
+        .modal-dialog {
+            max-width: 95%;
+        }
+    </style>
 </head>
 <body>
 
@@ -33,75 +43,74 @@
         <input type="hidden" name="semaine" value="{{ semaine + 1 }}">
         <button type="submit" class="btn btn-primary">Semaine Suivante</button>
     </form>
-</div>
+    </div>
 
+    <!-- Tableau Responsive -->
+    <div class="table-responsive">
+        <table class="table table-bordered text-center">
+            <thead class="table-dark">
+            <tr>
+                {% set joursSemaine = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'] %}
+                {% set today = 'now'|date('Y-m-d') %}
 
-    <!-- Tableau Bootstrap -->
-    <table class="table table-bordered text-center">
-        <thead class="table-dark">
-        <tr>
-            {% set joursSemaine = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'] %}
-            {% set today = 'now'|date('Y-m-d') %}
+                {% for jour in joursSemaine %}
+                    {% set dateJour = dateDebut|date_modify('+' ~ loop.index0 ~ ' days') %} 
+                    <th>
+                        {{ jour }}<br>
+                        <small>{{ dateJour|date('d/m/Y') }}</small>
+                    </th>
+                {% endfor %}
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                {% set dateFin = dateDebut|date_modify('+6 days') %}
 
-            {% for jour in joursSemaine %}
-                {% set dateJour = dateDebut|date_modify('+' ~ loop.index0 ~ ' days') %} {# Calculer la date du jour actuel #}
-                <th>
-                    {{ jour }}<br>
-                    <small>{{ dateJour|date('d/m/Y') }}</small> {# Afficher la date #}
-                </th>
-            {% endfor %}
-        </tr>
-        </thead>
-        <tbody>
-        <tr>
-            {% set dateFin = dateDebut|date_modify('+6 days') %}
-
-            {% for jour in joursSemaine %}
-                <td>
-                    {% for event in allEvents %}
-                        
-                        {% set eventDate = event.du|date('Y-m-d') %}
-                        {% if eventDate >= dateDebut|date('Y-m-d') and eventDate <= dateFin|date('Y-m-d') %}
-                            {% set dateDu = event.du|date('l') %}
-                            {% if jour == dateDu|trans({'Monday':'Lundi', 'Tuesday':'Mardi', 'Wednesday':'Mercredi', 'Thursday':'Jeudi', 'Friday':'Vendredi', 'Saturday':'Samedi', 'Sunday':'Dimanche'}) %}
-                                <!-- Carte avec ID dynamique -->
-                                <div id="{{event.id}}" class="card mb-3" style="transition: transform 0.2s;" data-bs-toggle="modal" data-bs-target="#modal{{event.id}}">
-                                    <div class="card-body" onmouseover="this.parentNode.style.transform='scale(1.05)'" onmouseout="this.parentNode.style.transform='scale(1)'">
-                                        <h5 class="card-title">{{ event.label }}</h5>
-                                        <h6 class="card-subtitle mb-2 text-muted">{{ event.du|date('H:i') }} - {{ event.au|date('H:i') }}</h6>
-                                        <p class="card-text"><em>{{ event.lieu }}</em></p>
+                {% for jour in joursSemaine %}
+                    <td>
+                        {% for event in allEvents %}
+                            {% set eventDate = event.du|date('Y-m-d') %}
+                            {% if eventDate >= dateDebut|date('Y-m-d') and eventDate <= dateFin|date('Y-m-d') %}
+                                {% set dateDu = event.du|date('l') %}
+                                {% if jour == dateDu|trans({'Monday':'Lundi', 'Tuesday':'Mardi', 'Wednesday':'Mercredi', 'Thursday':'Jeudi', 'Friday':'Vendredi', 'Saturday':'Samedi', 'Sunday':'Dimanche'}) %}
+                                    <!-- Carte avec ID dynamique -->
+                                    <div id="{{event.id}}" class="card mb-3" style="transition: transform 0.2s;" data-bs-toggle="modal" data-bs-target="#modal{{event.id}}">
+                                        <div class="card-body" onmouseover="this.parentNode.style.transform='scale(1.05)'" onmouseout="this.parentNode.style.transform='scale(1)'">
+                                            <h5 class="card-title">{{ event.label }}</h5>
+                                            <h6 class="card-subtitle mb-2 text-muted">{{ event.du|date('H:i') }} - {{ event.au|date('H:i') }}</h6>
+                                            <p class="card-text"><em>{{ event.lieu }}</em></p>
+                                        </div>
                                     </div>
-                                </div>
 
-                                <!-- Modal qui s'ouvre lors du clic sur la carte -->
-                                <div class="modal fade" id="modal{{event.id}}" tabindex="-1" aria-labelledby="modalLabel{{event.id}}" aria-hidden="true">
-                                <div class="modal-dialog">
-                                    <div class="modal-content">
-                                    <div class="modal-header">
-                                        <h5 class="modal-title" id="modalLabel{{event.id}}">{{ event.label }}</h5>
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    <!-- Modal qui s'ouvre lors du clic sur la carte -->
+                                    <div class="modal fade" id="modal{{event.id}}" tabindex="-1" aria-labelledby="modalLabel{{event.id}}" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title" id="modalLabel{{event.id}}">{{ event.label }}</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <p><strong>Lieu :</strong> {{ event.lieu }}</p>
+                                            <p><strong>Heure :</strong> {{ event.du|date('H:i') }} - {{ event.au|date('H:i') }}</p>
+                                            <p><strong>Description :</strong> Description de l'événement ici...</p>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                                        </div>
+                                        </div>
                                     </div>
-                                    <div class="modal-body">
-                                        <!-- Contenu du modal, personnalise-le comme tu veux -->
-                                        <p><strong>Lieu :</strong> {{ event.lieu }}</p>
-                                        <p><strong>Heure :</strong> {{ event.du|date('H:i') }} - {{ event.au|date('H:i') }}</p>
-                                        <p><strong>Description :</strong> Description de l'événement ici...</p>
                                     </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
-                                    </div>
-                                    </div>
-                                </div>
-                                </div>
 
+                                {% endif %}
                             {% endif %}
-                        {% endif %}
-                    {% endfor %}
-                </td>
-            {% endfor %}
-        </tr>
-        </tbody>
-    </table>
+                        {% endfor %}
+                    </td>
+                {% endfor %}
+            </tr>
+            </tbody>
+        </table>
+    </div>
 
 </div>
 
