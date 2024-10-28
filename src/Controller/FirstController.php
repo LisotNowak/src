@@ -22,6 +22,13 @@ class FirstController extends AbstractController
         return $this->render('accueil.html.twig');
     }
 
+    #[Route('/calculette', name: 'app_calculette')]
+    public function calculette(): Response
+    {
+
+        return $this->render('calculette.html.twig');
+    }
+
     // --------------------------------------------- partie gestion des events --------------------------------------------------------------
 
     private $eventService;
