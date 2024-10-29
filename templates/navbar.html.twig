@@ -37,7 +37,7 @@
             </div>
             <div class="ms-auto d-flex align-items-center"> 
                 {% if app.user %}
-                    <a class="nav-item nav-link text-white">{{ app.user.userIdentifier }}</a>
+                    <a class="nav-item nav-link text-white me-2">{{ app.user.userIdentifier }}</a>
                     <span class="text-white">
                         <button class="btn btn-primary me-2" onclick="window.location.href='/profil'">Mon profil</button>
                         <button class="btn btn-danger me-2" onclick="window.location.href='/logout'">Deconnexion</button>
