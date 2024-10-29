@@ -17,7 +17,7 @@ jobs:
 
       - name: Pull latest changes on the server
         run: |
-          ssh adminartemis@192.168.1.91 "
+          ssh -o StrictHostKeyChecking=no adminartemis@192.168.1.91" && \
           cd /var/www/src && \
           git remote add origin https://github.com/LisotNowak/src.git || true && \
           git pull origin main"
