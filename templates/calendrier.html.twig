@@ -93,7 +93,7 @@
                                         <div class="modal-body">
                                             <p><strong>Lieu :</strong> {{ event.lieu }}</p>
                                             <p><strong>Heure :</strong> {{ event.du|date('H:i') }} - {{ event.au|date('H:i') }}</p>
-                                            <p><strong>Description :</strong> Description de l'événement ici...</p>
+                                            <p><strong>Description :</strong><br /> {{ event.description|nl2br|raw }}</p>
                                         </div>
                                         <div class="modal-footer">
                                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>

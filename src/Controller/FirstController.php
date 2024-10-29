@@ -2,6 +2,7 @@
 // src/Controller/FirstController.php
 namespace App\Controller;
 
+use Symfony\Component\Security\Core\Security;
 use App\Service\EventService;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\HttpFoundation\Request;
@@ -15,19 +16,6 @@ use DateTime;
 
 class FirstController extends AbstractController
 {
-    #[Route('/', name: 'app_accueil')]
-    public function number(): Response
-    {
-
-        return $this->render('accueil.html.twig');
-    }
-
-    #[Route('/calculette', name: 'app_calculette')]
-    public function calculette(): Response
-    {
-
-        return $this->render('calculette.html.twig');
-    }
 
     // --------------------------------------------- partie gestion des events --------------------------------------------------------------
 
@@ -49,18 +37,15 @@ class FirstController extends AbstractController
 
         $allEvents = $this->eventService->fetchEvents();
 
+        $formationEvents = array_filter($allEvents, function($event) {
+            return isset($event['categorie']['nom']) && $event['categorie']['nom'] === 'Formation';
+        });
+
         return $this->render('calendrier.html.twig', [
-            'allEvents' => $allEvents,
+            'allEvents' => $formationEvents,
             'semaine' => $semaine,
             'dateDebut' => $dateDebut,
         ]);
-    }
-
-    #[Route('/generateurSignature', name: 'app_generateur_signature')]
-    public function generateur_signature(): Response
-    {
-
-        return $this->render('generateurSignature.html.twig');
     }
 
     #[Route('/calendrier', name: 'app_calendrier')]

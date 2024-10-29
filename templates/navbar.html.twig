@@ -28,8 +28,11 @@
                 <a class="nav-item nav-link text-white" href="/" aria-current="page">Accueil</a>
                 <a class="nav-item nav-link text-white" href="http://nic/#!/calendar">Calendrier</a>
                 <a class="nav-item nav-link text-white" href="http://nic/RP#!/repas">Repas</a>
+                <a class="nav-item nav-link text-white" href="http://nic/#!/event">Visites</a>
                 <a class="nav-item nav-link text-white" href="/getEvents">Formations</a>
+                {% if app.user %}
                 <a class="nav-item nav-link text-white" href="/calculette">Calculette heure</a>
+                {% endif %}
             </div>
             <div class="ms-auto d-flex align-items-center"> 
                 {% if app.user %}
