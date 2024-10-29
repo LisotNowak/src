@@ -1,24 +1,23 @@
-name: Clone Repository on Remote Server
+name: Git Pull on Server
 
 on:
   push:
     branches:
-      - main
+      - main  # Changez ceci selon la branche que vous souhaitez surveiller
 
 jobs:
-  clone:
+  pull:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout the repository
-        uses: actions/checkout@v2
-
       - name: Set up SSH
         uses: webfactory/ssh-agent@v0.5.3
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: Clone repository on remote server
+      - name: Pull latest changes on the server
         run: |
-          ssh user@remote-server "git clone https://github.com/LisotNowak/src.git /path/to/clone"
-
+          ssh user@your_server "
+          cd /var/www/src && \
+          git remote add origin https://github.com/LisotNowak/src.git || true && \
+          git pull origin main"
