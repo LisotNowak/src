@@ -10,11 +10,17 @@ function calcul(){
     for (let InputHSaisie of listInputHSaisie) {
         
             let hSaisie = parseFloat(InputHSaisie.value);
+            if(isNaN(hSaisie)){
+                hSaisie = 0;
+            }
             totalHSaisie += hSaisie;
             jour = InputHSaisie.id.split('H')[0];
 
 
-                document.getElementById(jour+"HS25").value = 0;
+                document.getElementById(jour+"HS25").value = "";
+                document.getElementById(jour+"HS50").value = "";
+                document.getElementById(jour+"HCompl").value = "";
+
                 //si le total fais plus de 35 h
                 if(totalHSaisie > 35){
 
@@ -49,7 +55,6 @@ function calcul(){
                             document.getElementById(jour+"HS50").value = hSaisie;
                         }
         
-                        console.log(totalHSaisie);
                         if(totalHSaisie >= 49){
 
                             if(totalHSaisie >= 57){
@@ -57,11 +62,13 @@ function calcul(){
                                 if(document.getElementById(jour+"HCompl").value == ""){
                                     document.getElementById(jour+"HCompl").value = 0;
                                 }
-                                console.log(parseFloat(document.getElementById(jour+"HCompl").value));
-                                console.log(parseFloat((56 - 48) * 0.25));
                                 document.getElementById(jour+"HCompl").value = parseFloat(document.getElementById(jour+"HCompl").value) + parseFloat((56 - 48) * 0.25);
-                                // document.getElementById(jour+"HCompl").value += parseFloat((totalHSaisie-57)*0,5);
+                                console.log(jour);
+                                console.log(parseFloat((totalHSaisie - 57) * 0.5));
+                                console.log(document.getElementById(jour+"HCompl").value);
+                                document.getElementById(jour+"HCompl").value = parseFloat(document.getElementById(jour+"HCompl").value) + parseFloat((totalHSaisie - 57) * 0.5);
 
+                            }else if(totalHSaisie < 57){
                             }
                         }
 
@@ -70,12 +77,18 @@ function calcul(){
 
                 // si total <=35 mettre les heures dans h normale
                 }else{
-                    document.getElementById(jour+"HNorm").value = hSaisie;
+
+
+                    document.getElementById(jour+"HNorm").value = parseFloat(hSaisie);
                     totalHNorm += hSaisie;
-                    document.getElementById(jour+"HS25").value = 0;
+
+                    document.getElementById(jour+"HS25").value = "";
                 }
 
                 document.getElementById("dimancheHS50").value = document.getElementsByClassName("dimancheHSaisie")[0].value;
+
+                document.getElementById("totalHsaisie").value = totalHSaisie;
+
     }
 
 }
