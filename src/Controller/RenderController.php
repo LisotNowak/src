@@ -30,12 +30,6 @@ class RenderController extends AbstractController
         return $this->render('organigramme/organigramme.html.twig');
     }
     
-    #[Route('/organigramme/admin', name: 'app_organigramme_admin')]
-    public function organigrammeAdmin(): Response
-    {
-
-        return $this->render('organigramme/organigrammeAdmin.html.twig');
-    }
 
     #[Route('/calculette', name: 'app_calculette')]
     public function calculette(): Response
