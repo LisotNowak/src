@@ -1,0 +1,44 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Téléchargement de fichier{% endblock %}
+
+{% block body %}
+{% include 'navbar.html.twig' %}
+
+<div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card shadow-sm">
+                    <div class="card-header text-center bg-primary text-white">
+                        <h2>Formulaire upload fichier pour organigramme</h2>
+                    </div>
+                    <div class="card-body">
+                        {% for message in app.flashes('success') %}
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+
+                        {% for message in app.flashes('error') %}
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+
+                        {{ form_start(form, {'attr': {'class': 'form'}}) }}
+                            <div class="mb-3">
+                                {{ form_label(form.file, 'Sélectionnez un fichier .txt', {'label_attr': {'class': 'form-label'}}) }}
+                                {{ form_widget(form.file, {'attr': {'class': 'form-control'}}) }}
+                            </div>
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary">Télécharger</button>
+                            </div>
+                        {{ form_end(form) }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

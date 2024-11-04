@@ -1,0 +1,23 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Liste des fichiers{% endblock %}
+
+{% block body %}
+    <div class="container mt-5">
+        <h2 class="mb-4">Liste des fichiers téléchargés</h2>
+
+        {% if files is not empty %}
+            <ul class="list-group">
+                {% for file in files %}
+                    <li class="list-group-item">
+                        <a href="{{ asset('uploads/' ~ file) }}" target="_blank">{{ file }}</a>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <div class="alert alert-warning" role="alert">
+                Aucun fichier trouvé dans le répertoire.
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}

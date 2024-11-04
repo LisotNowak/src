@@ -1,0 +1,26 @@
+{% extends 'base.html.twig' %} 
+{% block title %}Accueil{% endblock %}
+
+
+
+{% block javascripts %}
+
+{% endblock %}
+
+{% block body %}
+{% include 'navbar.html.twig' %}
+
+
+    <h2>Formulaire de Téléchargement de Fichier .txt</h2>
+    
+    <!-- Formulaire pour charger un fichier .txt -->
+    <form action="upload.php" method="post" enctype="multipart/form-data">
+        <label for="file">Sélectionnez un fichier .txt :</label><br><br>
+        <input type="file" id="file" name="file" accept=".txt" required><br><br>
+        <input type="submit" value="Télécharger">
+    </form>
+
+
+
+{% endblock %}
+
