@@ -40,11 +40,11 @@ document.addEventListener('DOMContentLoaded', (event) => {
     chart = new d3.OrgChart()
       .container('.chart-container')
       .data(dataUser)
-      .nodeWidth((d) => 300)
+      .nodeWidth((d) => 400)
       .initialZoom(0.7)
-      .nodeHeight((d) => 175)
+      .nodeHeight((d) => 185)
       .childrenMargin((d) => 40)
-      .compactMarginBetween((d) => 15)
+      .compactMarginBetween((d) => 25)
       .compactMarginPair((d) => 80)
       .linkUpdate(function (d, i, arr) 
       {
@@ -96,22 +96,23 @@ document.addEventListener('DOMContentLoaded', (event) => {
                 <div style="color:#404040;font-size:16px;margin-top:4px"> ${
                   d.data.positionName
                 } </div>
+                <div style="color:#404040;font-size:16px;margin-top:4px"> ${
+                  d.data.tags
+                } </div>
+                <div style="color:#404040;font-size:16px;margin-top:4px"> ${
+                  d.data.area
+                } </div>
             </div> 
             <div style="display:flex;justify-content:space-between;padding-left:15px;padding-right:15px;">
               `
-              if(d.data.mobile != null)
-              {
-                res += `<div > Mobile :  ${d.data.mobile}</div>`;
-              }
-              else
-              {
-                res += `<div></div>`;
-              }
-
-              if(d.data.mail != null)
-              {
-                res += `<div > Mail : ${d.data.mail}</div>`;
-              }
+              // if(d.data.mobile != null)
+              // {
+              //   res += `<div > Mobile :  ${d.data.mobile}</div>`;
+              // }
+              // if(d.data.mail != null)
+              // {
+              //   res += `<div > Mail : ${d.data.mail}</div>`;
+              // }
               res += `        </div>
               </div>     
         </div>`;
