@@ -18,7 +18,7 @@
             <div class="input-group mt-3">
                 <input type="text" class="form-control" placeholder="Search" aria-label="Search" aria-describedby="button-addon2">
                 <div class="input-group-append">
-                  <button class="btn btn-primary" type="button" id="button-addon2"><i class="fas fa-search"></i></button>
+                  <button class="btn btn-primary" type="button" id="button-addon2" disabled><i class="fas fa-search"></i></button>
                 </div>
               </div>
         </div>
@@ -69,16 +69,17 @@
         </div><div class="row mt-4">
       {% endif %}
       <div class="col-md-3">
-        <div class="card">
-          <p>{{ product.reference }}</p>
-          <img class="card-img-top img-fluid" src="https://shop.vogue.fr/cdn/shop/products/VOGUECollection_TShirt_Schwarz_back.jpg?v=1648567836&width=1080" alt="">
-          <div class="card-body">
-            <p class="card-text"><a href="/dota/article?id={{ product.id }}" class="text-dark">{{ product.nom }}</a></p>
-            <p class="card-cost">{{ product.prix }} €</p>
-            <p class="card-cost">{{ product.description }}</p>
+          <div class="card" data-nom="{{ product.nom | lower }}">
+              <p>{{ product.reference }}</p>
+              <img class="card-img-top img-fluid" src="https://shop.vogue.fr/cdn/shop/products/VOGUECollection_TShirt_Schwarz_back.jpg?v=1648567836&width=1080" alt="">
+              <div class="card-body">
+                  <p class="card-text"><a href="/dota/article?id={{ product.id }}" class="text-dark">{{ product.nom }}</a></p>
+                  <p class="card-cost">{{ product.prix }} €</p>
+                  <p class="card-cost">{{ product.description }}</p>
+              </div>
           </div>
-        </div>
       </div>
+
     {% endfor %}
   </div>
 </div>
@@ -95,5 +96,46 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
 <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
 <script src="js/script.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const searchInput = document.querySelector('#searchbar input');
+    const container = document.querySelector('#products .container'); // Conteneur des cartes
+    const columns = Array.from(document.querySelectorAll('.col-md-3')); // Toutes les colonnes
+
+    searchInput.addEventListener('keyup', function () {
+        const query = searchInput.value.toLowerCase();
+        const visibleColumns = [];
+
+        // Filtre les colonnes selon la recherche
+        columns.forEach(column => {
+            const card = column.querySelector('.card'); // Trouvez la carte dans la colonne
+            if (card) { // Vérifiez si la carte existe
+                const productName = card.getAttribute('data-nom'); // Obtenez le nom du produit
+                if (productName.includes(query)) {
+                    column.style.display = ''; // Affiche la colonne
+                    visibleColumns.push(column); // Ajoutez la colonne visible à la liste
+                } else {
+                    column.style.display = 'none'; // Masque complètement la colonne
+                }
+            }
+        });
+
+        // Réorganisez les colonnes visibles en lignes
+        container.innerHTML = ''; // Supprimez toutes les lignes existantes
+        let row = null;
+        visibleColumns.forEach((column, index) => {
+            if (index % 4 === 0) { // Créez une nouvelle ligne toutes les 4 colonnes
+                row = document.createElement('div');
+                row.className = 'row mt-4';
+                container.appendChild(row);
+            }
+            row.appendChild(column); // Ajoutez la colonne à la ligne actuelle
+        });
+    });
+});
+
+
+</script>
 
 {% endblock %}
