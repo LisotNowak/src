@@ -2,6 +2,8 @@
 // src/Controller/RenderController.php
 namespace App\Controller;
 
+use App\Entity\Product;
+use Doctrine\ORM\EntityManagerInterface;
 use App\Service\EventService;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\HttpFoundation\Request;
@@ -42,19 +44,5 @@ class RenderController extends AbstractController
         return $this->redirectToRoute('app_accueil');
 
     }
-
-    
-    #[Route('/generateurSignature', name: 'app_generateur_signature')]
-    public function generateur_signature(): Response
-    {
-        // Vérifiez si l'utilisateur est déjà authentifié
-        if ($this->isGranted('IS_AUTHENTICATED_FULLY')) {
-            // Redirigez l'utilisateur s'il est déjà authentifié
-            return $this->render('generateurSignature.html.twig');
-        }
-        return $this->redirectToRoute('app_accueil');
-        
-    }
-
 
 }

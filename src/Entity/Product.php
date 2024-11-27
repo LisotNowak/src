@@ -14,36 +14,66 @@ class Product
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
-    private ?string $string = null;
+    private ?string $nom = null;
 
     #[ORM\Column]
-    private ?int $price = null;
+    private ?int $prix = null;
+
+    #[ORM\Column(length: 255)]
+    private ?string $reference = null;
+
+    #[ORM\Column(length: 255)]
+    private ?string $description = null;
 
     public function getId(): ?int
     {
         return $this->id;
     }
 
-    public function getString(): ?string
+    public function getNom(): ?string
     {
-        return $this->string;
+        return $this->nom;
     }
 
-    public function setString(string $string): static
+    public function setNom(string $nom): static
     {
-        $this->string = $string;
+        $this->nom = $nom;
 
         return $this;
     }
 
-    public function getPrice(): ?int
+    public function getPrix(): ?int
     {
-        return $this->price;
+        return $this->prix;
     }
 
-    public function setPrice(int $price): static
+    public function setPrix(int $prix): static
     {
-        $this->price = $price;
+        $this->prix = $prix;
+
+        return $this;
+    }
+
+    public function getReference(): ?string
+    {
+        return $this->reference;
+    }
+
+    public function setReference(string $reference): static
+    {
+        $this->reference = $reference;
+
+        return $this;
+    }
+
+    public function getDescription(): ?string
+    {
+        return $this->description;
+    }
+
+    public function setDescription(string $description): static
+    {
+        $this->description = $description;
 
         return $this;
     }
