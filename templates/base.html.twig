@@ -21,6 +21,19 @@
         {% block javascripts %}{% endblock %}
     </head>
     <body>
-        {% block body %}{% endblock %}
+        {% include 'navbar.html.twig' %}
+
+        <div class="d-flex">
+            <!-- Sidebar incluse ici -->
+            {% block sidebar %}
+            {% endblock %}
+            
+            <!-- Contenu principal -->
+            <div class="flex-grow-1 ">
+                {% block body %}
+                    <h1>Welcome to Symfony!</h1>
+                {% endblock %}
+            </div>
+        </div>
     </body>
 </html>
