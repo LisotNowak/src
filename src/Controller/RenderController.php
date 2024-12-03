@@ -24,6 +24,12 @@ class RenderController extends AbstractController
         return $this->render('accueil.html.twig');
     }
 
+    #[Route('/signature', name: 'app_signature')]
+    public function signature(): Response
+    {
+
+        return $this->render('signature.html.twig');
+    }
 
     #[Route('/organigramme', name: 'app_organigramme')]
     public function organigramme(): Response

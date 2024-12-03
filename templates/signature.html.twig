@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Générateur de Signatures</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .signature-preview {
+      border: 1px solid #ddd;
+      padding: 20px;
+      max-width: 500px;
+      margin: 20px auto;
+      display: flex;
+      align-items: flex-start;
+      font-family: Arial, sans-serif;
+    }
+    .signature-preview .text {
+      flex: 2;
+      line-height: 1.6;
+    }
+    .signature-preview .logo {
+      flex: 1;
+      text-align: center;
+      margin-left: 10px;
+    }
+    .signature-preview .logo img {
+      max-width: 120px;
+    }
+    .signature-preview hr {
+      border: 0;
+      border-top: 1px solid #ddd;
+      margin: 10px 0;
+      width: 100%;
+    }
+    .form-control {
+      margin-bottom: 10px;
+    }
+    .btn-copy {
+      display: block;
+      margin: 20px auto;
+    }
+    .vl {
+      border-left: 1px solid black;
+      height: 150px;
+    }
+  </style>
+</head>
+<body>
+
+{% include 'navbar.html.twig' %}
+
+  <div class="container mt-4">
+    <h2 class="text-center">Générateur de Signature d'E-mail</h2>
+
+    <!-- Formulaire -->
+    <form id="signature-form">
+      <div class="row">
+        <div class="col-md-6">
+          <input type="text" id="name" class="form-control" placeholder="Nom complet" required>
+          <input type="text" id="position" class="form-control" placeholder="Poste" required>
+          <input type="text" id="address" class="form-control" placeholder="Adresse" required>
+          <input type="text" id="phone" class="form-control" placeholder="Téléphone" required>
+          <input type="email" id="email" class="form-control" placeholder="E-mail" required>
+        </div>
+        <div class="col-md-6">
+          <input type="text" id="company-name" class="form-control" placeholder="Nom de l'entreprise" required>
+          <input type="file" id="logo-upload" class="form-control" accept="image/*">
+        </div>
+      </div>
+      <button type="button" class="btn btn-primary mt-3" onclick="generateSignature()">Générer Signature</button>
+    </form>
+
+    <!-- Prévisualisation -->
+    <div class="signature-preview mt-4" id="signature-preview">
+      <div class="text">
+        <strong id="preview-name">Nom complet</strong><br>
+        <span id="preview-position">Poste</span><br><br>
+        <span id="preview-address">Adresse</span><br>
+        <span id="preview-phone"><a href="#" id="preview-phone-link">Téléphone</a></span><br>
+        <span id="preview-email"><a href="#" id="preview-email-link">E-mail</a></span>
+      </div>
+      <div class="vl"></div>
+      <div class="logo">
+        <img id="preview-logo" src="" alt="Logo de l'entreprise">
+      </div>
+    </div>
+
+    <!-- Bouton Copier -->
+    <button type="button" class="btn btn-success btn-copy" onclick="copySignatureAsImage()">Copier la Signature en Image</button>
+
+  </div>
+
+  <script>
+    function generateSignature() {
+      const name = document.getElementById('name').value;
+      const position = document.getElementById('position').value;
+      const address = document.getElementById('address').value;
+      const phone = document.getElementById('phone').value;
+      const email = document.getElementById('email').value;
+
+      // Mettre à jour la prévisualisation
+      document.getElementById('preview-name').textContent = name;
+      document.getElementById('preview-position').textContent = position;
+      document.getElementById('preview-address').textContent = address;
+      
+      const emailLink = document.getElementById('preview-email-link');
+      emailLink.textContent = email;
+      emailLink.href = `mailto:${email}`;
+      
+      const phoneLink = document.getElementById('preview-phone-link');
+      phoneLink.textContent = phone;
+      phoneLink.href = `tel:${phone}`;
+    }
+
+    document.getElementById('logo-upload').addEventListener('change', function (event) {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          const previewLogo = document.getElementById('preview-logo');
+          previewLogo.src = e.target.result; // Met à jour l'image
+          previewLogo.style.display = "block"; // Assure l'affichage
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    function copySignatureAsImage() {
+      const signature = document.getElementById('signature-preview');
+
+      html2canvas(signature).then(canvas => {
+        canvas.toBlob(blob => {
+          const item = new ClipboardItem({ 'image/png': blob });
+          navigator.clipboard.write([item]).then(() => {
+            alert('Signature copiée en tant qu\'image dans le presse-papier !');
+          }).catch(err => {
+            console.error('Erreur lors de la copie :', err);
+            alert('Impossible de copier la signature en image.');
+          });
+        });
+      }).catch(err => {
+        console.error('Erreur lors de la capture de l\'image :', err);
+        alert('Impossible de convertir la signature en image.');
+      });
+    }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+</body>
+</html>
