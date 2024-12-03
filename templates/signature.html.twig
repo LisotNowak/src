@@ -127,23 +127,36 @@
     });
 
     function copySignatureAsImage() {
-      const signature = document.getElementById('signature-preview');
+  const signature = document.getElementById('signature-preview');
 
-      html2canvas(signature).then(canvas => {
-        canvas.toBlob(blob => {
-          const item = new ClipboardItem({ 'image/png': blob });
-          navigator.clipboard.write([item]).then(() => {
-            alert('Signature copiée en tant qu\'image dans le presse-papier !');
-          }).catch(err => {
-            console.error('Erreur lors de la copie :', err);
-            alert('Impossible de copier la signature en image.');
-          });
+  html2canvas(signature).then(canvas => {
+    canvas.toBlob(blob => {
+      if (navigator.clipboard && ClipboardItem) {
+        // Si ClipboardItem est supporté
+        const item = new ClipboardItem({ 'image/png': blob });
+        navigator.clipboard.write([item]).then(() => {
+          alert('Signature copiée en tant qu\'image dans le presse-papier !');
+        }).catch(err => {
+          console.error('Erreur lors de la copie :', err);
+          alert('Impossible de copier la signature en image.');
         });
-      }).catch(err => {
-        console.error('Erreur lors de la capture de l\'image :', err);
-        alert('Impossible de convertir la signature en image.');
-      });
-    }
+      } else {
+        // Utiliser execCommand comme fallback
+        const textArea = document.createElement('textarea');
+        document.body.appendChild(textArea);
+        textArea.value = canvas.toDataURL(); // Convertir l'image en base64
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        alert('Signature copiée en tant qu\'image en base64 dans le presse-papier.');
+      }
+    });
+  }).catch(err => {
+    console.error('Erreur lors de la capture de l\'image :', err);
+    alert('Impossible de convertir la signature en image.');
+  });
+}
+
   </script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
