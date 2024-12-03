@@ -16,7 +16,6 @@
 <nav class="navbar navbar-expand-lg bg-vin">
     <div class="container-fluid">
         <a class="navbar-brand text-white" href="#"><h2>Chateau Latour</h2></a>
-        {# <a class="navbar-brand text-white" href="#"><h2>Artémis Domaines</h2></a> #}
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavAltMarkup" aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="white" class="bi bi-list" viewBox="0 0 16 16">
@@ -31,21 +30,29 @@
                 <a class="nav-item nav-link text-white" href="http://nic/RP#!/repas">Repas</a>
                 <a class="nav-item nav-link text-white" href="http://nic/#!/event">Visites</a>
                 <a class="nav-item nav-link text-white" href="/getEvents">Formations</a>
-                {% if app.user %}
-                    <a class="nav-item nav-link text-white" href="/signature">Génerateur signature</a>
-                    <a class="nav-item nav-link text-white" href="/calculette">Calculette heure</a>
-                    <a class="nav-item nav-link text-white" href="/dota">Dotation vestimentaire</a>
-                    <a class="nav-item nav-link text-white" href="/organigramme">Organigramme</a>
-                    <a class="nav-item nav-link text-white" href="/upload">Administer organigramme</a>
-                {% endif %}
 
+                {% if app.user %}
+                <!-- Liste déroulante pour les autres liens -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle text-white" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        Outils
+                    </a>
+                    <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
+                        <li><a class="dropdown-item " href="/signature">Générateur signature</a></li>
+                        <li><a class="dropdown-item " href="/calculette">Calculette heure</a></li>
+                        <li><a class="dropdown-item " href="/dota">Dotation vestimentaire</a></li>
+                        <li><a class="dropdown-item " href="/organigramme">Organigramme</a></li>
+                        <li><a class="dropdown-item " href="/upload">Administer organigramme</a></li>
+                    </ul>
+                </li>
+                {% endif %}
             </div>
             <div class="ms-auto d-flex align-items-center"> 
                 {% if app.user %}
                     <a class="nav-item nav-link text-white me-2">{{ app.user.userIdentifier }}</a>
                     <span class="text-white">
                         <button class="btn btn-primary me-2" onclick="window.location.href='/profil'">Mon profil</button>
-                        <button class="btn btn-danger me-2" onclick="window.location.href='/logout'">Deconnexion</button>
+                        <button class="btn btn-danger me-2" onclick="window.location.href='/logout'">Déconnexion</button>
                     </span>
                 {% else %}
                     <span class="text-white">
@@ -56,6 +63,5 @@
         </div>
     </div>
 </nav>
-
 </body>
 </html>
