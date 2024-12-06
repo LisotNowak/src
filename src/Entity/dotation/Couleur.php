@@ -2,11 +2,11 @@
 
 namespace App\Entity;
 
-use App\Repository\ProductRepository;
+use App\Repository\CouleurRepository;
 use Doctrine\ORM\Mapping as ORM;
 
-#[ORM\Entity(repositoryClass: ProductRepository::class)]
-class Product
+#[ORM\Entity(repositoryClass: CouleurRepository::class)]
+class Couleur
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
