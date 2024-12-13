@@ -1,15 +1,15 @@
 <?php
 
-namespace App\Repository;
+namespace App\Repository\dotation;
 
-use App\Entity\AssociationCouleursArticle;
+use App\Entity\dotation\AssociationCouleursArticle;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
  * @extends ServiceEntityRepository<AssociationCouleursArticle>
  */
-class AssociationCouleursArticleRepository extends ServiceEntityRepository implements PasswordUpgraderInterface
+class AssociationCouleursArticleRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
     {

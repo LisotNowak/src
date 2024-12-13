@@ -18,6 +18,12 @@
 {% extends 'base.html.twig' %} 
 {% block title %}{{ product.nom }}{% endblock %}
 
+
+{% block sidebar %}
+    {% include 'dotation/sidebar.html.twig' with {'active_link': 'null'} %}
+{% endblock %}
+
+
 {% block body %}
 
 

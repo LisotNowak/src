@@ -1,15 +1,15 @@
 <?php
 
-namespace App\Repository;
+namespace App\Repository\dotation;
 
-use App\Entity\Taille;
+use App\Entity\dotation\Taille;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
  * @extends ServiceEntityRepository<Taille>
  */
-class TailleRepository extends ServiceEntityRepository implements PasswordUpgraderInterface
+class TailleRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
     {

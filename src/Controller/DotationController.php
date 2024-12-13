@@ -2,6 +2,10 @@
 // src/Controller/DotationController.php
 namespace App\Controller;
 
+use App\Entity\dotation\Article;
+use App\Entity\dotation\Type;
+use App\Entity\dotation\Taille;
+use App\Entity\dotation\Couleur;
 use App\Entity\Product;
 use Doctrine\ORM\EntityManagerInterface;
 use App\Service\EventService;
@@ -26,10 +30,34 @@ class DotationController extends AbstractController
         if ($this->isGranted('IS_AUTHENTICATED_FULLY')) {
             // Redirigez l'utilisateur s'il est déjà authentifié
 
-            $listProducts = $entityManager->getRepository(Product::class)->findAll();
+            $listeArticles = $entityManager->getRepository(Article::class)->findAll();
 
             return $this->render('dotation/index.html.twig', [
-                'listProducts' => $listProducts,
+                'listeArticles' => $listeArticles,
+            ]);
+        }
+
+        return $this->redirectToRoute('app_accueil');
+        
+    }
+
+    #[Route('/dota/admin', name: 'app_admin_dota')]
+    public function admin_dota(EntityManagerInterface $entityManager): Response
+    {
+        // Vérifiez si l'utilisateur est déjà authentifié
+        if ($this->isGranted('IS_AUTHENTICATED_FULLY')) {
+            // Redirigez l'utilisateur s'il est déjà authentifié
+
+            $listeArticles = $entityManager->getRepository(Article::class)->findAll();
+            $listeTypes = $entityManager->getRepository(Type::class)->findAll();
+            $listeTailles = $entityManager->getRepository(Taille::class)->findAll();
+            $listeCouleurs = $entityManager->getRepository(Couleur::class)->findAll();
+
+            return $this->render('dotation/admin.html.twig', [
+                'listeArticles' => $listeArticles,
+                'listeTypes' => $listeTypes,
+                'listeTailles' => $listeTailles,
+                'listeCouleurs' => $listeCouleurs,
             ]);
         }
 

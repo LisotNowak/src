@@ -3,8 +3,9 @@
 
 
 {% block sidebar %}
-    {% include 'dotation/sidebar.html.twig' %}
+    {% include 'dotation/sidebar.html.twig' with {'active_link': 'catalogue'} %}
 {% endblock %}
+
 
 {% block body %}
 
@@ -65,7 +66,7 @@
 
 <div class="container">
   <div class="row">
-    {% for product in listProducts %}
+    {% for product in listeArticles %}
       {% if loop.index > 4 and (loop.index - 1) % 4 == 0 %}
         </div><div class="row mt-4">
       {% endif %}

@@ -1,24 +1,24 @@
 <?php
 
-namespace App\Repository;
+namespace App\Repository\dotation;
 
-use App\Entity\Couleurs;
+use App\Entity\dotation\Couleur;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
- * @extends ServiceEntityRepository<Couleurs>
+ * @extends ServiceEntityRepository<Couleur>
  */
-class CouleursRepository extends ServiceEntityRepository implements PasswordUpgraderInterface
+class CouleurRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
     {
-        parent::__construct($registry, Couleurs::class);
+        parent::__construct($registry, Couleur::class);
     }
 
 
     //    /**
-    //     * @return Couleurs[] Returns an array of Couleurs objects
+    //     * @return Couleur[] Returns an array of Couleur objects
     //     */
     //    public function findByExampleField($value): array
     //    {
@@ -32,7 +32,7 @@ class CouleursRepository extends ServiceEntityRepository implements PasswordUpgr
     //        ;
     //    }
 
-    //    public function findOneBySomeField($value): ?Couleurs
+    //    public function findOneBySomeField($value): ?Couleur
     //    {
     //        return $this->createQueryBuilder('u')
     //            ->andWhere('u.exampleField = :val')

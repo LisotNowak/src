@@ -1,15 +1,15 @@
 <?php
 
-namespace App\Repository;
+namespace App\Repository\dotation;
 
-use App\Entity\Type;
+use App\Entity\dotation\Type;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
  * @extends ServiceEntityRepository<Type>
  */
-class TypeRepository extends ServiceEntityRepository implements PasswordUpgraderInterface
+class TypeRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
     {

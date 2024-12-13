@@ -1,11 +1,12 @@
 <?php
 
-namespace App\Entity;
+namespace App\Entity\dotation;
 
-use App\Repository\TypeRepository;
+use App\Repository\dotation\TypeRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: TypeRepository::class)]
+#[ORM\Table(name: "type", schema: "dotation")]
 class Type
 {
     #[ORM\Id]

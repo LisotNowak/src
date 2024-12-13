@@ -1,0 +1,132 @@
+{% extends 'base.html.twig' %} 
+{% block title %}Administration{% endblock %}
+
+
+{% block sidebar %}
+    {% include 'dotation/sidebar.html.twig' with {'active_link': 'admin'} %}
+{% endblock %}
+
+
+{% block body %}
+
+
+<div class="container mt-5">
+    <h1 class="text-center">Gestion des Produits</h1>
+
+    <!-- Table des produits -->
+    <div class="mt-4">
+        <h2>Liste des produits</h2>
+        <table class="table table-striped">
+            <thead class="thead-dark">
+                <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">Nom</th>
+                    <th scope="col">Prix</th>
+                    <th scope="col">Type</th>
+                    <th scope="col">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for produit in listeArticles %}
+                <tr>
+                    <th scope="row">{{ produit.id }}</th>
+                    <td>{{ produit.nom }}</td>
+                    <td>{{ produit.prix }} &euro;</td>
+                    <td>{{ produit.nomType }}</td>
+                    <td>
+                        <button class="btn btn-primary btn-sm" onclick="editProduit({{ produit.id }})">Modifier</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteProduit({{ produit.id }})">Supprimer</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Formulaire d'ajout / modification -->
+    <div class="d-flex justify-content-center vh-100">
+    <div class="">
+        <h2 id="form-title"> Ajouter un produit : </h2>
+        <form id="produit-form" method="POST" action="">
+            <input type="hidden" name="id" id="produit-id">
+            <div class="form-group">
+                <label for="produit-reference">Réference</label>
+                <input type="text" class="form-control" id="produit-reference" name="reference" placeholder="Réference du produit" required>
+            </div>
+            <div class="form-group ">
+                <label for="produit-nom">Nom</label>
+                <input type="text" class="form-control" id="produit-nom" name="nom" placeholder="Nom du produit" required>
+            </div>
+            <div class="form-group ">
+                <label for="produit-prix">Prix</label>
+                <input type="number" class="form-control" id="produit-prix" name="prix" placeholder="Prix" required>
+            </div>
+            <div class="form-group ">
+                <label for="produit-description">Description</label>
+                <textarea id="produit-description" class="form-control" name="description" rows="5" cols="33">
+                Description...
+                </textarea>
+            </div>
+            <div class="form-group ">
+                <label for="produit-type">Type</label>
+                <select class="form-control" name="produit-type" id="type">
+                        <option value="">--- Type ---</option>
+                    {% for type in listeTypes %}
+                        <option value="{{ type.id }}">{{ type.nom }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group ">
+                <label for="produit-taille">Taille</label>
+                <select class="form-control" name="produit-taille" id="taille">
+                        <option value="">--- Taille ---</option>
+                    {% for taille in listeTailles %}
+                        <option value="{{ taille.id }}">{{ taille.nom }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group ">
+                <label for="produit-couleur">Couleur</label>
+                <select class="form-control" name="produit-couleur" id="couleur">
+                        <option value="">--- Couleur ---</option>
+                    {% for couleur in listeCouleurs %}
+                        <option value="{{ couleur.id }}">{{ couleur.nom }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-success mt-3">Enregistrer</button>
+        </form>
+    </div>
+</div>
+
+</div>
+
+<script>
+    function editProduit(id) {
+        // Fetch data from your server or DOM to populate the form
+        const produit = {
+            id: id,
+            nom: document.querySelector(`#produit-nom`).value,
+            prix: document.querySelector(`#produit-prix`).value,
+            type: document.querySelector(`#produit-type`).value,
+        };
+
+        // Set form fields
+        document.getElementById('produit-id').value = produit.id;
+        document.getElementById('produit-nom').value = produit.nom;
+        document.getElementById('produit-prix').value = produit.prix;
+        document.getElementById('produit-type').value = produit.nomType;
+
+        // Update form title
+        document.getElementById('form-title').textContent = 'Modifier un produit';
+    }
+
+    function deleteProduit(id) {
+        if (confirm('Voulez-vous vraiment supprimer ce produit ?')) {
+            window.location.href = `/admin/produit/delete/${id}`; // Change this to match your route
+        }
+    }
+</script>
+
+
+{% endblock %}

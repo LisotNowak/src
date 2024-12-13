@@ -1,11 +1,12 @@
 <?php
 
-namespace App\Entity;
+namespace App\Entity\dotation;
 
-use App\Repository\CouleurRepository;
+use App\Repository\dotation\CouleurRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: CouleurRepository::class)]
+#[ORM\Table(name: "couleur", schema: "dotation")]
 class Couleur
 {
     #[ORM\Id]

@@ -1,11 +1,12 @@
 <?php
 
-namespace App\Entity;
+namespace App\Entity\dotation;
 
-use App\Repository\TailleRepository;
+use App\Repository\dotation\TailleRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: TailleRepository::class)]
+#[ORM\Table(name: "taille", schema: "dotation")]
 class Taille
 {
     #[ORM\Id]

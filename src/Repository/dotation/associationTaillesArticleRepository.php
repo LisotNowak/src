@@ -1,15 +1,15 @@
 <?php
 
-namespace App\Repository;
+namespace App\Repository\dotation;
 
-use App\Entity\AssociationTailleArticle;
+use App\Entity\dotation\AssociationTailleArticle;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
  * @extends ServiceEntityRepository<AssociationTailleArticle>
  */
-class AssociationTailleArticleRepository extends ServiceEntityRepository implements PasswordUpgraderInterface
+class AssociationTailleArticleRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
     {
