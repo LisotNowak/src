@@ -29,6 +29,9 @@ class Article
     #[ORM\Column(length: 255)]
     private ?string $nomType = null;
 
+    #[ORM\Column]
+    private ?int $point = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -90,6 +93,18 @@ class Article
     public function setNomType(string $nomType): static
     {
         $this->nomType = $nomType;
+
+        return $this;
+    }
+
+    public function getPoint(): ?int
+    {
+        return $this->point;
+    }
+
+    public function setPoint(int $point): static
+    {
+        $this->point = $point;
 
         return $this;
     }

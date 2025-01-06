@@ -1,6 +1,12 @@
 {% extends 'base.html.twig' %} 
 {% block title %}Dotation vestimentaire{% endblock %}
 
+
+{% block sidebar %}
+    {% include 'dotation/sidebar.html.twig' with {'active_link': 'null'} %}
+{% endblock %}
+
+
 {% block body %}
 
 
@@ -16,7 +22,7 @@
         </div>
         <div class="col-md-3 mt-2" id="icons">
           
-         <a href="/dota/panier"> <div class="circle float-right mr-2"><i class="fas fa-shopping-cart text-primary"></i><sup><span class="badge badge-danger" style="width: 23px;">0</span></sup></div>
+         <a href="/dota/panier"> <div class="circle float-right mr-2"><i class="fas fa-shopping-cart text-primary"></i><sup><span class="badge badge-danger" style="width: 23px;">{{ nombreArticles }}</span></sup></div>
          </a>
         </div>
     </div>
@@ -53,6 +59,7 @@
                   <h5 class="text-muted pt-2">{{ article.nom }}</h5>
                   <p class="text-uppercase font-weight-light">{{ article.reference }}</p>
                   <div class="linespace mb-4">
+                  <p class="text-muted mt-4">Points : {{ article.point }}P</p>
                   <p class="text-muted mt-4">{{ article.description }}</p>
                   <p class="text-muted">Taille : {{ article.taille }}</p>
                   </div>
@@ -78,16 +85,21 @@
           <table class="table table-borderless pt-2">
            
             <tbody>
+             {% set totalPoints = 0 %}
+            {% for article in panier %}
               <tr>
-                <th scope="row" class="font-weight-light">Product Amount</th>
-                <td>$179.00</td>
+                <th scope="row" class="font-weight-light">{{ article.nom }} X {{article.quantite }}</th>
+                <td>{{ article.point * article.quantite }}P</td>
+                {% set totalPoints = totalPoints + article.point * article.quantite %}
+
               </tr>
+            {% endfor %}
             </tbody>
           </table>
           <hr>
-          <h6 class="pl-2 pt-1">Total :<span class="float-right">$279.00</span></h6>
+          <h6 class="pl-2 pt-1">Total :<span class="float-right">{{totalPoints}}P</spanS></h6>
           <hr>
-          <button class="btn btn-primary mt-2"><a href="checkout.html" class="text-white"><i class="fas fa-shopping-bag pr-2"></i>Proceed to Checkout</a></button>
+          <button class="btn btn-primary mt-2"><a href="checkout.html" class="text-white"><i class="fas fa-shopping-bag pr-2"></i>Valider le panier</a></button>
         </div>
         </div>
 

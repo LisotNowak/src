@@ -6,7 +6,7 @@ use App\Entity\dotation\Article;
 use App\Entity\dotation\Type;
 use App\Entity\dotation\Taille;
 use App\Entity\dotation\Couleur;
-use App\Entity\Product;
+// use App\Entity\Article;
 use Doctrine\ORM\EntityManagerInterface;
 use App\Service\EventService;
 use Symfony\Component\Routing\Attribute\Route;
@@ -24,16 +24,19 @@ use Symfony\Component\HttpKernel\HttpKernelInterface;
 class DotationController extends AbstractController
 {
     #[Route('/dota', name: 'app_index_dota')]
-    public function index_dota(EntityManagerInterface $entityManager): Response
+    public function index_dota(EntityManagerInterface $entityManager, SessionInterface $session): Response
     {
         // Vérifiez si l'utilisateur est déjà authentifié
         if ($this->isGranted('IS_AUTHENTICATED_FULLY')) {
             // Redirigez l'utilisateur s'il est déjà authentifié
 
             $listeArticles = $entityManager->getRepository(Article::class)->findAll();
+            $panier = $session->get('cart', []); 
+            $nombreArticles = count($panier); 
 
             return $this->render('dotation/index.html.twig', [
                 'listeArticles' => $listeArticles,
+                'nombreArticles' => $nombreArticles,
             ]);
         }
 
@@ -85,7 +88,7 @@ class DotationController extends AbstractController
             $panier = $session->get('cart', []); 
             $nombreArticles = count($panier); 
 
-            $product = $entityManager->getRepository(Product::class)->find($id);
+            $product = $entityManager->getRepository(Article::class)->find($id);
 
             return $this->render('dotation/productpage.html.twig', [
                 'product' => $product,
@@ -108,31 +111,36 @@ class DotationController extends AbstractController
         $cart = $session->get('cart', []);
 
         // Vérifier si l'article est déjà dans le panier
-        if (isset($cart[$productId])) {
-            // Si le produit est déjà dans le panier, on ajuste la quantité
-            $cart[$productId]['quantity'] += $quantity;
+        if (isset($cart[$productId.$size])) {
+            if ($cart[$productId.$size]['taille'] == $size) {
+                // Si le produit est déjà dans le panier avec la meme taille, on ajuste la quantité
+                $cart[$productId.$size]['quantite'] += $quantity;
+            }
+            
         } else {
             // Sinon, on ajoute le produit avec sa quantité et taille
-            $cart[$productId] = [
+            $cart[$productId.$size] = [
                 'id' => $productId,
                 'quantite' => $quantity,
-                'nom' => $entityManager->getRepository(Product::class)->find($productId)->getNom(),
-                'reference' => $entityManager->getRepository(Product::class)->find($productId)->getReference(),
-                'description' => $entityManager->getRepository(Product::class)->find($productId)->getDescription(),
-                'prix' => $entityManager->getRepository(Product::class)->find($productId)->getPrix(),
-                'taille' => $size
+                'nom' => $entityManager->getRepository(Article::class)->find($productId)->getNom(),
+                'reference' => $entityManager->getRepository(Article::class)->find($productId)->getReference(),
+                'description' => $entityManager->getRepository(Article::class)->find($productId)->getDescription(),
+                'prix' => $entityManager->getRepository(Article::class)->find($productId)->getPrix(),
+                'taille' => $size,
+                'point' => $entityManager->getRepository(Article::class)->find($productId)->getPoint()
             ];
         }
 
         // Sauvegarder le panier dans la session
         $session->set('cart', $cart);
 
+        $listeArticles = $entityManager->getRepository(Article::class)->findAll();
         $panier = $session->get('cart', []); 
         $nombreArticles = count($panier); 
 
-        return $this->redirectToRoute('app_article_dota', [
-            'id' => $productId,        // Paramètre id
-            'nbpannier' => $nombreArticles,   // Paramètre nbpannier
+        return $this->render('dotation/index.html.twig', [
+            'listeArticles' => $listeArticles,
+            'nombreArticles' => $nombreArticles,
         ]);
 
         return new Response('OK', Response::HTTP_OK);
@@ -150,7 +158,7 @@ class DotationController extends AbstractController
             $panier = $session->get('cart', []); 
             $nombreArticles = count($panier); 
 
-            // $product = $entityManager->getRepository(Product::class)->find($id);
+            // $product = $entityManager->getRepository(Article::class)->find($id);
 
             return $this->render('dotation/panier.html.twig', [
                 'panier' => $panier,

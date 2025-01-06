@@ -20,6 +20,7 @@
             <thead class="thead-dark">
                 <tr>
                     <th scope="col">#</th>
+                    <th scope="col">Ref</th>
                     <th scope="col">Nom</th>
                     <th scope="col">Prix</th>
                     <th scope="col">Type</th>
@@ -30,6 +31,7 @@
                 {% for produit in listeArticles %}
                 <tr>
                     <th scope="row">{{ produit.id }}</th>
+                    <td>{{ produit.reference }}</td>
                     <td>{{ produit.nom }}</td>
                     <td>{{ produit.prix }} &euro;</td>
                     <td>{{ produit.nomType }}</td>
@@ -76,24 +78,43 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="form-group ">
-                <label for="produit-taille">Taille</label>
-                <select class="form-control" name="produit-taille" id="taille">
-                        <option value="">--- Taille ---</option>
+            <div class="form-group">
+                <label for="produit-taille">Tailles :</label>
+                <div id="taille">
                     {% for taille in listeTailles %}
-                        <option value="{{ taille.id }}">{{ taille.nom }}</option>
+                        <div class="form-check form-check-inline">
+                            <input 
+                                class="form-check-input" 
+                                type="checkbox" 
+                                name="produit-taille" 
+                                id="taille-{{ taille.id }}" 
+                                value="{{ taille.id }}">
+                            <label class="form-check-label" for="taille-{{ taille.id }}">
+                                {{ taille.nom }}
+                            </label>
+                        </div>
                     {% endfor %}
-                </select>
+                </div>
             </div>
-            <div class="form-group ">
+           <div class="form-group">
                 <label for="produit-couleur">Couleur</label>
-                <select class="form-control" name="produit-couleur" id="couleur">
-                        <option value="">--- Couleur ---</option>
+                <div id="couleur">
                     {% for couleur in listeCouleurs %}
-                        <option value="{{ couleur.id }}">{{ couleur.nom }}</option>
+                        <div class="form-check form-check-inline">
+                            <input 
+                                class="form-check-input" 
+                                type="checkbox" 
+                                name="produit-couleur" 
+                                id="couleur-{{ couleur.id }}" 
+                                value="{{ couleur.id }}">
+                            <label class="form-check-label" for="couleur-{{ couleur.id }}">
+                                {{ couleur.nom }}
+                            </label>
+                        </div>
                     {% endfor %}
-                </select>
+                </div>
             </div>
+
             <button type="submit" class="btn btn-success mt-3">Enregistrer</button>
         </form>
     </div>
