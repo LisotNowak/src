@@ -41,6 +41,7 @@ class FirstController extends AbstractController
             return isset($event['categorie']['nom']) && $event['categorie']['nom'] === 'Formation';
         });
 
+
         return $this->render('calendrier.html.twig', [
             'allEvents' => $formationEvents,
             'semaine' => $semaine,
