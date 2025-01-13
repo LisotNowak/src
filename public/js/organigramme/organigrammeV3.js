@@ -2,7 +2,9 @@ var chart;
 //name,imageUrl,area,profileUrl,office,tags,isLoggedUser,positionName,id,parentId,size
 //https://raw.githubusercontent.com/bumbeishvili/sample-data/main/org.csv
 
-
+function escapeForJS(str) {
+  return str.replace(/'/g, "\\'");
+}
 
 var dataUser
 
@@ -61,67 +63,57 @@ document.addEventListener('DOMContentLoaded', (event) => {
           d3.select(this).raise();
         }
       })
-      .nodeContent(function (d, i, arr, state) 
-      {
-
-        const colors = ['#6E6B6F','#18A8B6','#F45754','#96C62C','#BD7E16','#802F74'];
+      .nodeContent(function (d, i, arr, state) {
+        const colors = ['#6E6B6F', '#18A8B6', '#F45754', '#96C62C', '#BD7E16', '#802F74'];
         const color = colors[d.depth % colors.length];
-        const imageDim = 80;
-        const lightCircleDim = 95;
-        const outsideCircleDim = 110;
-        res = `
-        <div style="padding-top:30px;background-color:none;margin-left:1px;height:${
-          d.height
-        }px;border-radius:2px;overflow:visible">
-          <div style="height:${
-            d.height - 32
-          }px;padding-top:0px;background-color:white;border:1px solid lightgray;" data-bs-target="#modalInfos" data-bs-toggle="modal" onclick="viewProfil('${d.data.nni}','${d.data.imageUrl}')">
-
-          <img src=" ${
-              d.data.imageUrl
-            }" style="margin-top:-30px;margin-left:${d.width / 2 - 30}px;border-radius:100px;width:60px;height:60px;" />
-
-            <div style="margin-right:10px;margin-top:15px;float:right">${
-            ""
-            }</div>
-            
-            <div style="margin-top:-30px;background-color:${color};height:10px;width:${
-              d.width - 2
-            }px;border-radius:1px"></div>
-
-            <div style="padding:20px; padding-top:35px;text-align:center">
-                <div style="color:#111672;font-size:16px;font-weight:bold"> ${
-                  d.data.name
-                }</div>
-                <div style="color:#404040;font-size:16px;margin-top:4px"> ${
-                  d.data.tags
-                } </div>
-                <div style="color:#404040;font-size:16px;margin-top:4px"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-diagram-2-fill" viewBox="0 0 16 16">
-  <path fill-rule="evenodd" d="M6 3.5A1.5 1.5 0 0 1 7.5 2h1A1.5 1.5 0 0 1 10 3.5v1A1.5 1.5 0 0 1 8.5 6v1H11a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-1 0V8h-5v.5a.5.5 0 0 1-1 0v-1A.5.5 0 0 1 5 7h2.5V6A1.5 1.5 0 0 1 6 4.5zm-3 8A1.5 1.5 0 0 1 4.5 10h1A1.5 1.5 0 0 1 7 11.5v1A1.5 1.5 0 0 1 5.5 14h-1A1.5 1.5 0 0 1 3 12.5zm6 0a1.5 1.5 0 0 1 1.5-1.5h1a1.5 1.5 0 0 1 1.5 1.5v1a1.5 1.5 0 0 1-1.5 1.5h-1A1.5 1.5 0 0 1 9 12.5z"/>
-</svg> ${
-                  d.data.positionName
-                } </div>
-                <div style="color:#404040;font-size:16px;margin-top:4px"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-building-fill" viewBox="0 0 16 16">
-  <path d="M3 0a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h3v-3.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5V16h3a1 1 0 0 0 1-1V1a1 1 0 0 0-1-1zm1 2.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3.5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5M4 5.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zM7.5 5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5m2.5.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zM4.5 8h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5m2.5.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3.5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5"/>
-</svg> ${
-                  d.data.area
-                } </div>
-            </div> 
-            <div style="display:flex;justify-content:space-between;padding-left:15px;padding-right:15px;">
-              `
-              // if(d.data.mobile != null)
-              // {
-              //   res += `<div > Mobile :  ${d.data.mobile}</div>`;
-              // }
-              // if(d.data.mail != null)
-              // {
-              //   res += `<div > Mail : ${d.data.mail}</div>`;
-              // }
-              res += `        </div>
-              </div>     
+    
+        // Vérification des conditions
+        const hasPositionOrArea = d.data.positionName || d.data.area;
+    
+        let res = `
+        <div style="padding-top:30px;background-color:none;margin-left:1px;height:${d.height}px;border-radius:2px;overflow:visible">
+          <div style="height:${d.height - 32}px;padding-top:0px;background-color:white;border:1px solid lightgray;${
+            hasPositionOrArea
+              ? `" data-bs-target="#modalInfos" data-bs-toggle="modal" onclick="viewProfil('${d.data.name}','${d.data.positionName}','${escapeForJS(d.data.tags)}','${d.data.mobile}','${d.data.mail}','${d.data.area}')"`
+              : `"`
+          }>
+          
+          <img src="${d.data.imageUrl}" style="margin-top:-30px;margin-left:${d.width / 2 - 30}px;border-radius:100px;width:60px;height:60px;" />
+    
+          <div style="margin-right:10px;margin-top:15px;float:right">${""}</div>
+          
+          <div style="margin-top:-30px;background-color:${color};height:10px;width:${d.width - 2}px;border-radius:1px"></div>
+    
+          <div style="padding:20px; padding-top:35px;text-align:center">
+              <div style="color:#111672;font-size:16px;font-weight:bold"> ${d.data.name}</div>
+              <div style="color:#404040;font-size:16px;margin-top:4px"> ${d.data.tags} </div>
+              ${
+                d.data.positionName
+                  ? `<div style="color:#404040;font-size:16px;margin-top:4px">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-diagram-2-fill" viewBox="0 0 16 16">
+                        <path fill-rule="evenodd" d="M6 3.5A1.5 1.5 0 0 1 7.5 2h1A1.5 1.5 0 0 1 10 3.5v1A1.5 1.5 0 0 1 8.5 6v1H11a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-1 0V8h-5v.5a.5.5 0 0 1-1 0v-1A.5.5 0 0 1 5 7h2.5V6A1.5 1.5 0 0 1 6 4.5zm-3 8A1.5 1.5 0 0 1 4.5 10h1A1.5 1.5 0 0 1 7 11.5v1A1.5 1.5 0 0 1 5.5 14h-1A1.5 1.5 0 0 1 3 12.5zm6 0a1.5 1.5 0 0 1 1.5-1.5h1a1.5 1.5 0 0 1 1.5 1.5v1a1.5 1.5 0 0 1-1.5 1.5h-1A1.5 1.5 0 0 1 9 12.5z"/>
+                      </svg> ${d.data.positionName} 
+                    </div>`
+                  : ""
+              }
+              ${
+                d.data.area
+                  ? `<div style="color:#404040;font-size:16px;margin-top:4px">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-building-fill" viewBox="0 0 16 16">
+                        <path d="M3 0a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h3v-3.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5V16h3a1 1 0 0 0 1-1V1a1 1 0 0 0-1-1zm1 2.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3.5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5M4 5.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zM7.5 5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5m2.5.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3.5-.5h1a.5.5 0 0 1 .5-.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5"/>
+                      </svg> ${d.data.area} 
+                    </div>`
+                  : ""
+              }
+          </div>
+          <div style="display:flex;justify-content:space-between;padding-left:15px;padding-right:15px;">
+          </div>
+          </div>     
         </div>`;
-    return res;
-      })
+        return res;
+    })
+    
+    
       .render();
 
       document.getElementsByClassName("svg-chart-container").width = "100%";
@@ -143,111 +135,23 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
 });
 
-function viewProfil(nni, imgUrl)
+function viewProfil(nom, positionName, tags, mobile, mail, area)
     {
-      $.ajax({
-        url: "/annuaire/organigramme-profil/profil",
-        type: "POST",
-        async: false,
-        data:
-        {
-          'nni' : nni,
-        },
-        success: function (data) 
-        {
-          document.getElementById("prenomModal").textContent = data[0].prenom + " " + data[0].nom;
-          document.getElementById("serviceModal").textContent = data[0].service + " " + data[0].section;
-          document.getElementById("superieurModal").textContent = data[0].superieur;
+          document.getElementById("prenomModal").textContent = nom;
+          document.getElementById("serviceModal").textContent = positionName;
+          document.getElementById("telMobileModal").textContent = mobile;
+          document.getElementById("mailModal").textContent = mail;
+          document.getElementById("domaineModal").textContent = area;
+          document.getElementById("missionModal").textContent = tags;
 
-          if(data[0].fonction != null)
-          {
-            document.getElementById("fonctionModal").textContent = data[0].fonction;
-          }
-          else
-          {
-            document.getElementById("fonctionModal").textContent = "";
-          }
-
-          if(data[0].specialite != null)
-          {
-            document.getElementById("specialiteModal").textContent = data[0].specialite;
-          }
-          else
-          {
-            document.getElementById("specialiteModal").textContent = "";
-          }
-
-          if(data[0].telMobile != null)
-          {
-            // On ajoute un espace tous les 2 caractères pour le num tél mobile
-            document.getElementById("telMobileModal").textContent = data[0].telMobile.replace(/(.{2})(?!$)/g,"$1 ");
-          }
-          else
-          {
-            document.getElementById("telMobileModal").textContent = "";
-          }
-          
-          if(data[0].telConnect != null)
-          {
-            document.getElementById("telConnectModal").textContent = data[0].telConnect;
-          }
-          else
-          {
-            document.getElementById("telConnectModal").textContent = "";
-          }
-
-          if(data[0].mail != null)
-          {
-            document.getElementById("mailModal").textContent = data[0].mail;
-          }
-          else
-          {
-            document.getElementById("mailModal").textContent = "";
-          }
-
-          if(data[0].batiment != null && data[0].etage != null && data[0].bureau != null)
-          {
-            document.getElementById("batimentModal").textContent = data[0].batiment + " " + data[0].etage + " - " + data[0].bureau;
-          }
-          else
-          {
-            if(data[0].batiment != null && data[0].etage != null)
-            {
-              document.getElementById("batimentModal").textContent = data[0].batiment + " " + data[0].etage;
-            }
-            else
-            {
-              document.getElementById("batimentModal").textContent = "";
-            }
-          }
-          
-          if(data[0].listeMissions != null)
-          {
-            document.getElementById("missionsModal").textContent = data[0].listeMissions;
-          }
-          else
-          {
-            document.getElementById("missionsModal").textContent = "";
-          }
-
-          if(data[0].pui != null)
-          {
-            document.getElementById("puiModal").textContent = data[0].pui;
-          }
-          else
-          {
-            document.getElementById("puiModal").textContent = "";
-          }
-          
-          document.getElementById("photoModal").style = "background: url(" + imgUrl +") no-repeat center center ;background-size: cover;"; 
-          document.getElementById("btnModifier").href = "/profil/" + nni;
-
-          document.getElementById("btnOrganigramme").href = "/annuaire/organigramme/" + data[0].service;
-          document.getElementById("btnOrganigrammeEquipe").hidden="true";
-          document.getElementById("btnOrganigramme").hidden="true";
           
 
-        },
-      });
+
+          
+          // document.getElementById("superieurModal").textContent = data[0].superieur;
+
+          
+
+        
     }
 
