@@ -66,7 +66,7 @@
     {
         "isLoggedUser":  "false",
         "nni":  "DSANCHEZ",
-        "positionName":  "Direction Général",
+        "positionName":  "Direction Générale",
         "office":  "",
         "name":  "Domingo Sanchez",
         "id":  "DSANCHEZ",
@@ -114,7 +114,7 @@
     {
         "isLoggedUser":  "false",
         "nni":  "PHCHABOT",
-        "positionName":  "Direction Général",
+        "positionName":  "Direction Générale",
         "office":  "",
         "name":  "Pierre Henri Chabot",
         "id":  "PHCHABOT",
@@ -130,7 +130,7 @@
     {
         "isLoggedUser":  "false",
         "nni":  "dorian",
-        "positionName":  "Direction Général",
+        "positionName":  "Direction Générale",
         "office":  "",
         "name":  "Dorian Fages",
         "id":  "dorian",
@@ -162,7 +162,7 @@
     {
         "isLoggedUser":  "false",
         "nni":  "chloe",
-        "positionName":  "Direction Général",
+        "positionName":  "Direction Générale",
         "office":  "",
         "name":  "Chloé Hervault",
         "id":  "chloe",
@@ -194,7 +194,7 @@
     {
         "isLoggedUser":  "false",
         "nni":  "HELENE",
-        "positionName":  "Direction Général",
+        "positionName":  "Direction Générale",
         "office":  "",
         "name":  "Hélène Genin",
         "id":  "HELENE",
@@ -210,7 +210,7 @@
     {
         "isLoggedUser":  "false",
         "nni":  "vincent.m",
-        "positionName":  "Direction Général",
+        "positionName":  "Direction Générale",
         "office":  "",
         "name":  "Vincent Maratrat",
         "id":  "vincent.m",
@@ -226,7 +226,7 @@
     {
         "isLoggedUser":  "false",
         "nni":  "severine",
-        "positionName":  "Service Conditionnement",
+        "positionName":  "Service Conditionnement et Expéditions",
         "office":  "",
         "name":  "Séverine Dupuy",
         "id":  "severine",
@@ -282,7 +282,7 @@
         "area":  "Chateau Grillet",
         "size":  "",
         "parentId":  "a.houeto",
-        "tags":  "Chef de culture",
+        "tags":  "Chef de Culture",
         "imageUrl":  "../img/default.png",
         "profileUrl":  "",
         "mobile":  null
@@ -305,6 +305,22 @@
     },
     {
         "isLoggedUser":  "false",
+        "nni":  "marine.a",
+        "positionName":  "Service Majordome",
+        "office":  "",
+        "name":  "Marine Ardouin",
+        "id":  "marine.a",
+        "mail":  "m.ardouin@chateau-latour.com",
+        "area":  "Chateau Latour",
+        "size":  "",
+        "parentId":  "julien",
+        "tags":  "Employée de service",
+        "imageUrl":  "../img/default.png",
+        "profileUrl":  "",
+        "mobile":  "06 98 89 90 12"
+    },
+    {
+        "isLoggedUser":  "false",
         "nni":  "claire.m",
         "positionName":  "Direction Général",
         "office":  "",
@@ -322,7 +338,7 @@
     {
         "isLoggedUser":  "false",
         "nni":  "michael.n",
-        "positionName":  "Direction Général",
+        "positionName":  "Direction Générale",
         "office":  "",
         "name":  "Michael Nycek",
         "id":  "michael.n",
@@ -386,7 +402,7 @@
     {
         "isLoggedUser":  "false",
         "nni":  "aline.l",
-        "positionName":  "Service Conditionnement",
+        "positionName":  "Service Conditionnement et Expéditions",
         "office":  "",
         "name":  "Aline Lopez",
         "id":  "aline.l",
@@ -402,7 +418,7 @@
     {
         "isLoggedUser":  "false",
         "nni":  "frederic.e.artemis",
-        "positionName":  null,
+        "positionName":  "Direction Générale",
         "office":  "",
         "name":  "F Engerer",
         "id":  "frederic.e.artemis",
@@ -410,7 +426,7 @@
         "area":  "Artemis Domaines",
         "size":  "",
         "parentId":  "frederic.e.artemis",
-        "tags":  null,
+        "tags":  "Président Directeur Générale",
         "imageUrl":  "../img/default.png",
         "profileUrl":  "",
         "mobile":  null
@@ -418,7 +434,7 @@
     {
         "isLoggedUser":  "false",
         "nni":  "jean.g.artemis",
-        "positionName":  "Direction Général",
+        "positionName":  "Direction Générale",
         "office":  "",
         "name":  "J Garandeau",
         "id":  "jean.g.artemis",
@@ -474,7 +490,7 @@
         "area":  "Clos de Tart",
         "size":  "",
         "parentId":  "alessandro",
-        "tags":  "Epmloyée de service",
+        "tags":  "Employée de service",
         "imageUrl":  "../img/default.png",
         "profileUrl":  "",
         "mobile":  null
@@ -514,7 +530,7 @@
     {
         "isLoggedUser":  "false",
         "nni":  "camille.q",
-        "positionName":  "Direction Général",
+        "positionName":  "Direction Générale",
         "office":  "",
         "name":  "Camille Quaranta",
         "id":  "camille.q",
@@ -573,12 +589,12 @@
         "tags":  "Contrôleur Qualité Vigne",
         "imageUrl":  "../img/default.png",
         "profileUrl":  "",
-        "mobile":  "06 64 22 57 42"
+        "mobile":  "06 86 00 53 61"
     },
     {
         "isLoggedUser":  "false",
         "nni":  "simon.m",
-        "positionName":  "Direction Général",
+        "positionName":  "Direction Générale",
         "office":  "",
         "name":  "Simon Maglione",
         "id":  "simon.m",
@@ -594,7 +610,7 @@
     {
         "isLoggedUser":  "false",
         "nni":  "attila.s",
-        "positionName":  "Systeme d\u0027Information",
+        "positionName":  "Système d\u0027Information",
         "office":  "",
         "name":  "Attila Santosi",
         "id":  "attila.s",
@@ -666,7 +682,7 @@
         "area":  "Chateau Latour",
         "size":  "",
         "parentId":  "DSANCHEZ",
-        "tags":  "Chef de secteur",
+        "tags":  "Chef de secteur - Travaux mécanisés",
         "imageUrl":  "../img/default.png",
         "profileUrl":  "",
         "mobile":  "06 86 37 82 83"
@@ -722,7 +738,7 @@
     {
         "isLoggedUser":  "false",
         "nni":  "jerome.g",
-        "positionName":  "Service Conditionnement",
+        "positionName":  "Service Conditionnement et Expéditions",
         "office":  "",
         "name":  "Jérome Giuliani",
         "id":  "jerome.g",
@@ -817,22 +833,6 @@
     },
     {
         "isLoggedUser":  "false",
-        "nni":  "emilie.b",
-        "positionName":  null,
-        "office":  "",
-        "name":  "Emilie Brion",
-        "id":  "emilie.b",
-        "mail":  "e.brion@chateau-latour.com",
-        "area":  "Chateau Latour",
-        "size":  "",
-        "parentId":  "dorian",
-        "tags":  "Stage Ingérieure",
-        "imageUrl":  "../img/default.png",
-        "profileUrl":  "",
-        "mobile":  null
-    },
-    {
-        "isLoggedUser":  "false",
         "nni":  "sebastien.d",
         "positionName":  "Service Atelier",
         "office":  "",
@@ -865,24 +865,8 @@
     },
     {
         "isLoggedUser":  "false",
-        "nni":  "leo.b",
-        "positionName":  "R\u0026D",
-        "office":  "",
-        "name":  "Léo Bentolila",
-        "id":  "leo.b",
-        "mail":  "l.bentolila@chateau-latour.com",
-        "area":  "Chateau Latour",
-        "size":  "",
-        "parentId":  "michael.n",
-        "tags":  null,
-        "imageUrl":  "../img/default.png",
-        "profileUrl":  "",
-        "mobile":  "06 74 59 21 44"
-    },
-    {
-        "isLoggedUser":  "false",
         "nni":  "philippe.l",
-        "positionName":  "Direction Général",
+        "positionName":  "Direction Générale",
         "office":  "",
         "name":  "Philippe Laroque",
         "id":  "philippe.l",
@@ -898,7 +882,7 @@
     {
         "isLoggedUser":  "false",
         "nni":  "oriane.h",
-        "positionName":  "Direction Général",
+        "positionName":  "Direction Générale",
         "office":  "",
         "name":  "Oriane Heuillet",
         "id":  "oriane.h",
@@ -930,7 +914,7 @@
     {
         "isLoggedUser":  "false",
         "nni":  "jeremy.c",
-        "positionName":  "Direction Général",
+        "positionName":  "Direction Générale",
         "office":  "",
         "name":  "Jérémy Cukierman",
         "id":  "jeremy.c",
@@ -971,22 +955,6 @@
         "size":  "",
         "parentId":  "chloe.o",
         "tags":  "Hôte d\u0027accueil polyvalent",
-        "imageUrl":  "../img/default.png",
-        "profileUrl":  "",
-        "mobile":  null
-    },
-    {
-        "isLoggedUser":  "false",
-        "nni":  "amelie.g",
-        "positionName":  null,
-        "office":  "",
-        "name":  "Amélie Guerci",
-        "id":  "amelie.g",
-        "mail":  "a.guerci@chateau-latour.com",
-        "area":  "Chateau Latour",
-        "size":  "",
-        "parentId":  "michael.n",
-        "tags":  null,
         "imageUrl":  "../img/default.png",
         "profileUrl":  "",
         "mobile":  null
@@ -1042,7 +1010,7 @@
     {
         "isLoggedUser":  "false",
         "nni":  "lisot.n",
-        "positionName":  "Systeme d\u0027Information",
+        "positionName":  "Système d\u0027Information",
         "office":  "",
         "name":  "Lisot Nowak",
         "id":  "lisot.n",
