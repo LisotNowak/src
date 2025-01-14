@@ -67,7 +67,12 @@ document.addEventListener('DOMContentLoaded', (event) => {
         const colors = ['#6E6B6F', '#18A8B6', '#F45754', '#96C62C', '#BD7E16', '#802F74'];
         const color = colors[d.depth % colors.length];
     
-        // Vérification des conditions
+        // Vérification des conditions pour la source de l'image
+        const imageUrl =
+            d.data.imageUrl !== "../img/default.png"
+                ? `data:image/jpeg;base64,${d.data.imageUrl}`
+                : d.data.imageUrl;
+    
         const hasPositionOrArea = d.data.positionName || d.data.area;
     
         let res = `
@@ -78,7 +83,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
               : `"`
           }>
           
-          <img src="data:image/jpeg;base64,${d.data.imageUrl}" style="margin-top:-30px;margin-left:${d.width / 2 - 30}px;border-radius:100px;width:60px;height:60px;" />
+          <img src="${imageUrl}" style="margin-top:-30px;margin-left:${d.width / 2 - 30}px;border-radius:100px;width:60px;height:60px;" />
     
           <div style="margin-right:10px;margin-top:15px;float:right">${""}</div>
           
@@ -112,6 +117,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
         </div>`;
         return res;
     })
+    
     
     
       .render();
