@@ -78,7 +78,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
               : `"`
           }>
           
-          <img src="${d.data.imageUrl}" style="margin-top:-30px;margin-left:${d.width / 2 - 30}px;border-radius:100px;width:60px;height:60px;" />
+          <img src="data:image/jpeg;base64,${d.data.imageUrl}" style="margin-top:-30px;margin-left:${d.width / 2 - 30}px;border-radius:100px;width:60px;height:60px;" />
     
           <div style="margin-right:10px;margin-top:15px;float:right">${""}</div>
           
