@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
         <div style="padding-top:30px;background-color:none;margin-left:1px;height:${d.height}px;border-radius:2px;overflow:visible">
           <div style="height:${d.height - 32}px;padding-top:0px;background-color:white;border:1px solid lightgray;${
             hasPositionOrArea
-              ? `" data-bs-target="#modalInfos" data-bs-toggle="modal" onclick="viewProfil('${d.data.name}','${d.data.positionName}','${escapeForJS(d.data.tags)}','${d.data.mobile}','${d.data.mail}','${d.data.area}')"`
+              ? `" data-bs-target="#modalInfos" data-bs-toggle="modal" onclick="viewProfil('${d.data.name}','${d.data.positionName}','${escapeForJS(d.data.tags)}','${d.data.mobile}','${d.data.mail}','${d.data.area}','${d.data.imageUrl}')"`
               : `"`
           }>
           
@@ -135,7 +135,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
 });
 
-function viewProfil(nom, positionName, tags, mobile, mail, area)
+function viewProfil(nom, positionName, tags, mobile, mail, area, imageUrl)
     {
           document.getElementById("prenomModal").textContent = nom;
           document.getElementById("serviceModal").textContent = positionName;
@@ -143,6 +143,14 @@ function viewProfil(nom, positionName, tags, mobile, mail, area)
           document.getElementById("mailModal").textContent = mail;
           document.getElementById("domaineModal").textContent = area;
           document.getElementById("missionModal").textContent = tags;
+
+          console.log(imageUrl);
+          if(imageUrl != "../img/default.png"){
+            document.getElementById("photoModal").style = "background: url(data:image/jpeg;base64,"+imageUrl+") no-repeat center center ;background-size: cover;";
+          }else{
+            document.getElementById("photoModal").style = "background: url(/../img/default.png) no-repeat center center ;background-size: cover;";
+          }
+
 
           
 
