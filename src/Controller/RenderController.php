@@ -43,11 +43,12 @@ class RenderController extends AbstractController
     public function calculette(): Response
     {
         // Vérifiez si l'utilisateur est déjà authentifié
-        // if ($this->isGranted('IS_AUTHENTICATED_FULLY')) {
-        //     // Redirigez l'utilisateur s'il est déjà authentifié
-        //     return $this->render('calculette.html.twig');
-        // }
-        return $this->redirectToRoute('app_accueil');
+        if ($this->isGranted('IS_AUTHENTICATED_FULLY')) {
+            // Redirigez l'utilisateur s'il est déjà authentifié
+            return $this->render('calculette.html.twig');
+        }else{
+            return $this->redirectToRoute('app_accueil');
+        }
 
     }
 
