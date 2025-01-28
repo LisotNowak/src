@@ -82,10 +82,19 @@ function calcul() {
                         }
     
                         if (totalHSaisie >= 57) {
-                            document.getElementById(jour + "HCompl").value = parseFloat(
-                                document.getElementById(jour + "HCompl").value || 0
-                            ) + parseFloat((56 - 48) * 0.25) +
-                                parseFloat((totalHSaisie - 56) * 0.5);
+                            if(document.getElementById(jour+"HCompl").value == ""){
+                                document.getElementById(jour+"HCompl").value = 0;
+                            }
+                            console.log(jour);
+
+                            if(jour == "dimanche"){
+                                document.getElementById(jour+"HCompl").value = parseFloat(document.getElementById(jour+"HCompl").value) + parseFloat((56 - 48) * 0.25);
+                                document.getElementById(jour+"HCompl").value = parseFloat(document.getElementById(jour+"HCompl").value) + parseFloat((totalHSaisie - 56) * 0.5);
+                                
+                            }else{
+                                document.getElementById(jour+"HCompl").value = parseFloat(document.getElementById(jour+"HCompl").value) + parseFloat((56 - 48) * 0.25);
+                                document.getElementById(jour+"HCompl").value = parseFloat(document.getElementById(jour+"HCompl").value) + parseFloat((totalHSaisie - 56) * 0.5);
+                            }
                         }
                     }
                 }
@@ -97,7 +106,7 @@ function calcul() {
     
     
             if (InputHSaisie.classList.contains('dimancheHSaisie')) {
-                document.getElementById(jour+"HCompl").value = parseFloat(document.getElementById(jour+"HCompl").value) + hSaisie;
+                document.getElementById(jour+"HRepComp").value = parseFloat(document.getElementById(jour+"HRepComp").value) + hSaisie;
             }
     
     
