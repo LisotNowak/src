@@ -1,117 +1,111 @@
-function calcul(){
+// Afficher le modal automatiquement au chargement de la page
+document.addEventListener("DOMContentLoaded", function () {
+    const devWarningModal = new bootstrap.Modal(document.getElementById('devWarningModal'));
+    devWarningModal.show();
+  });
 
+
+function calcul() {
     let totalHSaisie = 0;
     let totalHNorm = 0;
     let totalH25 = 0;
 
+    // Réinitialisation de tous les champs calculés
+    const allHSaisieInputs = document.getElementsByClassName("HSaisie");
+    const allCalculatedFields = document.querySelectorAll(
+        ".HNorm, .HS25, .HS50, .HCompl, .HRepComp, .dimancheHRepComp"
+    );
 
-    let listInputHSaisie = document.getElementsByClassName("HSaisie");
+    // Réinitialiser les champs calculés
+    allCalculatedFields.forEach(field => {
+        field.value = "";
+    });
 
-    for (let InputHSaisie of listInputHSaisie) {
-        
-            let hSaisie = parseFloat(InputHSaisie.value);
-            if(isNaN(hSaisie)){
-                hSaisie = 0;
-            }
+    // Parcourir les entrées pour effectuer le calcul
+    for (let InputHSaisie of allHSaisieInputs) {
+        let hSaisie = parseFloat(InputHSaisie.value);
+        if (isNaN(hSaisie)) {
+            hSaisie = 0;
+        }else{
+
             totalHSaisie += hSaisie;
-            jour = InputHSaisie.id.split('H')[0];
 
+            // Vérifier si le total dépasse 60h
+            if (totalHSaisie > 60) {
+                const alertModal = new bootstrap.Modal(document.getElementById('alertModal'));
+                alertModal.show();
+                // return; // Bloquer l'exécution du reste de la fonction
+            }
 
-                document.getElementById(jour+"HS25").value = "";
-                document.getElementById(jour+"HS50").value = "";
-                document.getElementById(jour+"HCompl").value = "";
-
-                //si le total fais plus de 35 h
-                if(totalHSaisie > 35){
-
-
-                    if(totalHSaisie <= 43){
-
-                        if(totalHNorm < 35){
-                            document.getElementById(jour+"HNorm").value = 35 - totalHNorm;
-                            totalHNorm += (35 - totalHNorm);
-                            document.getElementById(jour+"HS25").value = totalHSaisie - 35;
-                            totalH25 += (totalHSaisie - 35);
-
-                        }else{
-                            document.getElementById(jour+"HS25").value = hSaisie;
-                            totalH25 += hSaisie;
-                        }
-                        
-                    }else{
-
-                        if(totalH25 < 8){
-                            if((8 - totalH25) > 0){
-                                document.getElementById(jour+"HS25").value = (8 - totalH25);
-                                totalH25 += (8 - totalH25);
-                                document.getElementById(jour+"HS50").value = hSaisie - document.getElementById(jour+"HS25").value;
-
-
-                            }else{
-                                console.log(totalHNorm);
-                                // document.getElementById(jour+"HS25").value = 8 - totalHNorm
-                            }
-                        }else{
-                            document.getElementById(jour+"HS50").value = hSaisie;
-                        }
-        
-                        if(totalHSaisie >= 49 & totalHSaisie <= 60){
-
-                            if(document.getElementById(jour+"HRepComp").value == ""){
-                                document.getElementById(jour+"HRepComp").value = 0;
-                            }
-
-                            // Sélectionner tous les éléments avec la classe "HRepComp"
-                            const elements = document.querySelectorAll('.HRepComp');
-
-                            // Parcourir chaque élément et définir sa valeur à 0
-                            elements.forEach(element => {
-                            element.value = "";
-                            });
-
-
-                            if(document.getElementById(jour+"HSaisie").value != 0){
-                                console.log(jour);
-                                console.log(document.getElementById(jour+"HSaisie").value);
-                                document.getElementById(jour+"HRepComp").value = (totalHSaisie - 48) * 0.25;
-                            }
-
-                            if(totalHSaisie >= 57){
-
-                                if(document.getElementById(jour+"HCompl").value == ""){
-                                    document.getElementById(jour+"HCompl").value = 0;
-                                }
-                                document.getElementById(jour+"HCompl").value = parseFloat(document.getElementById(jour+"HCompl").value) + parseFloat((56 - 48) * 0.25);
-                                console.log(jour);
-                                console.log(parseFloat((totalHSaisie - 57) * 0.5));
-                                console.log(document.getElementById(jour+"HCompl").value);
-                                document.getElementById(jour+"HCompl").value = parseFloat(document.getElementById(jour+"HCompl").value) + parseFloat((totalHSaisie - 56) * 0.5);
-
-                            }else if(totalHSaisie < 57){
-                            }
-                        }
-
+            let jour = InputHSaisie.id.split('H')[0];
+    
+            // Réinitialiser les champs du jour en cours
+            document.getElementById(jour + "HS25").value = "";
+            document.getElementById(jour + "HS50").value = "";
+            document.getElementById(jour + "HCompl").value = "";
+    
+            // Calcul des heures selon les règles
+            if (totalHSaisie > 35) {
+                if (totalHSaisie <= 43) {
+                    if (totalHNorm < 35) {
+                        let normHours = 35 - totalHNorm;
+                        document.getElementById(jour + "HNorm").value = normHours;
+                        totalHNorm += normHours;
+    
+                        let hs25 = totalHSaisie - 35;
+                        document.getElementById(jour + "HS25").value = hs25;
+                        totalH25 += hs25;
+                    } else {
+                        document.getElementById(jour + "HS25").value = hSaisie;
+                        totalH25 += hSaisie;
                     }
-
-
-                // si total <=35 mettre les heures dans h normale
-                }else{
-
-
-                    document.getElementById(jour+"HNorm").value = parseFloat(hSaisie);
-                    totalHNorm += hSaisie;
-
-                    document.getElementById(jour+"HS25").value = "";
+                } else {
+                    if (totalH25 < 8) {
+                        let remaining25 = Math.max(0, 8 - totalH25);
+                        document.getElementById(jour + "HS25").value = remaining25;
+                        totalH25 += remaining25;
+    
+                        let hs50 = hSaisie - remaining25;
+                        document.getElementById(jour + "HS50").value = hs50;
+                    } else {
+                        document.getElementById(jour + "HS50").value = hSaisie;
+                    }
+    
+                    if (totalHSaisie >= 49 && totalHSaisie <= 60) {
+                        document.querySelectorAll('.HRepComp').forEach(field => {
+                            field.value = "";
+                        });
+    
+                        if (document.getElementById(jour + "HSaisie").value != 0) {
+                            document.getElementById(jour + "HRepComp").value =
+                                (totalHSaisie - 48) * 0.25;
+                        }
+    
+                        if (totalHSaisie >= 57) {
+                            document.getElementById(jour + "HCompl").value = parseFloat(
+                                document.getElementById(jour + "HCompl").value || 0
+                            ) + parseFloat((56 - 48) * 0.25) +
+                                parseFloat((totalHSaisie - 56) * 0.5);
+                        }
+                    }
                 }
+            } else {
+                document.getElementById(jour + "HNorm").value = hSaisie;
+                totalHNorm += hSaisie;
+                document.getElementById(jour + "HS25").value = "";
+            }
+    
+    
+            if (InputHSaisie.classList.contains('dimancheHSaisie')) {
+                document.getElementById(jour+"HCompl").value = parseFloat(document.getElementById(jour+"HCompl").value) + hSaisie;
+            }
+    
+    
+            document.getElementById("dimancheHS50").value = document.getElementsByClassName("dimancheHSaisie")[0].value;
+    
+            document.getElementById("totalHsaisie").value = totalHSaisie;
+        }
 
-                document.getElementById("dimancheHS50").value = document.getElementsByClassName("dimancheHSaisie")[0].value;
-
-                if(document.getElementsByClassName("dimancheHSaisie")[0].value != 0){
-                    document.getElementById("totalHsaisie").value = totalHSaisie + parseFloat(document.getElementsByClassName("dimancheHSaisie")[0].value);
-                }else{
-                    document.getElementById("totalHsaisie").value = totalHSaisie;
-                }
-
+        
     }
-
 }

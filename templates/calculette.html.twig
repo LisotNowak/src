@@ -12,6 +12,47 @@
 
 {% include 'navbar.html.twig' %}
 
+  <!-- Modal -->
+  <div class="modal fade" id="devWarningModal" tabindex="-1" aria-labelledby="devWarningModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header bg-warning">
+          <h5 class="modal-title" id="devWarningModalLabel">⚠️ Attention : Page en cours de développement</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p>
+            Cette page est actuellement en cours de développement. Certaines fonctionnalités peuvent être incomplètes ou comporter des erreurs
+            de calcul. Nous vous remercions de votre compréhension et vous invitons à signaler tout problème rencontré.
+          </p>
+          <div class="alert alert-secondary" role="alert">
+            <strong>Note :</strong> Vos retours sont précieux pour améliorer cette page. Merci !
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+          <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Compris</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="alertModal" tabindex="-1" aria-labelledby="alertModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="alertModalLabel">Alerte</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Le total des heures saisies dépasse 60h. Veuillez vérifier votre saisie.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 
 <div class="container mt-5">
@@ -41,12 +82,12 @@
                 <td><input id="lundiHSaisie" type="number" class="form-control HSaisie" onKeyUp="calcul()"></td>
                 <td><input id="lundiHNorm" type="number" class="form-control HNorm" disabled></td>
                 <td><input id="lundiHRepComp" type="number" class="form-control HRepComp" disabled></td>
-                <td><input id="lundiHCompl" type="number" class="form-control" disabled></td>
+                <td><input id="lundiHCompl" type="number" class="form-control HCompl" disabled></td>
                 <td><input id="lundiHS10" type="number" class="form-control" disabled></td>
                 <td><input id="lundiHRepComp10" type="number" class="form-control" disabled></td>
-                <td><input id="lundiHS25" type="number" class="form-control" disabled></td>
+                <td><input id="lundiHS25" type="number" class="form-control HS25" disabled></td>
                 <td><input id="lundiHRepComp25" type="number" class="form-control" disabled></td>
-                <td><input id="lundiHS50" type="number" class="form-control" disabled></td>
+                <td><input id="lundiHS50" type="number" class="form-control HS50" disabled></td>
                 <td><input id="lundiHRepComp50" type="number" class="form-control" disabled></td>
                 <td><input id="lundiHS100" type="number" class="form-control" disabled></td>
                 <td><input id="lundiHRepComp100" type="number" class="form-control" disabled></td>
@@ -57,12 +98,12 @@
                 <td><input id="mardiHSaisie" type="number" class="form-control HSaisie" onKeyUp="calcul()"></td>
                 <td><input id="mardiHNorm" type="number" class="form-control HNorm" disabled></td>
                 <td><input id="mardiHRepComp" type="number" class="form-control HRepComp" disabled></td>
-                <td><input id="mardiHCompl" type="number" class="form-control" disabled></td>
+                <td><input id="mardiHCompl" type="number" class="form-control HCompl" disabled></td>
                 <td><input id="mardiHS10" type="number" class="form-control" disabled></td>
                 <td><input id="mardiHRepComp10" type="number" class="form-control" disabled></td>
-                <td><input id="mardiHS25" type="number" class="form-control" disabled></td>
+                <td><input id="mardiHS25" type="number" class="form-control HS25" disabled></td>
                 <td><input id="mardiHRepComp25" type="number" class="form-control" disabled></td>
-                <td><input id="mardiHS50" type="number" class="form-control" disabled></td>
+                <td><input id="mardiHS50" type="number" class="form-control HS50" disabled></td>
                 <td><input id="mardiHRepComp50" type="number" class="form-control" disabled></td>
                 <td><input id="mardiHS100" type="number" class="form-control" disabled></td>
                 <td><input id="mardiHRepComp100" type="number" class="form-control" disabled></td>
@@ -73,12 +114,12 @@
                 <td><input id="mercrediHSaisie" type="number" class="form-control HSaisie" onKeyUp="calcul()"></td>
                 <td><input id="mercrediHNorm" type="number" class="form-control HNorm" disabled></td>
                 <td><input id="mercrediHRepComp" type="number" class="form-control HRepComp" disabled></td>
-                <td><input id="mercrediHCompl" type="number" class="form-control" disabled></td>
+                <td><input id="mercrediHCompl" type="number" class="form-control HCompl" disabled></td>
                 <td><input id="mercrediHS10" type="number" class="form-control" disabled></td>
                 <td><input id="mercrediHRepComp10" type="number" class="form-control" disabled></td>
-                <td><input id="mercrediHS25" type="number" class="form-control" disabled></td>
+                <td><input id="mercrediHS25" type="number" class="form-control HS25" disabled></td>
                 <td><input id="mercrediHRepComp25" type="number" class="form-control" disabled></td>
-                <td><input id="mercrediHS50" type="number" class="form-control" disabled></td>
+                <td><input id="mercrediHS50" type="number" class="form-control HS50" disabled></td>
                 <td><input id="mercrediHRepComp50" type="number" class="form-control" disabled></td>
                 <td><input id="mercrediHS100" type="number" class="form-control" disabled></td>
                 <td><input id="mercrediHRepComp100" type="number" class="form-control" disabled></td>
@@ -89,12 +130,12 @@
                 <td><input id="jeudiHSaisie" type="number" class="form-control HSaisie" onKeyUp="calcul()"></td>
                 <td><input id="jeudiHNorm" type="number" class="form-control HNorm" disabled></td>
                 <td><input id="jeudiHRepComp" type="number" class="form-control HRepComp" disabled></td>
-                <td><input id="jeudiHCompl" type="number" class="form-control" disabled></td>
+                <td><input id="jeudiHCompl" type="number" class="form-control HCompl" disabled></td>
                 <td><input id="jeudiHS10" type="number" class="form-control" disabled></td>
                 <td><input id="jeudiHRepComp10" type="number" class="form-control" disabled></td>
-                <td><input id="jeudiHS25" type="number" class="form-control" disabled></td>
+                <td><input id="jeudiHS25" type="number" class="form-control HS25" disabled></td>
                 <td><input id="jeudiHRepComp25" type="number" class="form-control" disabled></td>
-                <td><input id="jeudiHS50" type="number" class="form-control" disabled></td>
+                <td><input id="jeudiHS50" type="number" class="form-control HS50" disabled></td>
                 <td><input id="jeudiHRepComp50" type="number" class="form-control" disabled></td>
                 <td><input id="jeudiHS100" type="number" class="form-control" disabled></td>
                 <td><input id="jeudiHRepComp100" type="number" class="form-control" disabled></td>
@@ -105,12 +146,12 @@
                 <td><input id="vendrediHSaisie" type="number" class="form-control HSaisie" onKeyUp="calcul()"></td>
                 <td><input id="vendrediHNorm" type="number" class="form-control HNorm" disabled></td>
                 <td><input id="vendrediHRepComp" type="number" class="form-control HRepComp" disabled></td>
-                <td><input id="vendrediHCompl" type="number" class="form-control" disabled></td>
+                <td><input id="vendrediHCompl" type="number" class="form-control HCompl" disabled></td>
                 <td><input id="vendrediHS10" type="number" class="form-control" disabled></td>
                 <td><input id="vendrediHRepComp10" type="number" class="form-control" disabled></td>
-                <td><input id="vendrediHS25" type="number" class="form-control" disabled></td>
+                <td><input id="vendrediHS25" type="number" class="form-control HS25" disabled></td>
                 <td><input id="vendrediHRepComp25" type="number" class="form-control" disabled></td>
-                <td><input id="vendrediHS50" type="number" class="form-control" disabled></td>
+                <td><input id="vendrediHS50" type="number" class="form-control HS50" disabled></td>
                 <td><input id="vendrediHRepComp50" type="number" class="form-control" disabled></td>
                 <td><input id="vendrediHS100" type="number" class="form-control" disabled></td>
                 <td><input id="vendrediHRepComp100" type="number" class="form-control" disabled></td>
@@ -121,12 +162,12 @@
                 <td><input id="samediHSaisie" type="number" class="form-control HSaisie" onKeyUp="calcul()"></td>
                 <td><input id="samediHNorm" type="number" class="form-control HNorm" disabled></td>
                 <td><input id="samediHRepComp" type="number" class="form-control HRepComp" disabled></td>
-                <td><input id="samediHCompl" type="number" class="form-control" disabled></td>
+                <td><input id="samediHCompl" type="number" class="form-control HCompl" disabled></td>
                 <td><input id="samediHS10" type="number" class="form-control" disabled></td>
                 <td><input id="samediHRepComp10" type="number" class="form-control" disabled></td>
-                <td><input id="samediHS25" type="number" class="form-control" disabled></td>
+                <td><input id="samediHS25" type="number" class="form-control HS25" disabled></td>
                 <td><input id="samediHRepComp25" type="number" class="form-control" disabled></td>
-                <td><input id="samediHS50" type="number" class="form-control" disabled></td>
+                <td><input id="samediHS50" type="number" class="form-control HS50" disabled></td>
                 <td><input id="samediHRepComp50" type="number" class="form-control" disabled></td>
                 <td><input id="samediHS100" type="number" class="form-control" disabled></td>
                 <td><input id="samediHRepComp100" type="number" class="form-control" disabled></td>
@@ -134,15 +175,15 @@
             </tr>
             <tr>
                 <td>Dimanche</td>
-                <td><input id="dimancheHSaisie" type="number" class="form-control dimancheHSaisie" onKeyUp="calcul()"></td>
+                <td><input id="dimancheHSaisie" type="number" class="form-control HSaisie dimancheHSaisie" onKeyUp="calcul()"></td>
                 <td><input id="dimancheHNorm" type="number" class="form-control HNorm" disabled></td>
-                <td><input id="dimancheHRepComp" type="number" class="form-control" disabled></td>
-                <td><input id="dimancheHCompl" type="number" class="form-control" disabled></td>
+                <td><input id="dimancheHRepComp" type="number" class="form-control dimancheHRepComp" disabled></td>
+                <td><input id="dimancheHCompl" type="number" class="form-control HCompl" disabled></td>
                 <td><input id="dimancheHS10" type="number" class="form-control" disabled></td>
                 <td><input id="dimancheHRepComp10" type="number" class="form-control" disabled></td>
-                <td><input id="dimancheHS25" type="number" class="form-control" disabled></td>
+                <td><input id="dimancheHS25" type="number" class="form-control HS25" disabled></td>
                 <td><input id="dimancheHRepComp25" type="number" class="form-control" disabled></td>
-                <td><input id="dimancheHS50" type="number" class="form-control" disabled></td>
+                <td><input id="dimancheHS50" type="number" class="form-control HS50" disabled></td>
                 <td><input id="dimancheHRepComp50" type="number" class="form-control" disabled></td>
                 <td><input id="dimancheHS100" type="number" class="form-control" disabled></td>
                 <td><input id="dimancheHRepComp100" type="number" class="form-control" disabled></td>
