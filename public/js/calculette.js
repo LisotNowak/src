@@ -117,4 +117,54 @@ function calcul() {
 
         
     }
+    
+    // Appeler la fonction après le calcul
+    updateTotalHCompl();
+    
+
 }
+
+function updateTotalHCompl() {
+    let totalHCompl = 0;
+    const allHComplInputs = document.getElementsByClassName("HCompl");
+
+    // Étape 1 : Additionner toutes les valeurs de la colonne "H. Compl."
+    for (let input of allHComplInputs) {
+        let hComplValue = parseFloat(input.value);
+        if (!isNaN(hComplValue)) {
+            totalHCompl += hComplValue;
+        }
+    }
+
+    console.log("Total H. Compl.:", totalHCompl);
+
+    // Étape 2 : Trouver la dernière ligne où "H. Effectuée" est > 0
+    const allRows = document.querySelectorAll("tr");
+    let lastRowWithHEffectuee = null;
+
+    allRows.forEach(row => {
+        let hEffectueeInput = row.querySelector(".HSaisie");
+        if (hEffectueeInput) {
+            let hEffectueeValue = parseFloat(hEffectueeInput.value);
+            if (!isNaN(hEffectueeValue) && hEffectueeValue > 0) {
+                lastRowWithHEffectuee = row; // Met à jour la dernière ligne trouvée
+            }
+        }
+    });
+
+    console.log("Dernière ligne avec H. Effectuée:", lastRowWithHEffectuee);
+
+    // Étape 3 : Réinitialiser toutes les valeurs de la colonne "H. Compl."
+    for (let input of allHComplInputs) {
+        input.value = ""; // Vide toutes les valeurs
+    }
+
+    // Étape 4 : Insérer la somme des "H. Compl." dans la dernière ligne trouvée
+    if (lastRowWithHEffectuee) {
+        let targetInput = lastRowWithHEffectuee.querySelector(".HCompl");
+        if (targetInput) {
+            targetInput.value = totalHCompl.toFixed(2);
+        }
+    }
+}
+
