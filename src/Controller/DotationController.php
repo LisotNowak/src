@@ -6,6 +6,9 @@ use App\Entity\dotation\Article;
 use App\Entity\dotation\Type;
 use App\Entity\dotation\Taille;
 use App\Entity\dotation\Couleur;
+use App\Entity\dotation\AssociationCouleursArticle;
+use App\Entity\dotation\AssociationTaillesArticle;
+
 // use App\Entity\Article;
 use Doctrine\ORM\EntityManagerInterface;
 use App\Service\EventService;
@@ -23,6 +26,136 @@ use Symfony\Component\HttpKernel\HttpKernelInterface;
 
 class DotationController extends AbstractController
 {
+
+    #[Route('/dota/article', name: 'get_article', methods: ['POST'])]
+    public function getArticle(Request $request, EntityManagerInterface $entityManager): Response
+    {
+        $id = $request->request->get('id');
+
+        $article = $entityManager->getRepository(Article::class)->find($id);
+
+        if (!$article) {
+            return $this->json(['error' => 'Article non trouvé'], Response::HTTP_NOT_FOUND);
+        }
+
+        // Récupérer les tailles et couleurs associées
+        $tailles = $entityManager->getRepository(AssociationTaillesArticle::class)->findBy(['idArticle' => $id]);
+        $couleurs = $entityManager->getRepository(AssociationCouleursArticle::class)->findBy(['idArticle' => $id]);
+
+        
+
+        $tableauTailles = array_map(fn($t) => $entityManager->getRepository(Taille::class)->findOneByNom($t->getNomTaille())->getId(), $tailles);
+        $tableauCouleurs = array_map(fn($c) => $entityManager->getRepository(Couleur::class)->findOneByNom($c->getNomCouleur())->getId(), $couleurs);
+
+
+        $data = [
+            'reference' => $article->getReference(),
+            'nom' => $article->getNom(),
+            'prix' => $article->getPrix(),
+            'point' => $article->getPoint(),
+            'descriptions' => $article->getDescription(),
+            'type' => $entityManager->getRepository(Type::class)->findOneByNom($article->getNomType())->getId(),
+            'tableauTailles' => $tableauTailles,
+            'tableauCouleurs' => $tableauCouleurs,
+        ];
+
+        return $this->json($data);
+    }
+
+    #[Route('/dota/article/delete/{id}', name: 'delete_article', methods: ['GET', 'DELETE'])]
+    public function deleteArticle(int $id, EntityManagerInterface $entityManager): Response
+    {
+        $article = $entityManager->getRepository(Article::class)->find($id);
+
+        if (!$article) {
+            return new Response('Article non trouvé', Response::HTTP_NOT_FOUND);
+        }
+
+        $entityManager->remove($article);
+        $entityManager->flush();
+
+        return $this->redirectToRoute('app_admin_dota');
+    }
+
+
+    #[Route('/dota/article/save', name: 'save_article', methods: ['POST'])]
+    public function saveArticle(Request $request, EntityManagerInterface $entityManager): Response
+    {
+        $id = $request->request->get('id');
+        $reference = $request->request->get('reference');
+        $nom = $request->request->get('nom');
+        $prix = $request->request->get('prix');
+        $point = $request->request->get('point');
+        $description = $request->request->get('description');
+        $typeId = $request->request->get('produit-type');
+        $tailleIds = $request->request->all('produit-taille'); // Array de tailles sélectionnées
+        $couleurIds = $request->request->all('produit-couleur'); // Array de couleurs sélectionnées
+
+        // Vérification si c'est une modification ou un ajout
+        if ($id) {
+            $article = $entityManager->getRepository(Article::class)->find($id);
+            if (!$article) {
+                return new Response('Article non trouvé', Response::HTTP_NOT_FOUND);
+            }
+        } else {
+            $article = new Article();
+        }
+
+        // Mise à jour des champs
+        $article->setReference($reference);
+        $article->setNom($nom);
+        $article->setPrix($prix);
+        $article->setPoint($point);
+        $article->setDescription($description);
+
+        // Gestion du type
+        if ($typeId) {
+            $type = $entityManager->getRepository(Type::class)->find($typeId);
+            if ($type) {
+                $article->setNomType($type->getNom());
+            }
+        }
+
+        $entityManager->persist($article);
+        $entityManager->flush(); // On flush pour avoir l'ID de l'article disponible
+
+        // // Supprimer les anciennes associations tailles/couleurs
+        // $entityManager->createQuery('DELETE FROM App\Entity\dotation\AssociationTaillesArticle ata WHERE ata.idArticle = :article')
+        //     ->setParameter('article', $article->getId())
+        //     ->execute();
+
+        // $entityManager->createQuery('DELETE FROM App\Entity\dotation\AssociationCouleursArticle aca WHERE aca.id_article = :article')
+        //     ->setParameter('article', $article->getId())
+        //     ->execute();
+
+        // Ajout des nouvelles associations avec tailles
+        foreach ($tailleIds as $tailleId) {
+            $taille = $entityManager->getRepository(Taille::class)->find($tailleId);
+            if ($taille) {
+                $assocTaille = new AssociationTaillesArticle();
+                $assocTaille->setId(2);
+                $assocTaille->setIdArticle($article->getId());
+                $assocTaille->setNomTaille($taille->getNom());
+                $entityManager->persist($assocTaille);
+            }
+        }
+
+        // Ajout des nouvelles associations avec couleurs
+        foreach ($couleurIds as $couleurId) {
+            $couleur = $entityManager->getRepository(Couleur::class)->find($couleurId);
+            if ($couleur) {
+                $assocCouleur = new AssociationCouleursArticle();
+                $assocCouleur->setIdArticle($article->getId());
+                $assocCouleur->setNomCouleur($couleur->getNom());
+                $entityManager->persist($assocCouleur);
+            }
+        }
+
+        $entityManager->flush();
+
+        return $this->redirectToRoute('app_admin_dota');
+    }
+
     #[Route('/dota', name: 'app_index_dota')]
     public function index_dota(EntityManagerInterface $entityManager, SessionInterface $session): Response
     {

@@ -1,14 +1,11 @@
-{% extends 'base.html.twig' %} 
+{% extends 'base.html.twig' %}  
 {% block title %}Administration{% endblock %}
-
 
 {% block sidebar %}
     {% include 'dotation/sidebar.html.twig' with {'active_link': 'admin'} %}
 {% endblock %}
 
-
 {% block body %}
-
 
 <div class="container mt-5">
     <h1 class="text-center">Gestion des Produits</h1>
@@ -22,7 +19,7 @@
                     <th scope="col">#</th>
                     <th scope="col">Ref</th>
                     <th scope="col">Nom</th>
-                    <th scope="col">Prix</th>
+                    <th scope="col">Point</th>
                     <th scope="col">Type</th>
                     <th scope="col">Actions</th>
                 </tr>
@@ -33,7 +30,7 @@
                     <th scope="row">{{ produit.id }}</th>
                     <td>{{ produit.reference }}</td>
                     <td>{{ produit.nom }}</td>
-                    <td>{{ produit.prix }} &euro;</td>
+                    <td>{{ produit.point }} P</td>
                     <td>{{ produit.nomType }}</td>
                     <td>
                         <button class="btn btn-primary btn-sm" onclick="editProduit({{ produit.id }})">Modifier</button>
@@ -46,108 +43,117 @@
     </div>
 
     <!-- Formulaire d'ajout / modification -->
+    {% set produit = produit ?? { id: '', reference: '', nom: '', prix: '', point: '', description: '', type: null, tailles: [], couleurs: [] } %}
     <div class="d-flex justify-content-center vh-100">
-    <div class="">
-        <h2 id="form-title"> Ajouter un produit : </h2>
-        <form id="produit-form" method="POST" action="">
-            <input type="hidden" name="id" id="produit-id">
-            <div class="form-group">
-                <label for="produit-reference">Réference</label>
-                <input type="text" class="form-control" id="produit-reference" name="reference" placeholder="Réference du produit" required>
-            </div>
-            <div class="form-group ">
-                <label for="produit-nom">Nom</label>
-                <input type="text" class="form-control" id="produit-nom" name="nom" placeholder="Nom du produit" required>
-            </div>
-            <div class="form-group ">
-                <label for="produit-prix">Prix</label>
-                <input type="number" class="form-control" id="produit-prix" name="prix" placeholder="Prix" required>
-            </div>
-            <div class="form-group ">
-                <label for="produit-description">Description</label>
-                <textarea id="produit-description" class="form-control" name="description" rows="5" cols="33">
-                Description...
-                </textarea>
-            </div>
-            <div class="form-group ">
-                <label for="produit-type">Type</label>
-                <select class="form-control" name="produit-type" id="type">
+        <div class="">
+            <h2 id="form-title">{{ produit.id ? 'Modifier un produit' : 'Ajouter un produit' }}</h2>
+            <form id="produit-form" method="POST" action="{{ path('save_article') }}">
+                <input type="hidden" name="id" id="produit-id" value="{{ produit.id }}">
+                <div class="form-group">
+                    <label for="produit-reference">Référence</label>
+                    <input type="text" class="form-control" id="produit-reference" name="reference" placeholder="Référence du produit" value="{{ produit.reference }}" required>
+                </div>
+                <div class="form-group">
+                    <label for="produit-nom">Nom</label>
+                    <input type="text" class="form-control" id="produit-nom" name="nom" placeholder="Nom du produit" value="{{ produit.nom }}" required>
+                </div>
+                <div class="form-group">
+                    <label for="produit-prix">Prix</label>
+                    <input type="number" class="form-control" id="produit-prix" name="prix" placeholder="Prix" value="{{ produit.prix }}" required>
+                </div>
+                <div class="form-group">
+                    <label for="produit-point">Point</label>
+                    <input type="number" class="form-control" id="produit-point" name="point" placeholder="Point" value="{{ produit.point }}" required>
+                </div>
+                <div class="form-group">
+                    <label for="produit-description">Description</label>
+                    <textarea id="produit-description" class="form-control" name="description" rows="5" cols="33">{{ produit.description }}</textarea>
+                </div>
+                <div class="form-group">
+                    <label for="produit-type">Type</label>
+                    <select class="form-control" name="produit-type" id="produit-type" required>
                         <option value="">--- Type ---</option>
-                    {% for type in listeTypes %}
-                        <option value="{{ type.id }}">{{ type.nom }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="produit-taille">Tailles :</label>
-                <div id="taille">
-                    {% for taille in listeTailles %}
-                        <div class="form-check form-check-inline">
-                            <input 
-                                class="form-check-input" 
-                                type="checkbox" 
-                                name="produit-taille" 
-                                id="taille-{{ taille.id }}" 
-                                value="{{ taille.id }}">
-                            <label class="form-check-label" for="taille-{{ taille.id }}">
-                                {{ taille.nom }}
-                            </label>
-                        </div>
-                    {% endfor %}
+                        {% for type in listeTypes %}
+                            <option value="{{ type.id }}" {% if produit.type and produit.type.id == type.id %}selected{% endif %}>{{ type.nom }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
-            </div>
-           <div class="form-group">
-                <label for="produit-couleur">Couleur</label>
-                <div id="couleur">
-                    {% for couleur in listeCouleurs %}
-                        <div class="form-check form-check-inline">
-                            <input 
-                                class="form-check-input" 
-                                type="checkbox" 
-                                name="produit-couleur" 
-                                id="couleur-{{ couleur.id }}" 
-                                value="{{ couleur.id }}">
-                            <label class="form-check-label" for="couleur-{{ couleur.id }}">
-                                {{ couleur.nom }}
-                            </label>
-                        </div>
-                    {% endfor %}
+                <div class="form-group">
+                    <label for="produit-taille">Tailles :</label>
+                    <div id="taille">
+                        {% for taille in listeTailles %}
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" name="produit-taille[]" id="taille-{{ taille.id }}" value="{{ taille.id }}" 
+                                    {% if produit.tailles is not empty and taille in produit.tailles %}checked{% endif %}>
+                                <label class="form-check-label" for="taille-{{ taille.id }}">
+                                    {{ taille.nom }}
+                                </label>
+                            </div>
+                        {% endfor %}
+                    </div>
                 </div>
-            </div>
+                <div class="form-group">
+                    <label for="produit-couleur">Couleur :</label>
+                    <div id="couleur">
+                        {% for couleur in listeCouleurs %}
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" name="produit-couleur[]" id="couleur-{{ couleur.id }}" value="{{ couleur.id }}"
+                                    {% if produit.couleurs is not empty and couleur in produit.couleurs %}checked{% endif %}>
+                                <label class="form-check-label" for="couleur-{{ couleur.id }}">
+                                    {{ couleur.nom }}
+                                </label>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
 
-            <button type="submit" class="btn btn-success mt-3">Enregistrer</button>
-        </form>
+                <button type="submit" class="btn btn-success mt-3">Enregistrer</button>
+            </form>
+        </div>
     </div>
-</div>
 
 </div>
 
 <script>
-    function editProduit(id) {
-        // Fetch data from your server or DOM to populate the form
-        const produit = {
-            id: id,
-            nom: document.querySelector(`#produit-nom`).value,
-            prix: document.querySelector(`#produit-prix`).value,
-            type: document.querySelector(`#produit-type`).value,
-        };
+   let produit = {}; // Déclaration globale
 
-        // Set form fields
-        document.getElementById('produit-id').value = produit.id;
-        document.getElementById('produit-nom').value = produit.nom;
-        document.getElementById('produit-prix').value = produit.prix;
-        document.getElementById('produit-type').value = produit.nomType;
+    async function editProduit(id) {
+        try {
+            let response = await $.post("/dota/article", { id: id });
 
-        // Update form title
-        document.getElementById('form-title').textContent = 'Modifier un produit';
-    }
 
-    function deleteProduit(id) {
-        if (confirm('Voulez-vous vraiment supprimer ce produit ?')) {
-            window.location.href = `/admin/produit/delete/${id}`; // Change this to match your route
+            // Mettre à jour le formulaire
+            document.getElementById('produit-id').value = id;
+            document.getElementById('produit-reference').value = response["reference"];
+            document.getElementById('produit-nom').value = response["nom"];
+            document.getElementById('produit-prix').value = response["prix"];
+            document.getElementById('produit-point').value = response["point"];
+            document.getElementById('produit-description').value = response["descriptions"];
+            document.getElementById('produit-type').value = response["type"];
+
+            // Mettre à jour les checkboxes des tailles
+            let checkboxesTailles = document.querySelectorAll('input[name="produit-taille[]"]');
+            checkboxesTailles.forEach(checkbox => {
+                
+                console.log(response["tableauTailles"]);
+                checkbox.checked = response["tableauTailles"].includes(parseInt(checkbox.value));
+            });
+
+            // Mettre à jour les checkboxes des couleurs
+            let checkboxesCouleurs = document.querySelectorAll('input[name="produit-couleur[]"]');
+            checkboxesCouleurs.forEach(checkbox => {
+                checkbox.checked = response["tableauCouleurs"].includes(parseInt(checkbox.value));
+            });
+
+            // Modifier le titre du formulaire
+            document.getElementById('form-title').textContent = 'Modifier un produit';
+
+        } catch (error) {
+            console.error("Erreur lors de la récupération du produit:", error);
         }
     }
-</script>
 
+
+</script>
 
 {% endblock %}

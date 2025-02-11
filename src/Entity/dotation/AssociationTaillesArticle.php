@@ -1,11 +1,13 @@
 <?php
 
-namespace App\Entity;
+namespace App\Entity\dotation;
 
-use App\Repository\AssociationTaillesArticleRepository;
+use App\Repository\dotation\AssociationTaillesArticleRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: AssociationTaillesArticleRepository::class)]
+#[ORM\Table(name: "association_tailles_article", schema: "dotation")]
+
 class AssociationTaillesArticle
 {
     #[ORM\Id]
@@ -22,6 +24,13 @@ class AssociationTaillesArticle
     public function getId(): ?int
     {
         return $this->id;
+    }
+
+    public function setId(int $id): static
+    {
+        $this->id = $id;
+
+        return $this;
     }
 
     public function getIdArticle(): ?int

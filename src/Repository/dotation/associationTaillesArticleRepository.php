@@ -2,23 +2,23 @@
 
 namespace App\Repository\dotation;
 
-use App\Entity\dotation\AssociationTailleArticle;
+use App\Entity\dotation\AssociationTaillesArticle;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
- * @extends ServiceEntityRepository<AssociationTailleArticle>
+ * @extends ServiceEntityRepository<AssociationTaillesArticle>
  */
-class AssociationTailleArticleRepository extends ServiceEntityRepository
+class AssociationTaillesArticleRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
     {
-        parent::__construct($registry, AssociationTailleArticle::class);
+        parent::__construct($registry, AssociationTaillesArticle::class);
     }
 
 
     //    /**
-    //     * @return AssociationTailleArticle[] Returns an array of AssociationTailleArticle objects
+    //     * @return AssociationTaillesArticle[] Returns an array of AssociationTaillesArticle objects
     //     */
     //    public function findByExampleField($value): array
     //    {
@@ -32,7 +32,7 @@ class AssociationTailleArticleRepository extends ServiceEntityRepository
     //        ;
     //    }
 
-    //    public function findOneBySomeField($value): ?AssociationTailleArticle
+    //    public function findOneBySomeField($value): ?AssociationTaillesArticle
     //    {
     //        return $this->createQueryBuilder('u')
     //            ->andWhere('u.exampleField = :val')

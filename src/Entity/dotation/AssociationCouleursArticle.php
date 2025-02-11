@@ -1,11 +1,12 @@
 <?php
 
-namespace App\Entity;
+namespace App\Entity\dotation;
 
-use App\Repository\AssociationCouleursArticleRepository;
+use App\Repository\dotation\AssociationCouleursArticleRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: AssociationCouleursArticleRepository::class)]
+#[ORM\Table(name: "association_couleurs_article", schema: "dotation")]
 class AssociationCouleursArticle
 {
     #[ORM\Id]
