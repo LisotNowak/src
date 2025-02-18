@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Semaine</title>
+    <!-- Inclure Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+        /* Ajustements pour les petits écrans */
+        @media (max-width: 768px) {
+            .table th, .table td {
+                font-size: 0.8rem;
+                padding: 0.5rem;
+            }
+
+            .card {
+                margin-bottom: 1rem;
+            }
+        }
+
+        /* Améliorer la lisibilité des modals sur mobile */
+        .modal-dialog {
+            max-width: 95%;
+        }
+    </style>
+</head>
+<body>
+
+{% include 'navbar.html.twig' %}
+
+<div class="container mt-5">
+    <h1 class="text-center">Calendrier API Oenomanager</h1>
+
+    <!-- Boutons de navigation -->
+    <div class="d-flex justify-content-between mb-4">
+    <form action="{{ path('app_getEvents') }}" method="get">
+        <input type="hidden" name="semaine" value="{{ semaine - 1 }}">
+        <button type="submit" class="btn btn-primary">Semaine Précédente</button>
+    </form>
+    <form action="{{ path('app_getEvents') }}" method="get">
+        <input type="hidden" name="semaine" value="{{ semaine + 1 }}">
+        <button type="submit" class="btn btn-primary">Semaine Suivante</button>
+    </form>
+    </div>
+
+
+    <!-- Tableau Responsive -->
+    <div class="table-responsive">
+        <table class="table table-bordered text-center">
+            <thead class="table-dark">
+            <tr>
+                {% set joursSemaine = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'] %}
+                {% set today = 'now'|date('Y-m-d') %}
+
+                {% for jour in joursSemaine %}
+                    {% set dateJour = dateDebut|date_modify('+' ~ loop.index0 ~ ' days')|date('Y-m-d', 'Europe/Paris') %}
+                    <th>
+                        {{ jour }}<br>
+                        <small>{{ dateJour|date('d/m/Y') }}</small>
+                    </th>
+                {% endfor %}
+            </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    {% for jour in joursSemaine %}
+                        {% set dateJour = dateDebut|date_modify('+' ~ loop.index0 ~ ' days') %}
+                        <td>
+                            {% for event in allEvents %}
+                                {% set debut = event.du|date('Y-m-d') %}
+                                {% set fin = event.au|date('Y-m-d') %}
+                                
+                                {% if dateJour|date('Y-m-d') >= debut and dateJour|date('Y-m-d') <= fin %}
+                                    <!-- Carte avec ID dynamique -->
+                                    <div id="{{event.id}}" class="card mb-3" style="transition: transform 0.2s;" data-bs-toggle="modal" data-bs-target="#modal{{event.id}}">
+                                        <div class="card-body" onmouseover="this.parentNode.style.transform='scale(1.05)'" onmouseout="this.parentNode.style.transform='scale(1)'">
+                                            <h5 class="card-title">{{ event.label }}</h5>
+                                            <h6 class="card-subtitle mb-2 text-muted">
+                                                {{ event.du|date_modify('+1 hour')|date('H:i') }} - {{ event.au|date_modify('+1 hour')|date('H:i') }}
+                                            </h6>
+                                            <p class="card-text"><em>{{ event.lieu }}</em></p>
+                                        </div>
+                                    </div>
+
+                                    <!-- Modal qui s'ouvre lors du clic sur la carte -->
+                                    <div class="modal fade" id="modal{{event.id}}" tabindex="-1" aria-labelledby="modalLabel{{event.id}}" aria-hidden="true">
+                                        <div class="modal-dialog">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title" id="modalLabel{{event.id}}">{{ event.label }}</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <p><strong>Lieu :</strong> {{ event.lieu }}</p>
+                                                    <p><strong>Heure :</strong> 
+                                                        {{ event.du|date_modify('+1 hour')|date('H:i') }} - {{ event.au|date_modify('+1 hour')|date('H:i') }}
+                                                    </p>
+                                                    <p><strong>Description :</strong><br /> {{ event.description|nl2br|raw }}</p>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        </td>
+                    {% endfor %}
+                </tr>
+            </tbody>
+
+        </table>
+    </div>
+
+</div>
+
+<!-- Inclure Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

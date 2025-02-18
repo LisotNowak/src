@@ -17,19 +17,31 @@ class EventService
         $this->token = $token;
     }
 
-    public function fetchEvents(): array
+    /**
+     * Récupère les événements pour une période donnée
+     *
+     * @param \DateTime $startDate
+     * @param \DateTime $endDate
+     * @return array
+     */
+    public function fetchEvents(\DateTime $startDate = null, \DateTime $endDate = null): array
     {
         try {
-            // Définir les dates de début et de fin
-            $dateMax = new \DateTime();
-            $dateMax->modify('+1 year');
+            // Si aucune date de début ou de fin n'est fournie, utiliser des valeurs par défaut
+            $startDate = $startDate ?? new \DateTime('first day of this month');
+            $endDate = $endDate ?? new \DateTime('last day of this month');
+            
+            // Formatage des dates
+            $startDateFormatted = $startDate->format('Y-m-d');
+            $endDateFormatted = $endDate->format('Y-m-d');
 
+            // Préparer les données de la requête
             $postData = [
-                'du' => date("Y-m-d"),
-                'au' => $dateMax->format('Y-m-d')
+                'du' => $startDateFormatted,
+                'au' => $endDateFormatted,
             ];
 
-            // Effectuer la requête POST
+            // Effectuer la requête POST pour récupérer les événements
             $response = $this->client->request(
                 'POST',
                 'https://artemis-domaines.oenomanager.com/api/public/evenements',

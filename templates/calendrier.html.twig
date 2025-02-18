@@ -3,121 +3,230 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Semaine</title>
-    <!-- Inclure Bootstrap CSS -->
+    <title>Calendrier Mensuel</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-
-    <style>
-        /* Ajustements pour les petits écrans */
-        @media (max-width: 768px) {
-            .table th, .table td {
-                font-size: 0.8rem;
-                padding: 0.5rem;
-            }
-
-            .card {
-                margin-bottom: 1rem;
-            }
-        }
-
-        /* Améliorer la lisibilité des modals sur mobile */
-        .modal-dialog {
-            max-width: 95%;
-        }
-    </style>
 </head>
 <body>
 
 {% include 'navbar.html.twig' %}
 
+<!-- Légende des catégories d'événements -->
+<div class="container mb-3 mt-3">
+    <h3 class="fw-bold">Légende des catégories</h3>
+    <div class="row">
+        {% set categories = [] %}
+
+        {# Collecte les catégories uniques #}
+        {% for event in allEvents %}
+            {% if event.categorie.nom not in categories %}
+                {% set categories = categories|merge([event.categorie.nom]) %}
+            {% endif %}
+        {% endfor %}
+
+        {# Affichage des catégories dans la légende avec leurs couleurs #}
+        {% for categorieNom in categories %}
+            {% set category = allEvents|filter(event => event.categorie.nom == categorieNom)|first %}
+            <div class="col-md-3 mb-2">
+                <div class="d-flex align-items-center">
+                    <div class="color-box" style="width: 30px; height: 30px; background-color: {{ category.categorie.couleur }};"></div>
+                    <span class="ms-2">{{ categorieNom }}</span>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Filtrage par catégories -->
+<div class="container mb-3">
+    <h3 class="fw-bold">Filtrer par catégories</h3>
+    <div class="d-flex flex-wrap">
+        {% for categorieNom in categories %}
+            <div class="form-check me-3">
+                <input class="form-check-input category-filter" type="checkbox" value="{{ categorieNom }}" id="filter_{{ categorieNom }}" checked>
+                <label class="form-check-label" for="filter_{{ categorieNom }}">{{ categorieNom }}</label>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+
+
 <div class="container mt-5">
     <h1 class="text-center">Calendrier API Oenomanager</h1>
 
-    <!-- Boutons de navigation -->
-    <div class="d-flex justify-content-between mb-4">
-    <form action="{{ path('app_getEvents') }}" method="get">
-        <input type="hidden" name="semaine" value="{{ semaine - 1 }}">
-        <button type="submit" class="btn btn-primary">Semaine Précédente</button>
-    </form>
-    <form action="{{ path('app_getEvents') }}" method="get">
-        <input type="hidden" name="semaine" value="{{ semaine + 1 }}">
-        <button type="submit" class="btn btn-primary">Semaine Suivante</button>
-    </form>
-    </div>
+<!-- Liste des mois en français -->
+{% set mois_francais = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'] %}
+
+<!-- Sélection du mois -->
+<form method="GET" action="{{ path('app_getAllEvents') }}" class="d-flex justify-content-center mb-4">
+    <select name="mois" class="form-select w-auto me-2">
+        {% set currentDate = 'now'|date %}
+        {% set minDate = 'now'|date_modify('-3 months') %}
+        {% set maxDate = 'now'|date_modify('+6 months') %}
+
+        {% for i in 0..8 %} <!-- Il y a 9 mois possibles : 3 mois en arrière, 6 mois en avant -->
+            {% set optionDate = minDate|date_modify('+' ~ i ~ ' month') %}
+            {% set monthValue = optionDate|date('n') %}
+            {% set yearValue = optionDate|date('Y') %}
+
+            <option value="{{ monthValue }}" {% if monthValue == mois and yearValue == annee %}selected{% endif %}>
+                {{ mois_francais[monthValue - 1] }} {{ yearValue }}
+            </option>
+        {% endfor %}
+    </select>
+
+    <button type="submit" class="btn btn-primary">Afficher</button>
+</form>
 
 
-    <!-- Tableau Responsive -->
+
+
+
+    <!-- Tableau du calendrier -->
     <div class="table-responsive">
         <table class="table table-bordered text-center">
             <thead class="table-dark">
-            <tr>
-                {% set joursSemaine = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'] %}
-                {% set today = 'now'|date('Y-m-d') %}
-
-                {% for jour in joursSemaine %}
-                    {% set dateJour = dateDebut|date_modify('+' ~ loop.index0 ~ ' days')|date('Y-m-d', 'Europe/Paris') %}
-                    <th>
-                        {{ jour }}<br>
-                        <small>{{ dateJour|date('d/m/Y') }}</small>
-                    </th>
-                {% endfor %}
-            </tr>
+                <tr>
+                    <th>Lundi</th>
+                    <th>Mardi</th>
+                    <th>Mercredi</th>
+                    <th>Jeudi</th>
+                    <th>Vendredi</th>
+                    <th>Samedi</th>
+                    <th>Dimanche</th>
+                </tr>
             </thead>
             <tbody>
-                <tr>
-                    {% for jour in joursSemaine %}
-                        {% set dateJour = dateDebut|date_modify('+' ~ loop.index0 ~ ' days') %}
-                        <td>
-                            {% for event in allEvents %}
-                                {% set debut = event.du|date('Y-m-d') %}
-                                {% set fin = event.au|date('Y-m-d') %}
-                                
-                                {% if dateJour|date('Y-m-d') >= debut and dateJour|date('Y-m-d') <= fin %}
-                                    <!-- Carte avec ID dynamique -->
-                                    <div id="{{event.id}}" class="card mb-3" style="transition: transform 0.2s;" data-bs-toggle="modal" data-bs-target="#modal{{event.id}}">
-                                        <div class="card-body" onmouseover="this.parentNode.style.transform='scale(1.05)'" onmouseout="this.parentNode.style.transform='scale(1)'">
-                                            <h5 class="card-title">{{ event.label }}</h5>
-                                            <h6 class="card-subtitle mb-2 text-muted">
-                                                {{ event.du|date_modify('+1 hour')|date('H:i') }} - {{ event.au|date_modify('+1 hour')|date('H:i') }}
-                                            </h6>
-                                            <p class="card-text"><em>{{ event.lieu }}</em></p>
+                {% set joursMois = dateDebut|date('t') %}
+                {% set premierJour = dateDebut|date('N')|number_format(0, '', '') %} {# Jour de la semaine (1 = lundi, 7 = dimanche) #}
+                {% set joursAffiches = 0 %}
+
+                {% for semaine in 0..4 %} {# On affiche max 5 semaines #}
+                    <tr>
+                        {% for jour in 1..7 %}
+                            {% set indexJour = semaine * 7 + jour - premierJour + 1 %}
+
+                            {% if indexJour > 0 and indexJour <= joursMois %}
+                                {% set dateJour = dateDebut|date_modify('+' ~ (indexJour - 1) ~ ' days') %}
+
+                                <td>
+                                    <!-- Carte Bootstrap avec la date en en-tête --> 
+                                    <div class="card">
+                                        <div class="card-header bg-primary text-white">
+                                            <strong>{{ dateJour|date('d/m/Y') }}</strong>
+                                        </div>
+                                        <div class="card-body">
+                                            {% set hasEvent = false %}
+
+                                            {% for event in allEvents %}
+                                                {% set debut = event.du|date('Y-m-d') %}
+                                                {% set fin = event.au|date('Y-m-d') %}
+                                                
+                                                {% if dateJour|date('Y-m-d') >= debut and dateJour|date('Y-m-d') <= fin %}
+                                                    {% set hasEvent = true %}
+                                                    
+                                                    <div class="event mb-2 p-2 border rounded" 
+                                                         style="background-color: {{ event.categorie.couleur }}"
+                                                         data-category="{{ event.categorie.nom }}">
+                                                        <h7 class="card-title fw-bold">{{ event.label }}</h7>
+                                                        <h6 class="card-subtitle mb-2 text-muted">
+                                                            {{ event.du|date_modify('+1 hour')|date('H:i') }} - {{ event.au|date_modify('+1 hour')|date('H:i') }}
+                                                        </h6>
+                                                        <p class="card-text"><em>{{ event.lieu }}</em></p>
+
+                                                        <!-- Modal Trigger -->
+                                                        <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#modal{{ event.id }}">
+                                                            Voir plus
+                                                        </button>
+
+                                                        <!-- Modal -->
+                                                        <div class="modal fade" id="modal{{ event.id }}" tabindex="-1" aria-labelledby="modalLabel{{ event.id }}" aria-hidden="true">
+                                                            <div class="modal-dialog">
+                                                                <div class="modal-content">
+                                                                    <div class="modal-header">
+                                                                        <h5 class="modal-title" id="modalLabel{{ event.id }}">{{ event.label }}</h5>
+                                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                                    </div>
+                                                                    <div class="modal-body">
+                                                                        <p><strong>Lieu :</strong> {{ event.lieu }}</p>
+                                                                        <p><strong>Heure :</strong> 
+                                                                            {{ event.du|date_modify('+1 hour')|date('H:i') }} - {{ event.au|date_modify('+1 hour')|date('H:i') }}
+                                                                        </p>
+                                                                        <p><strong>Description :</strong><br /> {{ event.description|nl2br|raw }}</p>
+                                                                        <p><strong>Liste d'invitées :</strong><br /></p>
+                                                                        {% for invite in event.invites %}
+                                                                            <p>- {{ invite.nom }} {% if invite.categorie is not empty %} : {{ invite.categorie }} {% endif %}</p>
+                                                                        {% endfor %}
+
+                                                                        {% if event.operateurs is not empty %}
+                                                                            <p><strong>Opérateurs :</strong></p>                                                                  
+                                                                                {% for operateur in event.operateurs %}
+                                                                                    <p>- {{ operateur.nom }}</p>
+                                                                                {% endfor %}                                              
+                                                                        {% else %}
+                                                                            <p>Aucun opérateur</p>
+                                                                        {% endif %}
+
+                                                                    </div>
+                                                                    <div class="modal-footer">
+                                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                {% endif %}
+                                            {% endfor %}
+
+                                            {% if not hasEvent %}
+                                                <p class="text-muted">Aucun événement</p>
+                                            {% endif %}
                                         </div>
                                     </div>
 
-                                    <!-- Modal qui s'ouvre lors du clic sur la carte -->
-                                    <div class="modal fade" id="modal{{event.id}}" tabindex="-1" aria-labelledby="modalLabel{{event.id}}" aria-hidden="true">
-                                        <div class="modal-dialog">
-                                            <div class="modal-content">
-                                                <div class="modal-header">
-                                                    <h5 class="modal-title" id="modalLabel{{event.id}}">{{ event.label }}</h5>
-                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                </div>
-                                                <div class="modal-body">
-                                                    <p><strong>Lieu :</strong> {{ event.lieu }}</p>
-                                                    <p><strong>Heure :</strong> 
-                                                        {{ event.du|date_modify('+1 hour')|date('H:i') }} - {{ event.au|date_modify('+1 hour')|date('H:i') }}
-                                                    </p>
-                                                    <p><strong>Description :</strong><br /> {{ event.description|nl2br|raw }}</p>
-                                                </div>
-                                                <div class="modal-footer">
-                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                {% endif %}
-                            {% endfor %}
-                        </td>
-                    {% endfor %}
-                </tr>
+                                </td>
+                            {% else %}
+                                <td></td> {# Case vide pour compléter la semaine #}
+                            {% endif %}
+                        {% endfor %}
+                    </tr>
+
+                {% endfor %}
             </tbody>
-
         </table>
     </div>
 
 </div>
 
-<!-- Inclure Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Fonction pour filtrer les événements par catégorie
+        function filterEvents() {
+            const selectedCategories = Array.from(document.querySelectorAll('.category-filter:checked')).map(cb => cb.value);
+            const eventElements = document.querySelectorAll('.event');
+
+            eventElements.forEach(function(event) {
+                const eventCategory = event.getAttribute('data-category'); // Récupère la catégorie de l'événement
+
+                if (selectedCategories.includes(eventCategory) || selectedCategories.length === 0) {
+                    event.style.display = 'block'; // Afficher l'événement
+                } else {
+                    event.style.display = 'none'; // Cacher l'événement
+                }
+            });
+        }
+
+        // Appliquer le filtre dès qu'une case est cochée/décochée
+        const filters = document.querySelectorAll('.category-filter');
+        filters.forEach(function(filter) {
+            filter.addEventListener('change', filterEvents);
+        });
+
+        // Exécuter un filtrage au chargement de la page pour appliquer l'état initial
+        filterEvents();
+    });
+</script>
+
 </body>
 </html>
