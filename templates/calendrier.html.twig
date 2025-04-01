@@ -123,8 +123,13 @@
                                             {% set debutTime = event.du|date('H:i') %}
                                             
                                             {# Si l'événement commence à minuit, on le déplace au jour suivant #}
-                                            {% if debutTime == '23:00' %}
+
+                                            {# {% if debutTime == '23:00' %} chagement d'heure #} 
+                                            {% if debutTime == '22:00' %}
+                                            
                                                 {% set debut = event.du|date_modify('+1 day')|date('Y-m-d') %}
+                                                {% set fin = event.du|date_modify('+1 day')|date('Y-m-d') %}
+
                                             {% endif %}
 
                                             {# Vérifier si l'événement est en cours ce jour #}
@@ -135,7 +140,13 @@
                                                     data-category="{{ event.categorie.nom }}">
                                                     <h7 class="card-title fw-bold">{{ event.label }}</h7>
                                                     <h6 class="card-subtitle mb-2 text-muted">
-                                                        {{ event.du|date_modify('+1 hour')|date('H:i') }} - {{ event.au|date_modify('+1 hour')|date('H:i') }}
+                                                        {# {{ event.du|date_modify('+1 hour')|date('H:i') }} - {{ event.au|date_modify('+1 hour')|date('H:i') }} chagement d'heure #}
+                                                        {% if event.type == "evenement" %}
+                                                            {{ event.du|date_modify('+2 hour')|date('H:i') }} - {{ event.au|date_modify('+2 hour')|date('H:i') }}
+                                                        {% else %}
+                                                            {{ event.du|date('H:i') }} - {{ event.au|date('H:i') }}
+                                                        {% endif %}
+
                                                     </h6>
                                                     <p class="card-text"><em>{{ event.lieu }}</em></p>
 
@@ -155,7 +166,13 @@
                                                                 <div class="modal-body">
                                                                     <p><strong>Lieu :</strong> {{ event.lieu }}</p>
                                                                     <p><strong>Heure :</strong> 
-                                                                        {{ event.du|date_modify('+1 hour')|date('H:i') }} - {{ event.au|date_modify('+1 hour')|date('H:i') }}
+                                                                        {# {{ event.du|date_modify('+1 hour')|date('H:i') }} - {{ event.au|date_modify('+1 hour')|date('H:i') }} chagement d'heure #}
+                                                                        {% if event.type == "evenement" %}
+                                                                            {{ event.du|date_modify('+2 hour')|date('H:i') }} - {{ event.au|date_modify('+2 hour')|date('H:i') }}
+                                                                        {% else %}
+                                                                            {{ event.du|date('H:i') }} - {{ event.au|date('H:i') }}
+                                                                        {% endif %}
+                                                                        
                                                                     </p>
                                                                     <p><strong>Description :</strong><br /> {{ event.description|nl2br|raw }}</p>
                                                                     <p><strong>Liste d'invités :</strong><br /></p>
