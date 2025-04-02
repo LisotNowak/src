@@ -166,29 +166,61 @@
                                                                 <div class="modal-body">
                                                                     <p><strong>Lieu :</strong> {{ event.lieu }}</p>
                                                                     <p><strong>Heure :</strong> 
-                                                                        {# {{ event.du|date_modify('+1 hour')|date('H:i') }} - {{ event.au|date_modify('+1 hour')|date('H:i') }} chagement d'heure #}
                                                                         {% if event.type == "evenement" %}
                                                                             {{ event.du|date_modify('+2 hour')|date('H:i') }} - {{ event.au|date_modify('+2 hour')|date('H:i') }}
                                                                         {% else %}
                                                                             {{ event.du|date('H:i') }} - {{ event.au|date('H:i') }}
                                                                         {% endif %}
-                                                                        
                                                                     </p>
+                                                                    
                                                                     <p><strong>Description :</strong><br /> {{ event.description|nl2br|raw }}</p>
-                                                                    <p><strong>Liste d'invités :</strong><br /></p>
+
+                                                                    <!-- Affichage des langues -->
+                                                                    {% if event.langues is not empty %}
+                                                                        <p><strong>Langues :</strong> 
+                                                                            {% for langue in event.langues %}
+                                                                                {{ langue.nom }}{% if not loop.last %}, {% endif %}
+                                                                            {% endfor %}
+                                                                        </p>
+                                                                    {% endif %}
+
+                                                                    <!-- Affichage des produits -->
+                                                                    {% if event.produits is not empty %}
+                                                                        <p><strong>Produits dégustés :</strong></p>
+                                                                        <ul>
+                                                                            {% for produit in event.produits %}
+                                                                                <li>{{ produit.nomVin }} ({{ produit.millesime }})</li>
+                                                                            {% endfor %}
+                                                                        </ul>
+                                                                    {% endif %}
+
+                                                                    <!-- Nombre de participants -->
+                                                                    {% set totalParticipants = 0 %}
                                                                     {% for invite in event.invites %}
-                                                                        <p>- {{ invite.nom }} {% if invite.categorie is not empty %} : {{ invite.categorie }} {% endif %}</p>
+                                                                        {% set adultes = invite.adultes|default(0) %}
+                                                                        {% set enfants = invite.enfants|default(0) %}
+                                                                        {% set totalParticipants = totalParticipants + adultes + enfants %}
+                                                                    {% endfor %}
+                                                                    <p><strong>Nombre de participants :</strong> {{ totalParticipants }}</p>
+
+                                                                    <!-- Liste des invités -->
+                                                                    <p><strong>Liste d'invités :</strong></p>
+                                                                    {% for invite in event.invites %}
+                                                                        <p>- {{ invite.nom }} 
+                                                                            {% if invite.adultes is defined %} ({{ invite.adultes }} adulte(s), {{ invite.enfants|default(0) }} enfant(s)){% endif %}
+                                                                        </p>
                                                                     {% endfor %}
 
+
+                                                                    <!-- Opérateurs -->
                                                                     {% if event.operateurs is not empty %}
                                                                         <p><strong>Opérateurs :</strong></p>                                                                 
-                                                                            {% for operateur in event.operateurs %}
-                                                                                <p>- {{ operateur.nom }}</p>
-                                                                            {% endfor %}                                              
+                                                                        {% for operateur in event.operateurs %}
+                                                                            <p>- {{ operateur.nom }}</p>
+                                                                        {% endfor %}                                              
                                                                     {% else %}
                                                                         <p>Aucun opérateur</p>
                                                                     {% endif %}
-
                                                                 </div>
                                                                 <div class="modal-footer">
                                                                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
@@ -196,6 +228,7 @@
                                                             </div>
                                                         </div>
                                                     </div>
+
                                                 </div>
                                             {% endif %}
                                         {% endfor %}

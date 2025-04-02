@@ -34,7 +34,7 @@ class FirstController extends AbstractController
         // Récupérer tous les événements
         $allEvents = $this->eventService->fetchEvents($dateDebut, $dateFin);
 
-        // var_dump($allEvents);
+        //var_dump($allEvents);
 
         return $this->render('calendrier.html.twig', [
             'allEvents' => $allEvents,
