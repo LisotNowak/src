@@ -5,6 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Calendrier Mensuel</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+    /* Applique une largeur automatique tout en maintenant une hauteur fixe pour les cellules */
+    .table td, .table th {
+        word-wrap: break-word;  /* Permet de couper les mots pour qu'ils ne débordent pas */
+        word-break: break-word; /* Permet de couper les mots longs pour éviter le débordement */
+        white-space: normal;    /* Permet au texte de se répartir sur plusieurs lignes si nécessaire */
+        min-width: 100px;       /* Définir une largeur minimale pour les cellules */
+        max-width: 250px;       /* Définir une largeur maximale pour éviter des cellules trop larges */
+        overflow: hidden;       /* Cache tout débordement de texte */
+    }
+
+    .card-body {
+        overflow-y: hidden;     /* Cache tout débordement vertical dans la carte */
+    }
+
+    /* Vous pouvez aussi ajouter de la flexibilité aux cartes pour une meilleure présentation */
+    .card {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+    .card-header {
+        text-align: center;     /* Assure que les dates sont centrées */
+    }
+</style>
+
 </head>
 <body>
 
@@ -18,21 +45,44 @@
 
         {# Collecte les catégories uniques #}
         {% for event in allEvents %}
-            {% if event.categorie.nom not in categories %}
-                {% set categories = categories|merge([event.categorie.nom]) %}
+            {% if event.categorie == "event-user" %}
+                {% if "event-user" not in categories %}
+                    {% set categories = categories|merge(["event-user"]) %}
+                {% endif %}
+            {% else %}
+                {% if event.categorie is not null and event.categorie.nom not in categories %}
+                    {% set categories = categories|merge([event.categorie.nom]) %}
+                {% endif %}
             {% endif %}
         {% endfor %}
 
+
         {# Affichage des catégories dans la légende avec leurs couleurs #}
         {% for categorieNom in categories %}
-            {% set category = allEvents|filter(event => event.categorie.nom == categorieNom)|first %}
-            <div class="col-md-3 mb-2">
-                <div class="d-flex align-items-center">
-                    <div class="color-box" style="width: 30px; height: 30px; background-color: {{ category.categorie.couleur }};"></div>
-                    <span class="ms-2">{{ categorieNom }}</span>
-                </div>
+    {% set category = null %}
+
+    {% for evt in allEvents %}
+        {% if evt.categorie == "event-user" %}
+            {% if evt.categorie == categorieNom %}
+                {% set category = evt %}
+            {% endif %}
+        {% else %}
+            {% if evt.categorie.nom is defined and evt.categorie.nom == categorieNom %}
+                {% set category = evt %}
+            {% endif %}
+        {% endif %}
+    {% endfor %}
+
+    {% if category is not null %}
+        <div class="col-md-3 mb-2">
+            <div class="d-flex align-items-center">
+                <div class="color-box" style="width: 30px; height: 30px; background-color: {{ category.categorie is iterable ? category.categorie.couleur : '' }}; border: 2px solid black;"></div>
+                <span class="ms-2">{{ categorieNom }}</span>
             </div>
-        {% endfor %}
+        </div>
+    {% endif %}
+{% endfor %}
+
     </div>
 </div>
 
@@ -49,6 +99,62 @@
     </div>
 </div>
 
+
+{% if app.user %}
+<!-- Bouton pour ouvrir le modal -->
+<div class="container mt-4">
+    <h3>Ajouter un nouvel événement</h3>
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addEventModal">
+        Ajouter un événement
+    </button>
+</div>
+
+<!-- Modal pour ajouter un événement -->
+<div class="modal fade" id="addEventModal" tabindex="-1" aria-labelledby="addEventModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addEventModalLabel">Ajouter un nouvel événement</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Formulaire d'ajout d'événement -->
+                <form id="eventForm" method="POST" action="{{ path('app_add_event') }}">
+                    <div class="mb-3">
+                        <label for="label" class="form-label">Nom de l'événement</label>
+                        <input type="text" class="form-control" id="label" name="label" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="du" class="form-label">Date de début</label>
+                        <input type="datetime-local" class="form-control" id="du" name="du" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="au" class="form-label">Date de fin</label>
+                        <input type="datetime-local" class="form-control" id="au" name="au" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description"></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="auteur" class="form-label">Auteur (ID utilisateur)</label>
+                        <input type="number" class="form-control" id="auteur" name="auteur" required>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                        <button type="submit" class="btn btn-success">Ajouter l'événement</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <div class="container mt-5">
     <h2 class="text-center mb-4">Calendrier en cours de développement, il peut y avoir des données erronées.</h2>
@@ -76,9 +182,6 @@
 
     <button type="submit" class="btn btn-primary">Afficher</button>
 </form>
-
-
-
 
 
     <!-- Tableau du calendrier -->
@@ -133,20 +236,19 @@
                                             {% endif %}
 
                                             {# Vérifier si l'événement est en cours ce jour #}
-                                            {% if dateJour|date('Y-m-d') >= debut and dateJour|date('Y-m-d') <= fin %}
+                                            {% if dateJour|date('Y-m-d') >= debut|date('Y-m-d') and dateJour|date('Y-m-d') <= fin|date('Y-m-d') %}
                                                 {% set hasEvent = true %}
-                                                <div class="event mb-2 p-2 border rounded" 
-                                                    style="background-color: {{ event.categorie.couleur }}"
-                                                    data-category="{{ event.categorie.nom }}">
-                                                    <h7 class="card-title fw-bold">{{ event.label }}</h7>
+                                                <div class="event mb-2 p-2 border rounded"
+                                                    data-category="{{ event.categorie == 'event-user' ? event.categorie : event.categorie.nom }}"
+                                                    style="background-color: {{ event.categorie == 'event-user' ? '' : event.categorie.couleur }}">
+
+                                                    <h5 class="card-title fw-bold">{{ event.label }}</h5>
                                                     <h6 class="card-subtitle mb-2 text-muted">
-                                                        {# {{ event.du|date_modify('+1 hour')|date('H:i') }} - {{ event.au|date_modify('+1 hour')|date('H:i') }} chagement d'heure #}
                                                         {% if event.type == "evenement" %}
                                                             {{ event.du|date_modify('+2 hour')|date('H:i') }} - {{ event.au|date_modify('+2 hour')|date('H:i') }}
                                                         {% else %}
                                                             {{ event.du|date('H:i') }} - {{ event.au|date('H:i') }}
                                                         {% endif %}
-
                                                     </h6>
                                                     <p class="card-text"><em>{{ event.lieu }}</em></p>
 
@@ -154,6 +256,13 @@
                                                     <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#modal{{ event.id }}">
                                                         Voir plus
                                                     </button>
+                                                    {% if event.categorie == "event-user" %}
+                                                        <form method="POST" action="{{ path('app_delete_event', { id: event.id }) }}" style="display:inline;">
+                                                            <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ event.id) }}">
+                                                            <button type="submit" class="btn btn-sm btn-danger ms-1 mt-2" onclick="return confirm('Supprimer cet événement ?')">Supprimer</button>
+                                                        </form>
+                                                    {% endif %}
+
 
                                                     <!-- Modal -->
                                                     <div class="modal fade" id="modal{{ event.id }}" tabindex="-1" aria-labelledby="modalLabel{{ event.id }}" aria-hidden="true">
@@ -172,15 +281,12 @@
                                                                             {{ event.du|date('H:i') }} - {{ event.au|date('H:i') }}
                                                                         {% endif %}
                                                                     </p>
-                                                                    
                                                                     <p><strong>Description :</strong><br /> {{ event.description|nl2br|raw }}</p>
 
                                                                     <!-- Affichage des langues -->
                                                                     {% if event.langues is not empty %}
                                                                         <p><strong>Langues :</strong> 
-                                                                            {% for langue in event.langues %}
-                                                                                {{ langue.nom }}{% if not loop.last %}, {% endif %}
-                                                                            {% endfor %}
+                                                                            {{ event.langues|map(langue => langue.nom)|join(', ') }}
                                                                         </p>
                                                                     {% endif %}
 
@@ -196,28 +302,31 @@
 
                                                                     <!-- Nombre de participants -->
                                                                     {% set totalParticipants = 0 %}
-                                                                    {% for invite in event.invites %}
-                                                                        {% set adultes = invite.adultes|default(0) %}
-                                                                        {% set enfants = invite.enfants|default(0) %}
-                                                                        {% set totalParticipants = totalParticipants + adultes + enfants %}
-                                                                    {% endfor %}
+                                                                    {% if event.invites is iterable %}
+                                                                        {% for invite in event.invites %}
+                                                                            {% set totalParticipants = totalParticipants + (invite.adultes|default(0)) + (invite.enfants|default(0)) %}
+                                                                        {% endfor %}
+                                                                    {% endif %}
                                                                     <p><strong>Nombre de participants :</strong> {{ totalParticipants }}</p>
 
                                                                     <!-- Liste des invités -->
-                                                                    <p><strong>Liste d'invités :</strong></p>
-                                                                    {% for invite in event.invites %}
-                                                                        <p>- {{ invite.nom }} 
-                                                                            {% if invite.adultes is defined %} ({{ invite.adultes }} adulte(s), {{ invite.enfants|default(0) }} enfant(s)){% endif %}
-                                                                        </p>
-                                                                    {% endfor %}
-
+                                                                    {% if event.invites is not empty %}
+                                                                        <p><strong>Liste d'invités :</strong></p>
+                                                                        <ul>
+                                                                            {% for invite in event.invites %}
+                                                                                <li>{{ invite.nom }} ({{ invite.adultes|default(0) }} adulte(s), {{ invite.enfants|default(0) }} enfant(s))</li>
+                                                                            {% endfor %}
+                                                                        </ul>
+                                                                    {% endif %}
 
                                                                     <!-- Opérateurs -->
                                                                     {% if event.operateurs is not empty %}
                                                                         <p><strong>Opérateurs :</strong></p>                                                                 
-                                                                        {% for operateur in event.operateurs %}
-                                                                            <p>- {{ operateur.nom }}</p>
-                                                                        {% endfor %}                                              
+                                                                        <ul>
+                                                                            {% for operateur in event.operateurs %}
+                                                                                <li>{{ operateur.nom }}</li>
+                                                                            {% endfor %}                                              
+                                                                        </ul>
                                                                     {% else %}
                                                                         <p>Aucun opérateur</p>
                                                                     {% endif %}
@@ -231,6 +340,7 @@
 
                                                 </div>
                                             {% endif %}
+
                                         {% endfor %}
 
                                         {% if not hasEvent %}
@@ -281,6 +391,26 @@
 
         // Exécuter un filtrage au chargement de la page pour appliquer l'état initial
         filterEvents();
+    });
+
+    document.getElementById('eventForm').addEventListener('submit', function(event) {
+        event.preventDefault();
+
+        const formData = new FormData(this);
+        
+        fetch("{{ path('app_add_event') }}", {
+            method: "POST",
+            body: formData
+        }).then(response => {
+            if (response.ok) {
+                alert("Événement ajouté avec succès !");
+                location.reload(); // Rafraîchir la page pour voir le nouvel événement
+            } else {
+                alert("Erreur lors de l'ajout de l'événement.");
+            }
+        }).catch(error => {
+            console.error("Erreur:", error);
+        });
     });
 </script>
 

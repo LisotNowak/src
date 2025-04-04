@@ -2,6 +2,8 @@
 // src/Controller/FirstController.php
 namespace App\Controller;
 
+use App\Entity\calendrier\Event;
+use Doctrine\ORM\EntityManagerInterface;
 use App\Service\EventService;  // Mise à jour du namespace pour pointer vers le bon fichier
 use Symfony\Component\Security\Core\Security;
 use Symfony\Component\Routing\Annotation\Route;
@@ -14,27 +16,38 @@ use DateTime;
 class FirstController extends AbstractController
 {
     private $eventService;
+    private $entityManager;
 
-    public function __construct(EventService $eventService)
+    public function __construct(EventService $eventService, EntityManagerInterface $entityManager)
     {
         $this->eventService = $eventService;
+        $this->entityManager = $entityManager;
     }
 
     #[Route('/getAllEvents', name: 'app_getAllEvents')]
     public function getAllEvents(Request $request): Response
     {
-        $mois = $request->query->get('mois', date('m')); // Par défaut, mois actuel
-        $annee = $request->query->get('annee', date('Y')); // Par défaut, année actuelle
+        $mois = $request->query->get('mois', date('m'));
+        $annee = $request->query->get('annee', date('Y'));
 
         // Définir la période du mois sélectionné
         $dateDebut = new \DateTime("$annee-$mois-01");
         $dateFin = clone $dateDebut;
         $dateFin->modify('last day of this month');
 
-        // Récupérer tous les événements
-        $allEvents = $this->eventService->fetchEvents($dateDebut, $dateFin);
+        // Récupérer les événements depuis l'API
+        $apiEvents = $this->eventService->fetchEvents($dateDebut, $dateFin);
 
-        //var_dump($allEvents);
+        // Récupérer les événements depuis la base de données
+        $dbEvents = $this->entityManager->getRepository(Event::class)->createQueryBuilder('e')
+            ->where('e.du BETWEEN :start AND :end OR e.au BETWEEN :start AND :end')
+            ->setParameter('start', $dateDebut->format('Y-m-d'))
+            ->setParameter('end', $dateFin->format('Y-m-d'))
+            ->getQuery()
+            ->getResult();
+
+        // Fusionner les événements
+        $allEvents = array_merge($apiEvents, $dbEvents);
 
         return $this->render('calendrier.html.twig', [
             'allEvents' => $allEvents,
@@ -48,12 +61,53 @@ class FirstController extends AbstractController
     #[Route('/calendrierAllEvents', name: 'app_calendrierAllEvents')]
     public function calendrierAllEvents(): Response
     {
-        // Logique pour récupérer les événements de l'API
-        // ...
+        // Récupérer tous les événements depuis la base de données
+        $allEvents = $this->entityManager->getRepository(Event::class)->findAll();
+
         return $this->render('calendrier.html.twig', [
             'allEvents' => $allEvents
         ]);
     }
+
+    #[Route('/addEvent', name: 'app_add_event', methods: ['POST'])]
+    public function addEvent(Request $request, EntityManagerInterface $entityManager): Response
+    {
+        $label = $request->request->get('label');
+        $du = new \DateTime($request->request->get('du'));
+        $au = new \DateTime($request->request->get('au'));
+        $description = $request->request->get('description');
+        $auteur = (int) $request->request->get('auteur');
+
+        // Création de l'événement
+        $event = new Event();
+        $event->setLabel($label);
+        $event->setDu($du->format('Y-m-d H:i:s'));
+        $event->setAu($au->format('Y-m-d H:i:s'));
+        $event->setDescription($description);
+        $event->setAuteur($auteur);
+        $event->setCategorie("event-user");
+
+
+        // Sauvegarde en base de données
+        $entityManager->persist($event);
+        $entityManager->flush();
+
+        return $this->redirectToRoute('app_getAllEvents');
+    }
+
+    #[Route('/event/{id}/delete', name: 'app_delete_event', methods: ['POST'])]
+    public function delete(Request $request, Event $event, EntityManagerInterface $em): Response
+    {
+        if ($this->isCsrfTokenValid('delete' . $event->getId(), $request->request->get('_token'))) {
+            $em->remove($event);
+            $em->flush();
+            $this->addFlash('success', 'Événement supprimé avec succès');
+        }
+
+        return $this->redirectToRoute('app_getAllEvents');
+    }
+
+
 
     #[Route('/getEvents', name: 'app_getEvents')]
     public function getEvents(Request $request): Response
