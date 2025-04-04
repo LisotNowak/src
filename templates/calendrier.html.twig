@@ -256,12 +256,16 @@
                                                     <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#modal{{ event.id }}">
                                                         Voir plus
                                                     </button>
-                                                    {% if event.categorie == "event-user" %}
-                                                        <form method="POST" action="{{ path('app_delete_event', { id: event.id }) }}" style="display:inline;">
-                                                            <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ event.id) }}">
-                                                            <button type="submit" class="btn btn-sm btn-danger ms-1 mt-2" onclick="return confirm('Supprimer cet événement ?')">Supprimer</button>
-                                                        </form>
+                                                    
+                                                    {% if app.user %}
+                                                        {% if event.categorie == "event-user" %}
+                                                            <form method="POST" action="{{ path('app_delete_event', { id: event.id }) }}" style="display:inline;">
+                                                                <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ event.id) }}">
+                                                                <button type="submit" class="btn btn-sm btn-danger ms-1 mt-2" onclick="return confirm('Supprimer cet événement ?')">Supprimer</button>
+                                                            </form>
+                                                        {% endif %}
                                                     {% endif %}
+
 
 
                                                     <!-- Modal -->
