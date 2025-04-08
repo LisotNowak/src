@@ -26,8 +26,8 @@ class Event
     #[ORM\Column(length: 255)]
     private ?string $description = null;
 
-    #[ORM\Column]
-    private ?int $auteur = null;
+    #[ORM\Column(length: 255)]
+    private ?string $auteur = null;
 
     #[ORM\Column(length: 255)]
     private ?string $categorie = null;
@@ -105,12 +105,12 @@ class Event
         return $this;
     }
 
-    public function getAuteur(): ?int
+    public function getAuteur(): ?string
     {
         return $this->auteur;
     }
 
-    public function setAuteur(int $auteur): static
+    public function setAuteur(string $auteur): static
     {
         $this->auteur = $auteur;
 

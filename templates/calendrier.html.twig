@@ -45,9 +45,9 @@
 
         {# Collecte les catégories uniques #}
         {% for event in allEvents %}
-            {% if event.categorie == "event-user" %}
-                {% if "event-user" not in categories %}
-                    {% set categories = categories|merge(["event-user"]) %}
+            {% if event.categorie == "rdv" %}
+                {% if "rdv" not in categories %}
+                    {% set categories = categories|merge(["rdv"]) %}
                 {% endif %}
             {% else %}
                 {% if event.categorie is not null and event.categorie.nom not in categories %}
@@ -62,7 +62,7 @@
     {% set category = null %}
 
     {% for evt in allEvents %}
-        {% if evt.categorie == "event-user" %}
+        {% if evt.categorie == "rdv" %}
             {% if evt.categorie == categorieNom %}
                 {% set category = evt %}
             {% endif %}
@@ -140,10 +140,14 @@
                         <textarea class="form-control" id="description" name="description"></textarea>
                     </div>
 
+                    <!-- Affichage visible de l'ID utilisateur -->
                     <div class="mb-3">
-                        <label for="auteur" class="form-label">Auteur (ID utilisateur)</label>
-                        <input type="number" class="form-control" id="auteur" name="auteur" required>
+                        <label class="form-label">Auteur</label>
+                        <p class="form-control-plaintext" id="auteurDisplay">{{ app.user.userIdentifier }}</p>
                     </div>
+
+                    <!-- Champ caché pour le POST -->
+                    <input type="hidden" id="auteur" name="auteur" value="{{ app.user.userIdentifier }}">
 
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
@@ -154,6 +158,7 @@
         </div>
     </div>
 </div>
+
 {% endif %}
 
 <div class="container mt-5">
@@ -239,8 +244,8 @@
                                             {% if dateJour|date('Y-m-d') >= debut|date('Y-m-d') and dateJour|date('Y-m-d') <= fin|date('Y-m-d') %}
                                                 {% set hasEvent = true %}
                                                 <div class="event mb-2 p-2 border rounded"
-                                                    data-category="{{ event.categorie == 'event-user' ? event.categorie : event.categorie.nom }}"
-                                                    style="background-color: {{ event.categorie == 'event-user' ? '' : event.categorie.couleur }}">
+                                                    data-category="{{ event.categorie == 'rdv' ? event.categorie : event.categorie.nom }}"
+                                                    style="background-color: {{ event.categorie == 'rdv' ? '' : event.categorie.couleur }}">
 
                                                     <h5 class="card-title fw-bold">{{ event.label }}</h5>
                                                     <h6 class="card-subtitle mb-2 text-muted">
@@ -258,7 +263,7 @@
                                                     </button>
                                                     
                                                     {% if app.user %}
-                                                        {% if event.categorie == "event-user" %}
+                                                        {% if event.categorie == "rdv" %}
                                                             <form method="POST" action="{{ path('app_delete_event', { id: event.id }) }}" style="display:inline;">
                                                                 <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ event.id) }}">
                                                                 <button type="submit" class="btn btn-sm btn-danger ms-1 mt-2" onclick="return confirm('Supprimer cet événement ?')">Supprimer</button>
