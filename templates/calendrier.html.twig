@@ -229,19 +229,13 @@
                                             {% set debut = event.du|date('Y-m-d') %}
                                             {% set fin = event.au|date('Y-m-d') %}
                                             {% set debutTime = event.du|date('H:i') %}
-                                            
-                                            {# Si l'événement commence à minuit, on le déplace au jour suivant #}
 
-                                            {# {% if debutTime == '23:00' %} chagement d'heure #} 
                                             {% if debutTime == '22:00' %}
-                                            
                                                 {% set debut = event.du|date_modify('+1 day')|date('Y-m-d') %}
                                                 {% set fin = event.du|date_modify('+1 day')|date('Y-m-d') %}
-
                                             {% endif %}
 
-                                            {# Vérifier si l'événement est en cours ce jour #}
-                                            {% if dateJour|date('Y-m-d') >= debut|date('Y-m-d') and dateJour|date('Y-m-d') <= fin|date('Y-m-d') %}
+                                            {% if dateJour|date('Y-m-d') >= debut and dateJour|date('Y-m-d') <= fin %}
                                                 {% set hasEvent = true %}
                                                 <div class="event mb-2 p-2 border rounded"
                                                     data-category="{{ event.categorie == 'rdv' ? event.categorie : event.categorie.nom }}"
@@ -256,6 +250,28 @@
                                                         {% endif %}
                                                     </h6>
                                                     <p class="card-text"><em>{{ event.lieu }}</em></p>
+
+                                                    {% if event.description %}
+                                                        <p class="small">{{ event.description }}</p>
+                                                    {% endif %}
+
+                                                    {% if event.produits is not empty %}
+                                                        <div class="degustation-details d-none mt-2">
+                                                            <p class="mb-1"><strong>Produits dégustés :</strong></p>
+                                                            <ul class="ps-3">
+                                                                {% for produit in event.produits %}
+                                                                    <li>{{ produit.nomVin }} ({{ produit.millesime }})</li>
+                                                                {% endfor %}
+                                                            </ul>
+                                                        </div>
+                                                    {% endif %}
+
+
+                                                    {% set totalParticipants = 0 %}
+                                                    {% for invite in event.invites %}
+                                                        {% set totalParticipants = totalParticipants + (invite.adultes|default(0)) + (invite.enfants|default(0)) %}
+                                                    {% endfor %}
+                                                    <p class="mb-0"><strong>Participants :</strong> {{ totalParticipants }}</p>
 
                                                     <!-- Modal Trigger -->
                                                     <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#modal{{ event.id }}">
@@ -347,9 +363,14 @@
                                                         </div>
                                                     </div>
 
+                                                    {% if app.user and event.categorie == "rdv" %}
+                                                        <form method="POST" action="{{ path('app_delete_event', { id: event.id }) }}" style="display:inline;">
+                                                            <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ event.id) }}">
+                                                            <button type="submit" class="btn btn-sm btn-danger mt-2" onclick="return confirm('Supprimer cet événement ?')">Supprimer</button>
+                                                        </form>
+                                                    {% endif %}
                                                 </div>
                                             {% endif %}
-
                                         {% endfor %}
 
                                         {% if not hasEvent %}
@@ -421,6 +442,17 @@
             console.error("Erreur:", error);
         });
     });
+
+
+    document.addEventListener("DOMContentLoaded", function () {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('degustation')) {
+            document.querySelectorAll('.degustation-details').forEach(el => {
+                el.classList.remove('d-none');
+            });
+        }
+    });
+
 </script>
 
 </body>
