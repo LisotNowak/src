@@ -423,24 +423,32 @@
         filterEvents();
     });
 
-    document.getElementById('eventForm').addEventListener('submit', function(event) {
-        event.preventDefault();
+    document.addEventListener('DOMContentLoaded', function () {
+        const form = document.getElementById('eventForm');
 
-        const formData = new FormData(this);
-        
-        fetch("{{ path('app_add_event') }}", {
-            method: "POST",
-            body: formData
-        }).then(response => {
-            if (response.ok) {
-                alert("Événement ajouté avec succès !");
-                location.reload(); // Rafraîchir la page pour voir le nouvel événement
-            } else {
-                alert("Erreur lors de l'ajout de l'événement.");
-            }
-        }).catch(error => {
-            console.error("Erreur:", error);
-        });
+        if (form) {
+            form.addEventListener('submit', function(event) {
+                event.preventDefault();
+
+                const formData = new FormData(this);
+
+                fetch("/addEvent", {
+                    method: "POST",
+                    body: formData
+                })
+                .then(response => {
+                    if (response.ok) {
+                        alert("Événement ajouté avec succès !");
+                        location.reload();
+                    } else {
+                        alert("Erreur lors de l'ajout de l'événement.");
+                    }
+                })
+                .catch(error => {
+                    console.error("Erreur:", error);
+                });
+            });
+        }
     });
 
 
