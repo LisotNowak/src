@@ -255,9 +255,35 @@
 
                                             {% if dateJour|date('Y-m-d') >= debut and dateJour|date('Y-m-d') <= fin %}
                                                 {% set hasEvent = true %}
+
+                                                {% if event.categorie == 'rdv' %}
+                                                    {% set categoryName = event.categorie %}
+                                                    {% set backgroundColor = '' %}
+                                                {% elseif event.categorie == 'transporteur' %}
+                                                    {% set categoryName = event.categorie %}
+                                                    {% set backgroundColor = 'red' %}
+                                                {% else %}
+                                                    {% set categoryName = event.categorie.nom %}
+                                                    {% set backgroundColor = event.categorie.couleur %}
+                                                {% endif %}
+
                                                 <div class="event mb-2 p-2 border rounded"
-                                                    data-category="{% if event.type == 'Transporteur' %}transporteur{% elseif event.categorie == 'rdv' %}{{ event.categorie }}{% else %}{{ event.categorie.nom }}{% endif %}"
-                                                    style="background-color: {% if event.type == 'Transporteur' %}red{% elseif event.categorie == 'rdv' %}''{% else %}{{ event.categorie.couleur }}{% endif %}"
+                                                    data-category="{{ categoryName }}"
+                                                    style="background-color: {{ backgroundColor }}">
+
+                                                {# <div class="event mb-2 p-2 border rounded"
+                                                data-category="{% if event.categorie is same as('rdv') %}rdv
+                                                                {% elseif event.categorie is same as('transporteur') %}transporteur
+                                                                {% else %}{{ event.categorie.nom }}{% endif %}"
+                                                style="
+                                                    {% if event.categorie is same as('transporteur') %}
+                                                        background-color: #FF0000;
+                                                    {% elseif event.categorie is not same as('rdv') %}
+                                                        background-color: {{ event.categorie.couleur }};
+                                                    {% endif %}
+                                                "> #}
+
+
 
 
                                                     
@@ -380,7 +406,7 @@
                                                         </div>
                                                     </div>
 
-                                                    {% if app.user and (event.categorie == "rdv" or event.type == "Transporteur") %}
+                                                    {% if app.user and (event.categorie == "rdv" or event.categorie == "transporteur") %}
                                                         <form method="POST" action="{{ path('app_delete_event', { id: event.id }) }}" style="display:inline;">
                                                             <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ event.id) }}">
                                                             <button type="submit" class="btn btn-sm btn-danger mt-2" onclick="return confirm('Supprimer cet événement ?')">Supprimer</button>
