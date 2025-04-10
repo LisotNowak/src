@@ -414,7 +414,7 @@
                                                     {% if app.user and (event.categorie == "rdv" or event.categorie == "transporteur") %}
                                                         <form method="POST" action="{{ path('app_delete_event', { id: event.id }) }}" style="display:inline;">
                                                             <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ event.id) }}">
-                                                            <button type="submit" class="btn btn-sm btn-danger mt-2" onclick="return confirm('Supprimer cet événement ?')">Supprimer</button>
+                                                            <button type="submit" class="btn btn-sm btn-danger mt-4" onclick="return confirm('Supprimer cet événement ?')">Supprimer</button>
                                                         </form>
                                                     {% endif %}
                                                 </div>
@@ -444,6 +444,32 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
+
+    function shouldReloadNow() {
+        const now = new Date();
+        const hours = now.getHours();
+        const minutes = now.getMinutes();
+
+        const timeInMinutes = hours * 60 + minutes;
+        const startTime = 7 * 60 + 30;  // 7h30
+        const endTime = 18 * 60;        // 18h00
+
+        return timeInMinutes >= startTime && timeInMinutes < endTime;
+    }
+
+    function scheduleReload() {
+        if (shouldReloadNow()) {
+        setTimeout(() => {
+            location.reload();
+        }, 30 * 60 * 1000); // 30 minutes
+        } else {
+        console.log("Hors plage horaire, pas de rechargement.");
+        }
+    }
+
+    window.onload = scheduleReload;
+
+
     document.addEventListener('DOMContentLoaded', function() {
         // Fonction pour filtrer les événements par catégorie
         function filterEvents() {
