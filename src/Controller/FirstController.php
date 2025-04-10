@@ -77,6 +77,7 @@ class FirstController extends AbstractController
         $au = new \DateTime($request->request->get('au'));
         $description = $request->request->get('description');
         $auteur = $request->request->get('auteur');
+        $type = $request->request->get('type');
 
         // Création de l'événement
         $event = new Event();
@@ -85,7 +86,7 @@ class FirstController extends AbstractController
         $event->setAu($au->format('Y-m-d H:i:s'));
         $event->setDescription($description);
         $event->setAuteur($auteur);
-        $event->setCategorie("rdv");
+        $event->setCategorie($type);
 
 
         // Sauvegarde en base de données

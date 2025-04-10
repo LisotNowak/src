@@ -49,6 +49,10 @@
                 {% if "rdv" not in categories %}
                     {% set categories = categories|merge(["rdv"]) %}
                 {% endif %}
+            {% elseif event.categorie == "transporteur" %}
+                {% if "transporteur" not in categories %}
+                    {% set categories = categories|merge(["transporteur"]) %}
+                {% endif %}
             {% else %}
                 {% if event.categorie is not null and event.categorie.nom not in categories %}
                     {% set categories = categories|merge([event.categorie.nom]) %}
@@ -63,6 +67,10 @@
 
     {% for evt in allEvents %}
         {% if evt.categorie == "rdv" %}
+            {% if evt.categorie == categorieNom %}
+                {% set category = evt %}
+            {% endif %}
+        {% elseif evt.categorie == "transporteur" %}
             {% if evt.categorie == categorieNom %}
                 {% set category = evt %}
             {% endif %}
@@ -134,6 +142,16 @@
                         <label for="au" class="form-label">Date de fin</label>
                         <input type="datetime-local" class="form-control" id="au" name="au" required>
                     </div>
+
+                    <div class="mb-3">
+                        <label for="type" class="form-label">Type</label>
+                        <select class="form-select" id="type" name="type" required>
+                            <option value="">-- Sélectionnez un type --</option>
+                            <option value="rdv">RDV</option>
+                            <option value="transporteur">Transporteur</option>
+                        </select>
+                    </div>
+
 
                     <div class="mb-3">
                         <label for="description" class="form-label">Description</label>
@@ -238,8 +256,11 @@
                                             {% if dateJour|date('Y-m-d') >= debut and dateJour|date('Y-m-d') <= fin %}
                                                 {% set hasEvent = true %}
                                                 <div class="event mb-2 p-2 border rounded"
-                                                    data-category="{{ event.categorie == 'rdv' ? event.categorie : event.categorie.nom }}"
-                                                    style="background-color: {{ event.categorie == 'rdv' ? '' : event.categorie.couleur }}">
+                                                    data-category="{% if event.type == 'Transporteur' %}transporteur{% elseif event.categorie == 'rdv' %}{{ event.categorie }}{% else %}{{ event.categorie.nom }}{% endif %}"
+                                                    style="background-color: {% if event.type == 'Transporteur' %}red{% elseif event.categorie == 'rdv' %}''{% else %}{{ event.categorie.couleur }}{% endif %}"
+
+
+                                                    
 
                                                     <h5 class="card-title fw-bold">{{ event.label }}</h5>
                                                     <h6 class="card-subtitle mb-2 text-muted">
@@ -271,21 +292,15 @@
                                                     {% for invite in event.invites %}
                                                         {% set totalParticipants = totalParticipants + (invite.adultes|default(0)) + (invite.enfants|default(0)) %}
                                                     {% endfor %}
+                                                    {% if totalParticipants > 0 %}
                                                     <p class="mb-0"><strong>Participants :</strong> {{ totalParticipants }}</p>
+                                                    {% endif %}
 
                                                     <!-- Modal Trigger -->
                                                     <button class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#modal{{ event.id }}">
                                                         Voir plus
                                                     </button>
                                                     
-                                                    {% if app.user %}
-                                                        {% if event.categorie == "rdv" %}
-                                                            <form method="POST" action="{{ path('app_delete_event', { id: event.id }) }}" style="display:inline;">
-                                                                <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ event.id) }}">
-                                                                <button type="submit" class="btn btn-sm btn-danger ms-1 mt-2" onclick="return confirm('Supprimer cet événement ?')">Supprimer</button>
-                                                            </form>
-                                                        {% endif %}
-                                                    {% endif %}
 
 
 
@@ -332,7 +347,9 @@
                                                                             {% set totalParticipants = totalParticipants + (invite.adultes|default(0)) + (invite.enfants|default(0)) %}
                                                                         {% endfor %}
                                                                     {% endif %}
+                                                                    {% if totalParticipants > 0 %}
                                                                     <p><strong>Nombre de participants :</strong> {{ totalParticipants }}</p>
+                                                                    {% endif %}
 
                                                                     <!-- Liste des invités -->
                                                                     {% if event.invites is not empty %}
@@ -363,7 +380,7 @@
                                                         </div>
                                                     </div>
 
-                                                    {% if app.user and event.categorie == "rdv" %}
+                                                    {% if app.user and (event.categorie == "rdv" or event.type == "Transporteur") %}
                                                         <form method="POST" action="{{ path('app_delete_event', { id: event.id }) }}" style="display:inline;">
                                                             <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ event.id) }}">
                                                             <button type="submit" class="btn btn-sm btn-danger mt-2" onclick="return confirm('Supprimer cet événement ?')">Supprimer</button>
