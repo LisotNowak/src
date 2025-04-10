@@ -398,6 +398,11 @@
                                                                     {% else %}
                                                                         <p>Aucun opérateur</p>
                                                                     {% endif %}
+
+
+                                                                    {% if event.categorie == "rdv" or event.categorie == "transporteur" %}
+                                                                        <p><strong> Créateur :{{ app.user.userIdentifier }}</strong></p> 
+                                                                    {% endif %}
                                                                 </div>
                                                                 <div class="modal-footer">
                                                                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
