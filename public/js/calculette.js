@@ -110,7 +110,7 @@ function calcul() {
             }
     
     
-            document.getElementById("dimancheHS50").value = document.getElementsByClassName("dimancheHSaisie")[0].value;
+            document.getElementById("dimancheHS50").value = document.getElementsByClassName("dimancheHSaisie")[0]?.value || null;
     
             document.getElementById("totalHsaisie").value = totalHSaisie;
         }

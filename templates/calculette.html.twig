@@ -12,6 +12,7 @@
 
 {% include 'navbar.html.twig' %}
 
+
   <!-- Modal -->
   <div class="modal fade" id="devWarningModal" tabindex="-1" aria-labelledby="devWarningModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -55,8 +56,36 @@
 </div>
 
 
+
 <div class="container mt-5">
-    <h2>Tableau des Heures</h2>
+
+    <form method="get" action="{{ path('app_calculette_resultat') }}">
+        <label for="userDisplay">Choisir un utilisateur :</label>
+        <input list="userList" name="userDisplay" id="userDisplay" placeholder="Tapez un nom" required>
+        <datalist id="userList">
+            {% for user in users %}
+                <option data-id="{{ user.Id }}" value="{{ user.FirstName ~ ' ' ~ user.LastName }}"></option>
+            {% endfor %}
+        </datalist>
+        <!-- Champ caché pour l'ID de l'utilisateur -->
+        <input type="hidden" name="user" id="selectedUserId" required>
+
+        <label for="selectedWeek">Choisir une semaine :</label>
+        <input type="week" name="week" id="selectedWeek" required>
+
+        <button type="submit">Valider</button>
+    </form>
+
+    {% if  timeEntries is defined %}
+
+        {% if timeEntries is empty %}
+            <h2 class="mt-4 mb-4">Tableau des Heures</h2>
+        {% else %}
+            <h2 class="mt-4 mb-4">Tableau des Heures (Non-modifiable, car la semaine est déjà renseignée dans NIC)</h2>
+        {% endif %}
+    {% else %}
+        <h2>Tableau des Heures</h2>
+    {% endif %}
     <table class="table table-bordered">
         <thead>
             <tr>
@@ -76,120 +105,123 @@
                 <th>RTT</th>
             </tr>
         </thead>
-        <tbody>
-            <tr>
-                <td>Lundi</td>
-                <td><input id="lundiHSaisie" type="number" class="form-control HSaisie" onKeyUp="calcul()"></td>
-                <td><input id="lundiHNorm" type="number" class="form-control HNorm" disabled></td>
-                <td><input id="lundiHRepComp" type="number" class="form-control HRepComp" disabled></td>
-                <td><input id="lundiHCompl" type="number" class="form-control HCompl" disabled></td>
-                <td><input id="lundiHS10" type="number" class="form-control" disabled></td>
-                <td><input id="lundiHRepComp10" type="number" class="form-control" disabled></td>
-                <td><input id="lundiHS25" type="number" class="form-control HS25" disabled></td>
-                <td><input id="lundiHRepComp25" type="number" class="form-control" disabled></td>
-                <td><input id="lundiHS50" type="number" class="form-control HS50" disabled></td>
-                <td><input id="lundiHRepComp50" type="number" class="form-control" disabled></td>
-                <td><input id="lundiHS100" type="number" class="form-control" disabled></td>
-                <td><input id="lundiHRepComp100" type="number" class="form-control" disabled></td>
-                <td><input id="lundiRTT" type="number" class="form-control" disabled></td>
-            </tr>
-            <tr>
-                <td>Mardi</td>
-                <td><input id="mardiHSaisie" type="number" class="form-control HSaisie" onKeyUp="calcul()"></td>
-                <td><input id="mardiHNorm" type="number" class="form-control HNorm" disabled></td>
-                <td><input id="mardiHRepComp" type="number" class="form-control HRepComp" disabled></td>
-                <td><input id="mardiHCompl" type="number" class="form-control HCompl" disabled></td>
-                <td><input id="mardiHS10" type="number" class="form-control" disabled></td>
-                <td><input id="mardiHRepComp10" type="number" class="form-control" disabled></td>
-                <td><input id="mardiHS25" type="number" class="form-control HS25" disabled></td>
-                <td><input id="mardiHRepComp25" type="number" class="form-control" disabled></td>
-                <td><input id="mardiHS50" type="number" class="form-control HS50" disabled></td>
-                <td><input id="mardiHRepComp50" type="number" class="form-control" disabled></td>
-                <td><input id="mardiHS100" type="number" class="form-control" disabled></td>
-                <td><input id="mardiHRepComp100" type="number" class="form-control" disabled></td>
-                <td><input id="mardiRTT" type="number" class="form-control" disabled></td>
-            </tr>
-            <tr>
-                <td>Mercredi</td>
-                <td><input id="mercrediHSaisie" type="number" class="form-control HSaisie" onKeyUp="calcul()"></td>
-                <td><input id="mercrediHNorm" type="number" class="form-control HNorm" disabled></td>
-                <td><input id="mercrediHRepComp" type="number" class="form-control HRepComp" disabled></td>
-                <td><input id="mercrediHCompl" type="number" class="form-control HCompl" disabled></td>
-                <td><input id="mercrediHS10" type="number" class="form-control" disabled></td>
-                <td><input id="mercrediHRepComp10" type="number" class="form-control" disabled></td>
-                <td><input id="mercrediHS25" type="number" class="form-control HS25" disabled></td>
-                <td><input id="mercrediHRepComp25" type="number" class="form-control" disabled></td>
-                <td><input id="mercrediHS50" type="number" class="form-control HS50" disabled></td>
-                <td><input id="mercrediHRepComp50" type="number" class="form-control" disabled></td>
-                <td><input id="mercrediHS100" type="number" class="form-control" disabled></td>
-                <td><input id="mercrediHRepComp100" type="number" class="form-control" disabled></td>
-                <td><input id="mercrediRTT" type="number" class="form-control" disabled></td>
-            </tr>
-            <tr>
-                <td>Jeudi</td>
-                <td><input id="jeudiHSaisie" type="number" class="form-control HSaisie" onKeyUp="calcul()"></td>
-                <td><input id="jeudiHNorm" type="number" class="form-control HNorm" disabled></td>
-                <td><input id="jeudiHRepComp" type="number" class="form-control HRepComp" disabled></td>
-                <td><input id="jeudiHCompl" type="number" class="form-control HCompl" disabled></td>
-                <td><input id="jeudiHS10" type="number" class="form-control" disabled></td>
-                <td><input id="jeudiHRepComp10" type="number" class="form-control" disabled></td>
-                <td><input id="jeudiHS25" type="number" class="form-control HS25" disabled></td>
-                <td><input id="jeudiHRepComp25" type="number" class="form-control" disabled></td>
-                <td><input id="jeudiHS50" type="number" class="form-control HS50" disabled></td>
-                <td><input id="jeudiHRepComp50" type="number" class="form-control" disabled></td>
-                <td><input id="jeudiHS100" type="number" class="form-control" disabled></td>
-                <td><input id="jeudiHRepComp100" type="number" class="form-control" disabled></td>
-                <td><input id="jeudiRTT" type="number" class="form-control" disabled></td>
-            </tr>
-            <tr>
-                <td>Vendredi</td>
-                <td><input id="vendrediHSaisie" type="number" class="form-control HSaisie" onKeyUp="calcul()"></td>
-                <td><input id="vendrediHNorm" type="number" class="form-control HNorm" disabled></td>
-                <td><input id="vendrediHRepComp" type="number" class="form-control HRepComp" disabled></td>
-                <td><input id="vendrediHCompl" type="number" class="form-control HCompl" disabled></td>
-                <td><input id="vendrediHS10" type="number" class="form-control" disabled></td>
-                <td><input id="vendrediHRepComp10" type="number" class="form-control" disabled></td>
-                <td><input id="vendrediHS25" type="number" class="form-control HS25" disabled></td>
-                <td><input id="vendrediHRepComp25" type="number" class="form-control" disabled></td>
-                <td><input id="vendrediHS50" type="number" class="form-control HS50" disabled></td>
-                <td><input id="vendrediHRepComp50" type="number" class="form-control" disabled></td>
-                <td><input id="vendrediHS100" type="number" class="form-control" disabled></td>
-                <td><input id="vendrediHRepComp100" type="number" class="form-control" disabled></td>
-                <td><input id="vendrediRTT" type="number" class="form-control" disabled></td>
-            </tr>
-            <tr>
-                <td>Samedi</td>
-                <td><input id="samediHSaisie" type="number" class="form-control HSaisie" onKeyUp="calcul()"></td>
-                <td><input id="samediHNorm" type="number" class="form-control HNorm" disabled></td>
-                <td><input id="samediHRepComp" type="number" class="form-control HRepComp" disabled></td>
-                <td><input id="samediHCompl" type="number" class="form-control HCompl" disabled></td>
-                <td><input id="samediHS10" type="number" class="form-control" disabled></td>
-                <td><input id="samediHRepComp10" type="number" class="form-control" disabled></td>
-                <td><input id="samediHS25" type="number" class="form-control HS25" disabled></td>
-                <td><input id="samediHRepComp25" type="number" class="form-control" disabled></td>
-                <td><input id="samediHS50" type="number" class="form-control HS50" disabled></td>
-                <td><input id="samediHRepComp50" type="number" class="form-control" disabled></td>
-                <td><input id="samediHS100" type="number" class="form-control" disabled></td>
-                <td><input id="samediHRepComp100" type="number" class="form-control" disabled></td>
-                <td><input id="samediRTT" type="number" class="form-control" disabled></td>
-            </tr>
-            <tr>
-                <td>Dimanche</td>
-                <td><input id="dimancheHSaisie" type="number" class="form-control HSaisie dimancheHSaisie" onKeyUp="calcul()"></td>
-                <td><input id="dimancheHNorm" type="number" class="form-control HNorm" disabled></td>
-                <td><input id="dimancheHRepComp" type="number" class="form-control dimancheHRepComp" disabled></td>
-                <td><input id="dimancheHCompl" type="number" class="form-control HCompl" disabled></td>
-                <td><input id="dimancheHS10" type="number" class="form-control" disabled></td>
-                <td><input id="dimancheHRepComp10" type="number" class="form-control" disabled></td>
-                <td><input id="dimancheHS25" type="number" class="form-control HS25" disabled></td>
-                <td><input id="dimancheHRepComp25" type="number" class="form-control" disabled></td>
-                <td><input id="dimancheHS50" type="number" class="form-control HS50" disabled></td>
-                <td><input id="dimancheHRepComp50" type="number" class="form-control" disabled></td>
-                <td><input id="dimancheHS100" type="number" class="form-control" disabled></td>
-                <td><input id="dimancheHRepComp100" type="number" class="form-control" disabled></td>
-                <td><input id="dimancheRTT" type="number" class="form-control" disabled></td>
-            </tr>       
-        </tbody>
+<tbody>
+    <tr>
+        <td style="white-space: nowrap;">Lundi <br>{{ timeEntries[0] is defined ? timeEntries[0].DateEntry|date('Y-m-d') : '' }}</td>
+        <td>
+            <input id="lundiHSaisie" type="number" class="form-control HSaisie" {% if timeEntries is defined %} {% if timeEntries is empty %} onKeyUp="calcul()" {% else %}disabled{% endif %}{% else %}onKeyUp="calcul()"{% endif %}></td>
+        <td><input id="lundiHNorm" type="number" class="form-control HNorm" disabled value="{{ timeEntries[0] is defined ? timeEntries[0].NbHoursNormal : '' }}"></td>
+        <td><input id="lundiHRepComp" type="number" class="form-control HRepComp" disabled value="{{ timeEntries[0] is defined ? timeEntries[0].NbHoursRecoveryTime : '' }}"></td>
+        <td><input id="lundiHCompl" type="number" class="form-control HCompl" disabled value="{{ timeEntries[0] is defined ? timeEntries[0].NbHoursAdd : '' }}"></td>
+        <td><input id="lundiHS10" type="number" class="form-control" disabled value="{{ timeEntries[0] is defined ? timeEntries[0].NbHoursAdd10 : '' }}"></td>
+        <td><input id="lundiHRepComp10" type="number" class="form-control" disabled value="{{ timeEntries[0] is defined ? timeEntries[0].NbHoursRecoveryTime10 : '' }}"></td>
+        <td><input id="lundiHS25" type="number" class="form-control HS25" disabled value="{{ timeEntries[0] is defined ? timeEntries[0].NbHoursAdd25 : '' }}"></td>
+        <td><input id="lundiHRepComp25" type="number" class="form-control" disabled value="{{ timeEntries[0] is defined ? timeEntries[0].NbHoursRecoveryTime25 : '' }}"></td>
+        <td><input id="lundiHS50" type="number" class="form-control HS50" disabled value="{{ timeEntries[0] is defined ? timeEntries[0].NbHoursAdd50 : '' }}"></td>
+        <td><input id="lundiHRepComp50" type="number" class="form-control" disabled value="{{ timeEntries[0] is defined ? timeEntries[0].NbHoursRecoveryTime50 : '' }}"></td>
+        <td><input id="lundiHS100" type="number" class="form-control" disabled value="{{ timeEntries[0] is defined ? timeEntries[0].NbHoursAdd100 : '' }}"></td>
+        <td><input id="lundiHRepComp100" type="number" class="form-control" disabled value="{{ timeEntries[0] is defined ? timeEntries[0].NbHoursRecoveryTime50 : '' }}"></td>
+        <td><input id="lundiRTT" type="number" class="form-control" disabled value="{{ timeEntries[0] is defined ? timeEntries[0].NbHoursRtt : '' }}"></td>
+    </tr>
+    <tr>
+        <td style="white-space: nowrap;">Mardi <br>{{ timeEntries[1] is defined ? timeEntries[1].DateEntry|date('Y-m-d') : '' }}</td>
+        <td><input id="mardiHSaisie" type="number" class="form-control HSaisie" {% if timeEntries is defined %} {% if timeEntries is empty %} onKeyUp="calcul()" {% else %}disabled{% endif %}{% else %}onKeyUp="calcul()"{% endif %}></td>
+        <td><input id="mardiHNorm" type="number" class="form-control HNorm" disabled value="{{ timeEntries[1] is defined ? timeEntries[1].NbHoursNormal : '' }}"></td>
+        <td><input id="mardiHRepComp" type="number" class="form-control HRepComp" disabled value="{{ timeEntries[1] is defined ? timeEntries[1].NbHoursRecoveryTime : '' }}"></td>
+        <td><input id="mardiHCompl" type="number" class="form-control HCompl" disabled value="{{ timeEntries[1] is defined ? timeEntries[1].NbHoursAdd : '' }}"></td>
+        <td><input id="mardiHS10" type="number" class="form-control" disabled value="{{ timeEntries[1] is defined ? timeEntries[1].NbHoursAdd10 : '' }}"></td>
+        <td><input id="mardiHRepComp10" type="number" class="form-control" disabled value="{{ timeEntries[1] is defined ? timeEntries[1].NbHoursRecoveryTime10 : '' }}"></td>
+        <td><input id="mardiHS25" type="number" class="form-control HS25" disabled value="{{ timeEntries[1] is defined ? timeEntries[1].NbHoursAdd25 : '' }}"></td>
+        <td><input id="mardiHRepComp25" type="number" class="form-control" disabled value="{{ timeEntries[1] is defined ? timeEntries[1].NbHoursRecoveryTime25 : '' }}"></td>
+        <td><input id="mardiHS50" type="number" class="form-control HS50" disabled value="{{ timeEntries[1] is defined ? timeEntries[1].NbHoursAdd50 : '' }}"></td>
+        <td><input id="mardiHRepComp50" type="number" class="form-control" disabled value="{{ timeEntries[1] is defined ? timeEntries[1].NbHoursRecoveryTime50 : '' }}"></td>
+        <td><input id="mardiHS100" type="number" class="form-control" disabled value="{{ timeEntries[1] is defined ? timeEntries[1].NbHoursAdd100 : '' }}"></td>
+        <td><input id="mardiHRepComp100" type="number" class="form-control" disabled value="{{ timeEntries[1] is defined ? timeEntries[1].NbHoursRecoveryTime50 : '' }}"></td>
+        <td><input id="mardiRTT" type="number" class="form-control" disabled value="{{ timeEntries[1] is defined ? timeEntries[1].NbHoursRtt : '' }}"></td>
+    </tr>
+    <tr>
+        <td style="white-space: nowrap;">Mercredi <br>{{ timeEntries[2] is defined ? timeEntries[2].DateEntry|date('Y-m-d') : '' }}</td>
+        <td><input id="mercrediHSaisie" type="number" class="form-control HSaisie" {% if timeEntries is defined %} {% if timeEntries is empty %} onKeyUp="calcul()" {% else %}disabled{% endif %}{% else %}onKeyUp="calcul()"{% endif %}></td>
+        <td><input id="mercrediHNorm" type="number" class="form-control HNorm" disabled value="{{ timeEntries[2] is defined ? timeEntries[2].NbHoursNormal : '' }}"></td>
+        <td><input id="mercrediHRepComp" type="number" class="form-control HRepComp" disabled value="{{ timeEntries[2] is defined ? timeEntries[2].NbHoursRecoveryTime : '' }}"></td>
+        <td><input id="mercrediHCompl" type="number" class="form-control HCompl" disabled value="{{ timeEntries[2] is defined ? timeEntries[2].NbHoursAdd : '' }}"></td>
+        <td><input id="mercrediHS10" type="number" class="form-control" disabled value="{{ timeEntries[2] is defined ? timeEntries[2].NbHoursAdd10 : '' }}"></td>
+        <td><input id="mercrediHRepComp10" type="number" class="form-control" disabled value="{{ timeEntries[2] is defined ? timeEntries[2].NbHoursRecoveryTime10 : '' }}"></td>
+        <td><input id="mercrediHS25" type="number" class="form-control HS25" disabled value="{{ timeEntries[2] is defined ? timeEntries[2].NbHoursAdd25 : '' }}"></td>
+        <td><input id="mercrediHRepComp25" type="number" class="form-control" disabled value="{{ timeEntries[2] is defined ? timeEntries[2].NbHoursRecoveryTime25 : '' }}"></td>
+        <td><input id="mercrediHS50" type="number" class="form-control HS50" disabled value="{{ timeEntries[2] is defined ? timeEntries[2].NbHoursAdd50 : '' }}"></td>
+        <td><input id="mercrediHRepComp50" type="number" class="form-control" disabled value="{{ timeEntries[2] is defined ? timeEntries[2].NbHoursRecoveryTime50 : '' }}"></td>
+        <td><input id="mercrediHS100" type="number" class="form-control" disabled value="{{ timeEntries[2] is defined ? timeEntries[2].NbHoursAdd100 : '' }}"></td>
+        <td><input id="mercrediHRepComp100" type="number" class="form-control" disabled value="{{ timeEntries[2] is defined ? timeEntries[2].NbHoursRecoveryTime50 : '' }}"></td>
+        <td><input id="mercrediRTT" type="number" class="form-control" disabled value="{{ timeEntries[2] is defined ? timeEntries[2].NbHoursRtt : '' }}"></td>
+    </tr>
+    <tr>
+        <td style="white-space: nowrap;">Jeudi <br>{{ timeEntries[3] is defined ? timeEntries[3].DateEntry|date('Y-m-d') : '' }}</td>
+        <td><input id="jeudiHSaisie" type="number" class="form-control HSaisie" {% if timeEntries is defined %} {% if timeEntries is empty %} onKeyUp="calcul()" {% else %}disabled{% endif %}{% else %}onKeyUp="calcul()"{% endif %}></td>
+        <td><input id="jeudiHNorm" type="number" class="form-control HNorm" disabled value="{{ timeEntries[3] is defined ? timeEntries[3].NbHoursNormal : '' }}"></td>
+        <td><input id="jeudiHRepComp" type="number" class="form-control HRepComp" disabled value="{{ timeEntries[3] is defined ? timeEntries[3].NbHoursRecoveryTime : '' }}"></td>
+        <td><input id="jeudiHCompl" type="number" class="form-control HCompl" disabled value="{{ timeEntries[3] is defined ? timeEntries[3].NbHoursAdd : '' }}"></td>
+        <td><input id="jeudiHS10" type="number" class="form-control" disabled value="{{ timeEntries[3] is defined ? timeEntries[3].NbHoursAdd10 : '' }}"></td>
+        <td><input id="jeudiHRepComp10" type="number" class="form-control" disabled value="{{ timeEntries[3] is defined ? timeEntries[3].NbHoursRecoveryTime10 : '' }}"></td>
+        <td><input id="jeudiHS25" type="number" class="form-control HS25" disabled value="{{ timeEntries[3] is defined ? timeEntries[3].NbHoursAdd25 : '' }}"></td>
+        <td><input id="jeudiHRepComp25" type="number" class="form-control" disabled value="{{ timeEntries[3] is defined ? timeEntries[3].NbHoursRecoveryTime25 : '' }}"></td>
+        <td><input id="jeudiHS50" type="number" class="form-control HS50" disabled value="{{ timeEntries[3] is defined ? timeEntries[3].NbHoursAdd50 : '' }}"></td>
+        <td><input id="jeudiHRepComp50" type="number" class="form-control" disabled value="{{ timeEntries[3] is defined ? timeEntries[3].NbHoursRecoveryTime50 : '' }}"></td>
+        <td><input id="jeudiHS100" type="number" class="form-control" disabled value="{{ timeEntries[3] is defined ? timeEntries[3].NbHoursAdd100 : '' }}"></td>
+        <td><input id="jeudiHRepComp100" type="number" class="form-control" disabled value="{{ timeEntries[3] is defined ? timeEntries[3].NbHoursRecoveryTime50 : '' }}"></td>
+        <td><input id="jeudiRTT" type="number" class="form-control" disabled value="{{ timeEntries[3] is defined ? timeEntries[3].NbHoursRtt : '' }}"></td>
+    </tr>
+    <tr>
+        <td style="white-space: nowrap;">Vendredi <br>{{ timeEntries[4] is defined ? timeEntries[4].DateEntry|date('Y-m-d') : '' }}</td>
+        <td><input id="vendrediHSaisie" type="number" class="form-control HSaisie" {% if timeEntries is defined %} {% if timeEntries is empty %} onKeyUp="calcul()" {% else %}disabled{% endif %}{% else %}onKeyUp="calcul()"{% endif %}></td>
+        <td><input id="vendrediHNorm" type="number" class="form-control HNorm" disabled value="{{ timeEntries[4] is defined ? timeEntries[4].NbHoursNormal : '' }}"></td>
+        <td><input id="vendrediHRepComp" type="number" class="form-control HRepComp" disabled value="{{ timeEntries[4] is defined ? timeEntries[4].NbHoursRecoveryTime : '' }}"></td>
+        <td><input id="vendrediHCompl" type="number" class="form-control HCompl" disabled value="{{ timeEntries[4] is defined ? timeEntries[4].NbHoursAdd : '' }}"></td>
+        <td><input id="vendrediHS10" type="number" class="form-control" disabled value="{{ timeEntries[4] is defined ? timeEntries[4].NbHoursAdd10 : '' }}"></td>
+        <td><input id="vendrediHRepComp10" type="number" class="form-control" disabled value="{{ timeEntries[4] is defined ? timeEntries[4].NbHoursRecoveryTime10 : '' }}"></td>
+        <td><input id="vendrediHS25" type="number" class="form-control HS25" disabled value="{{ timeEntries[4] is defined ? timeEntries[4].NbHoursAdd25 : '' }}"></td>
+        <td><input id="vendrediHRepComp25" type="number" class="form-control" disabled value="{{ timeEntries[4] is defined ? timeEntries[4].NbHoursRecoveryTime25 : '' }}"></td>
+        <td><input id="vendrediHS50" type="number" class="form-control HS50" disabled value="{{ timeEntries[4] is defined ? timeEntries[4].NbHoursAdd50 : '' }}"></td>
+        <td><input id="vendrediHRepComp50" type="number" class="form-control" disabled value="{{ timeEntries[4] is defined ? timeEntries[4].NbHoursRecoveryTime50 : '' }}"></td>
+        <td><input id="vendrediHS100" type="number" class="form-control" disabled value="{{ timeEntries[4] is defined ? timeEntries[4].NbHoursAdd100 : '' }}"></td>
+        <td><input id="vendrediHRepComp100" type="number" class="form-control" disabled value="{{ timeEntries[4] is defined ? timeEntries[4].NbHoursRecoveryTime50 : '' }}"></td>
+        <td><input id="vendrediRTT" type="number" class="form-control" disabled value="{{ timeEntries[4] is defined ? timeEntries[4].NbHoursRtt : '' }}"></td>
+    </tr>
+    <tr>
+        <td style="white-space: nowrap;">Samedi <br>{{ timeEntries[5] is defined ? timeEntries[5].DateEntry|date('Y-m-d') : '' }}</td>
+        <td><input id="samediHSaisie" type="number" class="form-control HSaisie" {% if timeEntries is defined %} {% if timeEntries is empty %} onKeyUp="calcul()" {% else %}disabled{% endif %}{% else %}onKeyUp="calcul()"{% endif %}></td>
+        <td><input id="samediHNorm" type="number" class="form-control HNorm" disabled value="{{ timeEntries[5] is defined ? timeEntries[5].NbHoursNormal : '' }}"></td>
+        <td><input id="samediHRepComp" type="number" class="form-control HRepComp" disabled value="{{ timeEntries[5] is defined ? timeEntries[5].NbHoursRecoveryTime : '' }}"></td>
+        <td><input id="samediHCompl" type="number" class="form-control HCompl" disabled value="{{ timeEntries[5] is defined ? timeEntries[5].NbHoursAdd : '' }}"></td>
+        <td><input id="samediHS10" type="number" class="form-control" disabled value="{{ timeEntries[5] is defined ? timeEntries[5].NbHoursAdd10 : '' }}"></td>
+        <td><input id="samediHRepComp10" type="number" class="form-control" disabled value="{{ timeEntries[5] is defined ? timeEntries[5].NbHoursRecoveryTime10 : '' }}"></td>
+        <td><input id="samediHS25" type="number" class="form-control HS25" disabled value="{{ timeEntries[5] is defined ? timeEntries[5].NbHoursAdd25 : '' }}"></td>
+        <td><input id="samediHRepComp25" type="number" class="form-control" disabled value="{{ timeEntries[5] is defined ? timeEntries[5].NbHoursRecoveryTime25 : '' }}"></td>
+        <td><input id="samediHS50" type="number" class="form-control HS50" disabled value="{{ timeEntries[5] is defined ? timeEntries[5].NbHoursAdd50 : '' }}"></td>
+        <td><input id="samediHRepComp50" type="number" class="form-control" disabled value="{{ timeEntries[5] is defined ? timeEntries[5].NbHoursRecoveryTime50 : '' }}"></td>
+        <td><input id="samediHS100" type="number" class="form-control" disabled value="{{ timeEntries[5] is defined ? timeEntries[5].NbHoursAdd100 : '' }}"></td>
+        <td><input id="samediHRepComp100" type="number" class="form-control" disabled value="{{ timeEntries[5] is defined ? timeEntries[5].NbHoursRecoveryTime50 : '' }}"></td>
+        <td><input id="samediRTT" type="number" class="form-control" disabled value="{{ timeEntries[5] is defined ? timeEntries[5].NbHoursRtt : '' }}"></td>
+    </tr>
+    <tr>
+        <td style="white-space: nowrap;">Dimanche <br>{{ timeEntries[6] is defined ? timeEntries[6].DateEntry|date('Y-m-d') : '' }}</td>
+        <td><input id="dimancheHSaisie" type="number" class="form-control HSaisie" {% if timeEntries is defined %} {% if timeEntries is empty %} onKeyUp="calcul()" {% else %}disabled{% endif %}{% else %}onKeyUp="calcul()"{% endif %}></td>
+        <td><input id="dimancheHNorm" type="number" class="form-control HNorm" disabled value="{{ timeEntries[6] is defined ? timeEntries[6].NbHoursNormal : '' }}"></td>
+        <td><input id="dimancheHRepComp" type="number" class="form-control HRepComp" disabled value="{{ timeEntries[6] is defined ? timeEntries[6].NbHoursRecoveryTime : '' }}"></td>
+        <td><input id="dimancheHCompl" type="number" class="form-control HCompl" disabled value="{{ timeEntries[6] is defined ? timeEntries[6].NbHoursAdd : '' }}"></td>
+        <td><input id="dimancheHS10" type="number" class="form-control" disabled value="{{ timeEntries[6] is defined ? timeEntries[6].NbHoursAdd10 : '' }}"></td>
+        <td><input id="dimancheHRepComp10" type="number" class="form-control" disabled value="{{ timeEntries[6] is defined ? timeEntries[6].NbHoursRecoveryTime10 : '' }}"></td>
+        <td><input id="dimancheHS25" type="number" class="form-control HS25" disabled value="{{ timeEntries[6] is defined ? timeEntries[6].NbHoursAdd25 : '' }}"></td>
+        <td><input id="dimancheHRepComp25" type="number" class="form-control" disabled value="{{ timeEntries[6] is defined ? timeEntries[6].NbHoursRecoveryTime25 : '' }}"></td>
+        <td><input id="dimancheHS50" type="number" class="form-control HS50" disabled value="{{ timeEntries[6] is defined ? timeEntries[6].NbHoursAdd50 : '' }}"></td>
+        <td><input id="dimancheHRepComp50" type="number" class="form-control" disabled value="{{ timeEntries[6] is defined ? timeEntries[6].NbHoursRecoveryTime50 : '' }}"></td>
+        <td><input id="dimancheHS100" type="number" class="form-control" disabled value="{{ timeEntries[6] is defined ? timeEntries[6].NbHoursAdd100 : '' }}"></td>
+        <td><input id="dimancheHRepComp100" type="number" class="form-control" disabled value="{{ timeEntries[6] is defined ? timeEntries[6].NbHoursRecoveryTime50 : '' }}"></td>
+        <td><input id="dimancheRTT" type="number" class="form-control" disabled value="{{ timeEntries[6] is defined ? timeEntries[6].NbHoursRtt : '' }}"></td>
+    </tr>
+</tbody>
+
+
     </table>
     <div class="row">
     <h4>Total heures semaine :</h4>
@@ -203,6 +235,22 @@
 
 {% block javascripts %}
     <script src="{{ asset('js/calculette.js') }}"></script>
+    <script>
+    document.getElementById('userDisplay').addEventListener('input', function () {
+        const input = this;
+        const datalist = document.getElementById('userList');
+        const hidden = document.getElementById('selectedUserId');
+
+        const option = Array.from(datalist.options).find(
+            opt => opt.value === input.value
+        );
+
+        hidden.value = option ? option.dataset.id : '';
+    });
+</script>
+
+
+
 {% endblock %}
 
 <!-- Inclure Bootstrap JS -->

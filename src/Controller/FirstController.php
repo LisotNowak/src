@@ -138,57 +138,57 @@ class FirstController extends AbstractController
     }
 
     #[Route('/calendrier', name: 'app_calendrier')]
-public function calendrier(): Response
-{
-    try {
-        $TOKEN = 'D#FGHD3$57FG=H2D4F(GH#DFGS6£QS5D@68F7$¤¤';
+    public function calendrier(): Response
+    {
+        try {
+            $TOKEN = 'D#FGHD3$57FG=H2D4F(GH#DFGS6£QS5D@68F7$¤¤';
 
-        // Définir les dates de début et de fin
-        $dateMax = new DateTime(); // Obtenir la date actuelle
-        $dateMax->modify('+1 year'); // Ajouter 1 an
+            // Définir les dates de début et de fin
+            $dateMax = new DateTime(); // Obtenir la date actuelle
+            $dateMax->modify('+1 year'); // Ajouter 1 an
 
-        $postData = [
-            'du' => date("Y-m-d"),
-            'au' => $dateMax->format('Y-m-d')
-        ];
+            $postData = [
+                'du' => date("Y-m-d"),
+                'au' => $dateMax->format('Y-m-d')
+            ];
 
-        // Créer le client HTTP pour la requête
-        $client = new Client([
-            'verify' => false, // Désactiver la vérification SSL
-        ]);
-        $response = $client->post(
-            'https://artemis-domaines.oenomanager.com/api/public/evenements', 
-            [
-                'headers' => [
-                    'x-oenomanager-token' => $TOKEN,
-                    'Content-Type' => 'application/json',
-                ],
-                'json' => $postData,
-            ]
-        );
+            // Créer le client HTTP pour la requête
+            $client = new Client([
+                'verify' => false, // Désactiver la vérification SSL
+            ]);
+            $response = $client->post(
+                'https://artemis-domaines.oenomanager.com/api/public/evenements', 
+                [
+                    'headers' => [
+                        'x-oenomanager-token' => $TOKEN,
+                        'Content-Type' => 'application/json',
+                    ],
+                    'json' => $postData,
+                ]
+            );
 
-        // Traiter la réponse JSON
-        $responseBody = $response->getBody()->getContents();
-        $allEvents = json_decode($responseBody, true);
+            // Traiter la réponse JSON
+            $responseBody = $response->getBody()->getContents();
+            $allEvents = json_decode($responseBody, true);
 
-        // Transformation des dates dans le format désiré
-        foreach ($allEvents as &$event) {
-            if (isset($event['date'])) {
-                $eventDate = new \DateTime($event['date']);
-                // Formater la date au format 'd/m/Y' (jour/mois/année)
-                $event['date'] = $eventDate->format('d/m/Y');
+            // Transformation des dates dans le format désiré
+            foreach ($allEvents as &$event) {
+                if (isset($event['date'])) {
+                    $eventDate = new \DateTime($event['date']);
+                    // Formater la date au format 'd/m/Y' (jour/mois/année)
+                    $event['date'] = $eventDate->format('d/m/Y');
+                }
             }
+
+        } catch (Exception $ex) {
+            error_log($ex->getMessage());
+            http_response_code(400);
+            echo json_encode(['error' => $ex->getMessage()]);
         }
 
-    } catch (Exception $ex) {
-        error_log($ex->getMessage());
-        http_response_code(400);
-        echo json_encode(['error' => $ex->getMessage()]);
+        return $this->render('formation.html.twig', [
+            'allEvents' => $allEvents
+        ]);
     }
-
-    return $this->render('formation.html.twig', [
-        'allEvents' => $allEvents
-    ]);
-}
 
 }

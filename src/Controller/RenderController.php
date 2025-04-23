@@ -2,6 +2,9 @@
 // src/Controller/RenderController.php
 namespace App\Controller;
 
+use DateTimeImmutable;
+use DateTimeInterface;
+use App\Service\SqlServerService;
 use App\Entity\Product;
 use Doctrine\ORM\EntityManagerInterface;
 use App\Service\EventService;
@@ -40,18 +43,81 @@ class RenderController extends AbstractController
     
 
     #[Route('/calculette', name: 'app_calculette')]
-    public function calculette(): Response
+    public function calculette(SqlServerService $sqlServerService): Response
     {
-        // // Vérifiez si l'utilisateur est déjà authentifié
-        // if ($this->isGranted('IS_AUTHENTICATED_FULLY')) {
-        //     // Redirigez l'utilisateur s'il est déjà authentifié
-        //     return $this->render('calculette.html.twig');
-        // }else{
-        //     return $this->redirectToRoute('app_accueil');
-        // }
+        $users = $sqlServerService->query("SELECT * FROM AspNetUsers");
 
-        return $this->render('calculette.html.twig');
+        return $this->render('calculette.html.twig', [
+            'users' => $users,
 
+        ]);
+
+    }
+
+    #[Route('/calculette/resultat', name: 'app_calculette_resultat', methods: ['GET'])]
+    public function calculetteResultat(Request $request, SqlServerService $sqlServerService): Response
+    {
+        $userId = $request->query->get('user');
+        $week = $request->query->get('week');
+
+        if (!$userId || !$week) {
+            return $this->redirectToRoute('app_calculette');
+        }
+
+        $userResults = $sqlServerService->query(
+            "SELECT * FROM AspNetUsers WHERE Id = :id", 
+            ['id' => $userId]
+        );
+        $user = $userResults[0] ?? null;
+
+        if (!$user) {
+            throw $this->createNotFoundException("Utilisateur non trouvé.");
+        }
+
+        // Obtenir les dates de début et fin de semaine
+        [$startDate, $endDate] = $this->getStartAndEndDateFromIsoWeek($week);
+
+        $timeEntries = $sqlServerService->query("
+            SELECT * FROM TimeEntries 
+            WHERE Employee_Id = :userId 
+            AND DateEntry >= :startDate 
+            AND DateEntry <= :endDate
+        ", [
+            'userId' => $userId,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+        ]);
+
+        $users = $sqlServerService->query("SELECT * FROM AspNetUsers");
+
+        return $this->render('calculette.html.twig', [
+            'users' => $users,
+            'user' => $user,
+            'week' => $week,
+            'timeEntries' => $timeEntries,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+        ]);
+    }
+
+    private function getStartAndEndDateFromIsoWeek(string $isoWeek): array
+    {
+        $isoWeek = str_replace('-W', '', $isoWeek); // ex: "2025-W17" → "202517"
+
+        $date = new DateTimeImmutable();
+        $date = $date->setISODate(substr($isoWeek, 0, 4), substr($isoWeek, 4, 2));
+
+        if (!$date) {
+            throw new \InvalidArgumentException("Format de semaine invalide : $isoWeek");
+        }
+
+        $start = $date->setTime(0, 0, 0); // Lundi
+        $end = $start->modify('sunday this week')->setTime(23, 59, 59); // Dimanche
+
+        return [
+            $start->format('Y-m-d\TH:i:s'),
+            $end->format('Y-m-d\TH:i:s'),
+        ];
     }
 
 }
