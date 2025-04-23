@@ -77,6 +77,14 @@ class RenderController extends AbstractController
         // Obtenir les dates de début et fin de semaine
         [$startDate, $endDate] = $this->getStartAndEndDateFromIsoWeek($week);
 
+        // Calculer les dates de chaque jour de la semaine
+        $weekDates = [];
+        $currentDate = new DateTime($startDate);
+        for ($i = 0; $i < 7; $i++) {
+            $weekDates[] = $currentDate->format('Y-m-d');
+            $currentDate->modify('+1 day');
+        }
+
         $timeEntries = $sqlServerService->query("
             SELECT * FROM TimeEntries 
             WHERE Employee_Id = :userId 
@@ -95,6 +103,7 @@ class RenderController extends AbstractController
             'user' => $user,
             'week' => $week,
             'timeEntries' => $timeEntries,
+            'weekDates' => $weekDates, // Passer les dates de la semaine à la vue
             'startDate' => $startDate,
             'endDate' => $endDate,
         ]);

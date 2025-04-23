@@ -79,7 +79,7 @@
     {% if  timeEntries is defined %}
 
         {% if timeEntries is empty %}
-            <h2 class="mt-4 mb-4">Tableau des Heures</h2>
+            <h2 class="mt-4 mb-4">Tableau des Heures | {{user.LastName}} {{user.FirstName}} | {{week}}</h2>
         {% else %}
             <h2 class="mt-4 mb-4">Tableau des Heures (Non-modifiable, car la semaine est déjà renseignée dans NIC)</h2>
         {% endif %}
@@ -107,7 +107,7 @@
         </thead>
 <tbody>
     <tr>
-        <td style="white-space: nowrap;">Lundi <br>{{ timeEntries[0] is defined ? timeEntries[0].DateEntry|date('Y-m-d') : '' }}</td>
+        <td style="white-space: nowrap;">Lundi <br>{% if timeEntries[0] is defined %}{{ timeEntries[0].DateEntry|date('Y-m-d') }}{% elseif weekDates[0] is defined %} {{weekDates[0]}} {% endif %}</td>
         <td>
             <input id="lundiHSaisie" type="number" class="form-control HSaisie" {% if timeEntries is defined %} {% if timeEntries is empty %} onKeyUp="calcul()" {% else %}disabled{% endif %}{% else %}onKeyUp="calcul()"{% endif %}></td>
         <td><input id="lundiHNorm" type="number" class="form-control HNorm" disabled value="{{ timeEntries[0] is defined ? timeEntries[0].NbHoursNormal : '' }}"></td>
@@ -124,7 +124,7 @@
         <td><input id="lundiRTT" type="number" class="form-control" disabled value="{{ timeEntries[0] is defined ? timeEntries[0].NbHoursRtt : '' }}"></td>
     </tr>
     <tr>
-        <td style="white-space: nowrap;">Mardi <br>{{ timeEntries[1] is defined ? timeEntries[1].DateEntry|date('Y-m-d') : '' }}</td>
+        <td style="white-space: nowrap;">Mardi <br>{% if timeEntries[1] is defined %}{{ timeEntries[1].DateEntry|date('Y-m-d') }}{% elseif weekDates[1] is defined %} {{weekDates[1]}} {% endif %}</td>
         <td><input id="mardiHSaisie" type="number" class="form-control HSaisie" {% if timeEntries is defined %} {% if timeEntries is empty %} onKeyUp="calcul()" {% else %}disabled{% endif %}{% else %}onKeyUp="calcul()"{% endif %}></td>
         <td><input id="mardiHNorm" type="number" class="form-control HNorm" disabled value="{{ timeEntries[1] is defined ? timeEntries[1].NbHoursNormal : '' }}"></td>
         <td><input id="mardiHRepComp" type="number" class="form-control HRepComp" disabled value="{{ timeEntries[1] is defined ? timeEntries[1].NbHoursRecoveryTime : '' }}"></td>
@@ -140,7 +140,7 @@
         <td><input id="mardiRTT" type="number" class="form-control" disabled value="{{ timeEntries[1] is defined ? timeEntries[1].NbHoursRtt : '' }}"></td>
     </tr>
     <tr>
-        <td style="white-space: nowrap;">Mercredi <br>{{ timeEntries[2] is defined ? timeEntries[2].DateEntry|date('Y-m-d') : '' }}</td>
+        <td style="white-space: nowrap;">Mercredi <br>{% if timeEntries[2] is defined %}{{ timeEntries[2].DateEntry|date('Y-m-d') }}{% elseif weekDates[2] is defined %} {{weekDates[2]}} {% endif %}</td>
         <td><input id="mercrediHSaisie" type="number" class="form-control HSaisie" {% if timeEntries is defined %} {% if timeEntries is empty %} onKeyUp="calcul()" {% else %}disabled{% endif %}{% else %}onKeyUp="calcul()"{% endif %}></td>
         <td><input id="mercrediHNorm" type="number" class="form-control HNorm" disabled value="{{ timeEntries[2] is defined ? timeEntries[2].NbHoursNormal : '' }}"></td>
         <td><input id="mercrediHRepComp" type="number" class="form-control HRepComp" disabled value="{{ timeEntries[2] is defined ? timeEntries[2].NbHoursRecoveryTime : '' }}"></td>
@@ -156,7 +156,7 @@
         <td><input id="mercrediRTT" type="number" class="form-control" disabled value="{{ timeEntries[2] is defined ? timeEntries[2].NbHoursRtt : '' }}"></td>
     </tr>
     <tr>
-        <td style="white-space: nowrap;">Jeudi <br>{{ timeEntries[3] is defined ? timeEntries[3].DateEntry|date('Y-m-d') : '' }}</td>
+        <td style="white-space: nowrap;">Jeudi <br>{% if timeEntries[3] is defined %}{{ timeEntries[3].DateEntry|date('Y-m-d') }}{% elseif weekDates[3] is defined %} {{weekDates[3]}} {% endif %}</td>
         <td><input id="jeudiHSaisie" type="number" class="form-control HSaisie" {% if timeEntries is defined %} {% if timeEntries is empty %} onKeyUp="calcul()" {% else %}disabled{% endif %}{% else %}onKeyUp="calcul()"{% endif %}></td>
         <td><input id="jeudiHNorm" type="number" class="form-control HNorm" disabled value="{{ timeEntries[3] is defined ? timeEntries[3].NbHoursNormal : '' }}"></td>
         <td><input id="jeudiHRepComp" type="number" class="form-control HRepComp" disabled value="{{ timeEntries[3] is defined ? timeEntries[3].NbHoursRecoveryTime : '' }}"></td>
@@ -172,7 +172,7 @@
         <td><input id="jeudiRTT" type="number" class="form-control" disabled value="{{ timeEntries[3] is defined ? timeEntries[3].NbHoursRtt : '' }}"></td>
     </tr>
     <tr>
-        <td style="white-space: nowrap;">Vendredi <br>{{ timeEntries[4] is defined ? timeEntries[4].DateEntry|date('Y-m-d') : '' }}</td>
+        <td style="white-space: nowrap;">Vendredi <br>{% if timeEntries[4] is defined %}{{ timeEntries[4].DateEntry|date('Y-m-d') }}{% elseif weekDates[4] is defined %} {{weekDates[4]}} {% endif %}</td>
         <td><input id="vendrediHSaisie" type="number" class="form-control HSaisie" {% if timeEntries is defined %} {% if timeEntries is empty %} onKeyUp="calcul()" {% else %}disabled{% endif %}{% else %}onKeyUp="calcul()"{% endif %}></td>
         <td><input id="vendrediHNorm" type="number" class="form-control HNorm" disabled value="{{ timeEntries[4] is defined ? timeEntries[4].NbHoursNormal : '' }}"></td>
         <td><input id="vendrediHRepComp" type="number" class="form-control HRepComp" disabled value="{{ timeEntries[4] is defined ? timeEntries[4].NbHoursRecoveryTime : '' }}"></td>
@@ -188,7 +188,7 @@
         <td><input id="vendrediRTT" type="number" class="form-control" disabled value="{{ timeEntries[4] is defined ? timeEntries[4].NbHoursRtt : '' }}"></td>
     </tr>
     <tr>
-        <td style="white-space: nowrap;">Samedi <br>{{ timeEntries[5] is defined ? timeEntries[5].DateEntry|date('Y-m-d') : '' }}</td>
+        <td style="white-space: nowrap;">Samedi <br>{% if timeEntries[5] is defined %}{{ timeEntries[5].DateEntry|date('Y-m-d') }}{% elseif weekDates[5] is defined %} {{weekDates[5]}} {% endif %}</td>
         <td><input id="samediHSaisie" type="number" class="form-control HSaisie" {% if timeEntries is defined %} {% if timeEntries is empty %} onKeyUp="calcul()" {% else %}disabled{% endif %}{% else %}onKeyUp="calcul()"{% endif %}></td>
         <td><input id="samediHNorm" type="number" class="form-control HNorm" disabled value="{{ timeEntries[5] is defined ? timeEntries[5].NbHoursNormal : '' }}"></td>
         <td><input id="samediHRepComp" type="number" class="form-control HRepComp" disabled value="{{ timeEntries[5] is defined ? timeEntries[5].NbHoursRecoveryTime : '' }}"></td>
@@ -204,7 +204,7 @@
         <td><input id="samediRTT" type="number" class="form-control" disabled value="{{ timeEntries[5] is defined ? timeEntries[5].NbHoursRtt : '' }}"></td>
     </tr>
     <tr>
-        <td style="white-space: nowrap;">Dimanche <br>{{ timeEntries[6] is defined ? timeEntries[6].DateEntry|date('Y-m-d') : '' }}</td>
+        <td style="white-space: nowrap;">Dimanche <br>{% if timeEntries[6] is defined %}{{ timeEntries[6].DateEntry|date('Y-m-d') }}{% elseif weekDates[6] is defined %} {{weekDates[6]}} {% endif %}</td>
         <td><input id="dimancheHSaisie" type="number" class="form-control HSaisie" {% if timeEntries is defined %} {% if timeEntries is empty %} onKeyUp="calcul()" {% else %}disabled{% endif %}{% else %}onKeyUp="calcul()"{% endif %}></td>
         <td><input id="dimancheHNorm" type="number" class="form-control HNorm" disabled value="{{ timeEntries[6] is defined ? timeEntries[6].NbHoursNormal : '' }}"></td>
         <td><input id="dimancheHRepComp" type="number" class="form-control HRepComp" disabled value="{{ timeEntries[6] is defined ? timeEntries[6].NbHoursRecoveryTime : '' }}"></td>
