@@ -17,11 +17,16 @@ class SqlServerService
         $user = "sa";
         $pass = "#NicLatour!";
 
-        $dsn = "sqlsrv:Server=$host,$port;Database=$db";
+        // Modifie la chaîne de connexion pour ajouter TrustServerCertificate=YES
+        $dsn = "sqlsrv:Server=$host,$port;Database=$db;TrustServerCertificate=YES";
 
-        $this->pdo = new PDO($dsn, $user, $pass, [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
-        ]);
+        try {
+            $this->pdo = new PDO($dsn, $user, $pass, [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
+            ]);
+        } catch (PDOException $e) {
+            echo "Connection failed: " . $e->getMessage();
+        }
     }
 
     public function query(string $sql, array $params = []): array
