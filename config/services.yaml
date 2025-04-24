@@ -6,6 +6,8 @@
 parameters:
     oenomanager_token: 'D#FGHD3$57FG=H2D4F(GH#DFGS6£QS5D@68F7$¤¤'
     uploads_directory: '%kernel.project_dir%/public/uploads'
+    images_directory: '%kernel.project_dir%/public/uploads/images'
+
 services:
     # default configuration for services in *this* file
     _defaults:

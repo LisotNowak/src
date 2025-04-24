@@ -47,7 +47,7 @@
     <div class="d-flex justify-content-center vh-100">
         <div class="">
             <h2 id="form-title">{{ produit.id ? 'Modifier un produit' : 'Ajouter un produit' }}</h2>
-            <form id="produit-form" method="POST" action="{{ path('save_article') }}">
+            <form id="produit-form" method="POST" enctype="multipart/form-data" action="{{ path('save_article') }}">
                 <input type="hidden" name="id" id="produit-id" value="{{ produit.id }}">
                 <div class="form-group">
                     <label for="produit-reference">Référence</label>
@@ -77,6 +77,10 @@
                             <option value="{{ type.id }}" {% if produit.type and produit.type.id == type.id %}selected{% endif %}>{{ type.nom }}</option>
                         {% endfor %}
                     </select>
+                </div>
+                <div class="form-group">
+                    <label for="produit-image">Image</label>
+                    <input type="file" class="form-control" id="produit-image" name="image" accept="image/*">
                 </div>
                 <div class="form-group">
                     <label for="produit-taille">Tailles :</label>
@@ -150,6 +154,27 @@
 
         } catch (error) {
             console.error("Erreur lors de la récupération du produit:", error);
+        }
+    }
+
+    function deleteProduit(id) {
+        if (confirm('Es-tu sûr de vouloir supprimer cet article ?')) {
+            fetch(`/dota/article/delete/${id}`, {
+                method: 'DELETE',
+            })
+            .then(response => {
+                if (response.ok) {
+                    alert('Article supprimé avec succès.');
+                    location.reload(); // Recharge la page pour mettre à jour la liste
+                } else {
+                    response.text().then(text => {
+                        alert('Erreur : ' + text);
+                    });
+                }
+            })
+            .catch(error => {
+                alert('Erreur réseau : ' + error);
+            });
         }
     }
 
