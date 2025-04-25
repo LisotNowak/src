@@ -93,21 +93,17 @@
                           </div>
                       </div>
 
-                      <!-- Taille -->
-                      <div class="row">
-                          <div class="">
-                              <div class="form-check form-check-inline">
-                                  <input class="form-check-input" type="radio" name="size" id="inlineRadio1" value="S" required>
-                                  <label class="form-check-label" for="inlineRadio1">S</label>
-                              </div>
-                              <div class="form-check form-check-inline">
-                                  <input class="form-check-input" type="radio" name="size" id="inlineRadio2" value="M">
-                                  <label class="form-check-label" for="inlineRadio2">M</label>
-                              </div>
-                              <div class="form-check form-check-inline">
-                                  <input class="form-check-input" type="radio" name="size" id="inlineRadio3" value="L">
-                                  <label class="form-check-label" for="inlineRadio3">L</label>
-                              </div>
+                        <!-- Taille -->
+                        <div class="row">
+                            <div class="">
+                                {% for asso in listeAssociationTaillesArticle %}
+                                    {% if asso.idArticle == product.id %}
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input" type="radio" name="size" id="inlineRadio{{asso.nomTaille}}{{product.id}}" value="{{asso.nomTaille}}" required>
+                                            <label class="form-check-label" for="inlineRadio1">{{asso.nomTaille}}</label>
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
                           </div>
                       </div>
 

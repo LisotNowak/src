@@ -47,34 +47,45 @@
             <h5 class="text-dark">Panier ({{ nombreArticles }} articles)</h5>
 
           {% for article in panier %}
-            <div class="row">
-              <div class="col-md-3">
-                <div class="overlay"> 
-                  <img src="https://mdbootstrap.com/img/Photos/Horizontal/E-commerce/Vertical/13a.jpg" class="zoom-in figure-img img-fluid">
-                 </div>
+<div class="row">
+    <div class="col-md-3">
+        <div class="overlay"> 
+            <img src="https://mdbootstrap.com/img/Photos/Horizontal/E-commerce/Vertical/13a.jpg" class="zoom-in figure-img img-fluid">
+        </div>
+    </div>
 
-              </div>
+    <div class="col-md-7">
+        <h5 class="text-muted pt-2">{{ article.nom }}</h5>
+        <p class="text-uppercase font-weight-light">{{ article.reference }}</p>
+        <div class="linespace mb-4">
+            <p class="text-muted mt-4">Points : {{ article.point }}P</p>
+            <p class="text-muted mt-4">{{ article.description }}</p>
+            <p class="text-muted">Taille : {{ article.taille }}</p>
+        </div>
 
-              <div class="col-md-7">
-                  <h5 class="text-muted pt-2">{{ article.nom }}</h5>
-                  <p class="text-uppercase font-weight-light">{{ article.reference }}</p>
-                  <div class="linespace mb-4">
-                  <p class="text-muted mt-4">Points : {{ article.point }}P</p>
-                  <p class="text-muted mt-4">{{ article.description }}</p>
-                  <p class="text-muted">Taille : {{ article.taille }}</p>
-                  </div>
-                  <button class="btn btn-sm text-muted text-uppercase"><i class="fas fa-trash-alt pr-2"></i>SUPPRIMER ARTICLE</button>
-                  &nbsp;
+        <!-- Formulaire pour supprimer l'article -->
+        <form method="POST" action="{{ path('remove_from_cart') }}" class="d-inline">
+            <input type="hidden" name="product_id" value="{{ article.id }}">
+            <input type="hidden" name="size" value="{{ article.taille }}">
+            <button class="btn btn-sm text-muted text-uppercase"><i class="fas fa-trash-alt pr-2"></i>SUPPRIMER ARTICLE</button>
+        </form>
+    </div>
 
-              </div>
-
-              <div class="col-md-2">
-                  <div class="input-group input-group-sm">
-                      <input type="text" class="numberbox3 form-control" value="{{ article.quantite }}" disabled>                 
-                    </div>
-              </div>
-              <hr>
-          </div>
+    <div class="col-md-2">
+        <!-- Formulaire pour mettre à jour la quantité -->
+        <form method="POST" action="{{ path('update_cart') }}">
+            <input type="hidden" name="product_id" value="{{ article.id }}">
+            <input type="hidden" name="size" value="{{ article.taille }}">
+            <div class="input-group input-group">
+                <input type="number" name="quantity" class="numberbox3 form-control" value="{{ article.quantite }}" min="0">
+                <div class="input-group-append">
+                    <button class="btn btn-primary btn" type="submit">Modifier</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+<hr>
           {% endfor %}
         </div>
         </div>

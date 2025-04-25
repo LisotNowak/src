@@ -185,12 +185,14 @@ class DotationController extends AbstractController
             // Redirigez l'utilisateur s'il est déjà authentifié
 
             $listeArticles = $entityManager->getRepository(Article::class)->findAll();
+            $listeAssociationTaillesArticle = $entityManager->getRepository(AssociationTaillesArticle::class)->findAll();
             $panier = $session->get('cart', []); 
             $nombreArticles = count($panier); 
 
             return $this->render('dotation/index.html.twig', [
                 'listeArticles' => $listeArticles,
                 'nombreArticles' => $nombreArticles,
+                'listeAssociationTaillesArticle' => $listeAssociationTaillesArticle,
             ]);
         }
 
@@ -291,10 +293,14 @@ class DotationController extends AbstractController
         $listeArticles = $entityManager->getRepository(Article::class)->findAll();
         $panier = $session->get('cart', []); 
         $nombreArticles = count($panier); 
+        $listeAssociationTaillesArticle = $entityManager->getRepository(AssociationTaillesArticle::class)->findAll();
+
 
         return $this->render('dotation/index.html.twig', [
             'listeArticles' => $listeArticles,
             'nombreArticles' => $nombreArticles,
+            'listeAssociationTaillesArticle' => $listeAssociationTaillesArticle,
+
         ]);
 
         return new Response('OK', Response::HTTP_OK);
@@ -323,5 +329,43 @@ class DotationController extends AbstractController
         
     }
 
+    #[Route('/dota/updateCart', name: 'update_cart', methods: ['POST'])]
+public function updateCart(Request $request, SessionInterface $session): Response
+{
+    $productId = $request->request->get('product_id');
+    $size = $request->request->get('size');
+    $quantity = $request->request->get('quantity');
+
+    $cart = $session->get('cart', []);
+
+    if (isset($cart[$productId . $size])) {
+        if ($quantity > 0) {
+            $cart[$productId . $size]['quantite'] = $quantity;
+        } else {
+            unset($cart[$productId . $size]); // Supprime l'article si la quantité est 0
+        }
+    }
+
+    $session->set('cart', $cart);
+
+    return $this->redirectToRoute('app_panier_dota');
+}
+
+#[Route('/dota/removeFromCart', name: 'remove_from_cart', methods: ['POST'])]
+public function removeFromCart(Request $request, SessionInterface $session): Response
+{
+    $productId = $request->request->get('product_id');
+    $size = $request->request->get('size');
+
+    $cart = $session->get('cart', []);
+
+    if (isset($cart[$productId . $size])) {
+        unset($cart[$productId . $size]); // Supprime l'article
+    }
+
+    $session->set('cart', $cart);
+
+    return $this->redirectToRoute('app_panier_dota');
+}
 
 }
