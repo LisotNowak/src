@@ -456,7 +456,9 @@
 
             events.forEach(event => {
                 const eventCategory = event.getAttribute('data-category');
-                if (selectedCategories.length === 0 || selectedCategories.includes(eventCategory)) {
+                if (selectedCategories.length === 0) {
+                    event.style.display = 'none'; // Masque tous les événements si aucun filtre n'est sélectionné
+                } else if (selectedCategories.includes(eventCategory)) {
                     event.style.display = 'block'; // Affiche l'événement
                 } else {
                     event.style.display = 'none'; // Masque l'événement
