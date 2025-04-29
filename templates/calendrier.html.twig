@@ -486,16 +486,13 @@
             });
         });
 
-        // Initialiser les cases cochées à partir de l'URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const selectedCategories = urlParams.get('categories') ? urlParams.get('categories').split(',') : [];
+        // Cocher toutes les cases par défaut
         filters.forEach(function(filter) {
-            if (selectedCategories.includes(filter.value)) {
-                filter.checked = true;
-            }
+            filter.checked = true;
         });
 
-        // Appliquer le filtre au chargement de la page
+        // Mettre à jour les catégories sélectionnées et appliquer le filtre au chargement de la page
+        updateSelectedCategories();
         filterEvents();
     });
 </script>
