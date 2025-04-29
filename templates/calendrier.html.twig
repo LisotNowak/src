@@ -100,7 +100,7 @@
     <div class="d-flex flex-wrap">
         {% for categorieNom in categories %}
             <div class="form-check me-3">
-                <input class="form-check-input category-filter" type="checkbox" value="{{ categorieNom }}" id="filter_{{ categorieNom }}" checked>
+                <input class="form-check-input category-filter" type="checkbox" value="{{ categorieNom }}" id="filter_{{ categorieNom }}">
                 <label class="form-check-label" for="filter_{{ categorieNom }}">{{ categorieNom }}</label>
             </div>
         {% endfor %}
@@ -186,7 +186,8 @@
 {% set mois_francais = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'] %}
 
 <!-- Sélection du mois -->
-<form method="GET" action="{{ path('app_getAllEvents') }}" class="d-flex justify-content-center mb-4">
+<form method="GET" action="{{ path('app_getAllEvents') }}" class="d-flex justify-content-center mb-4" id="monthForm">
+    <input type="hidden" name="categories" id="selectedCategories" value="{{ app.request.query.get('categories') }}">
     <select name="mois" class="form-select w-auto me-2">
         {% set currentDate = 'now'|date %}
         {% set minDate = 'now'|date_modify('-3 months') %}
@@ -279,12 +280,9 @@
                                                     {% if event.categorie is same as('transporteur') %}
                                                         background-color: #FF0000;
                                                     {% elseif event.categorie is not same as('rdv') %}
-                                                        background-color: {{ event.categorie.couleur }};
+                                                        background-color: {{ event.categorie.couleur }}; 
                                                     {% endif %}
                                                 "> #}
-
-
-
 
                                                     
 
@@ -444,97 +442,39 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-
-    function shouldReloadNow() {
-        const now = new Date();
-        const hours = now.getHours();
-        const minutes = now.getMinutes();
-
-        const timeInMinutes = hours * 60 + minutes;
-        const startTime = 7 * 60 + 30;  // 7h30
-        const endTime = 18 * 60;        // 18h00
-
-        return timeInMinutes >= startTime && timeInMinutes < endTime;
-    }
-
-    function scheduleReload() {
-        if (shouldReloadNow()) {
-        setTimeout(() => {
-            location.reload();
-        }, 30 * 60 * 1000); // 30 minutes
-        } else {
-        console.log("Hors plage horaire, pas de rechargement.");
-        }
-    }
-
-    window.onload = scheduleReload;
-
-
     document.addEventListener('DOMContentLoaded', function() {
-        // Fonction pour filtrer les événements par catégorie
-        function filterEvents() {
+        // Fonction pour mettre à jour les catégories sélectionnées dans le champ caché
+        function updateSelectedCategories() {
             const selectedCategories = Array.from(document.querySelectorAll('.category-filter:checked')).map(cb => cb.value);
-            const eventElements = document.querySelectorAll('.event');
+            document.getElementById('selectedCategories').value = selectedCategories.join(',');
+        }
 
-            eventElements.forEach(function(event) {
-                const eventCategory = event.getAttribute('data-category'); // Récupère la catégorie de l'événement
-
-                if (selectedCategories.includes(eventCategory) || selectedCategories.length === 0) {
-                    event.style.display = 'block'; // Afficher l'événement
-                } else {
-                    event.style.display = 'none'; // Cacher l'événement
-                }
-            });
+        // Mettre à jour les catégories sélectionnées avant de soumettre le formulaire
+        const monthForm = document.getElementById('monthForm');
+        if (monthForm) {
+            monthForm.addEventListener('submit', updateSelectedCategories);
         }
 
         // Appliquer le filtre dès qu'une case est cochée/décochée
         const filters = document.querySelectorAll('.category-filter');
         filters.forEach(function(filter) {
-            filter.addEventListener('change', filterEvents);
+            filter.addEventListener('change', function() {
+                updateSelectedCategories();
+                const url = new URL(window.location.href);
+                url.searchParams.set('categories', document.getElementById('selectedCategories').value);
+                window.history.replaceState({}, '', url); // Met à jour l'URL sans recharger la page
+            });
         });
 
-        // Exécuter un filtrage au chargement de la page pour appliquer l'état initial
-        filterEvents();
-    });
-
-    document.addEventListener('DOMContentLoaded', function () {
-        const form = document.getElementById('eventForm');
-
-        if (form) {
-            form.addEventListener('submit', function(event) {
-                event.preventDefault();
-
-                const formData = new FormData(this);
-
-                fetch("/addEvent", {
-                    method: "POST",
-                    body: formData
-                })
-                .then(response => {
-                    if (response.ok) {
-                        alert("Événement ajouté avec succès !");
-                        location.reload();
-                    } else {
-                        alert("Erreur lors de l'ajout de l'événement.");
-                    }
-                })
-                .catch(error => {
-                    console.error("Erreur:", error);
-                });
-            });
-        }
-    });
-
-
-    document.addEventListener("DOMContentLoaded", function () {
+        // Initialiser les cases cochées à partir de l'URL
         const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.has('degustation')) {
-            document.querySelectorAll('.degustation-details').forEach(el => {
-                el.classList.remove('d-none');
-            });
-        }
+        const selectedCategories = urlParams.get('categories') ? urlParams.get('categories').split(',') : [];
+        filters.forEach(function(filter) {
+            if (selectedCategories.includes(filter.value)) {
+                filter.checked = true;
+            }
+        });
     });
-
 </script>
 
 </body>
