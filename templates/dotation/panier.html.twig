@@ -61,6 +61,7 @@
             <p class="text-muted mt-4">Points : {{ article.point }}P</p>
             <p class="text-muted mt-4">{{ article.description }}</p>
             <p class="text-muted">Taille : {{ article.taille }}</p>
+            <p class="text-muted">Couleur : {{ article.couleur }}</p> <!-- Ajout de la couleur -->
         </div>
 
         <!-- Formulaire pour supprimer l'article -->
@@ -99,7 +100,7 @@
              {% set totalPoints = 0 %}
             {% for article in panier %}
               <tr>
-                <th scope="row" class="font-weight-light">{{ article.nom }} X {{article.quantite }}</th>
+                <th scope="row" class="font-weight-light">{{ article.nom }} {{ article.taille }} {{ article.couleur }} X {{article.quantite }}</th>
                 <td>{{ article.point * article.quantite }}P</td>
                 {% set totalPoints = totalPoints + article.point * article.quantite %}
 

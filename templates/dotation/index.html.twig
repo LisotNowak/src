@@ -71,53 +71,62 @@
         </div><div class="row mt-4">
       {% endif %}
       <div class="col-md-3">
-          <div class="card" data-nom="{{ product.nom | lower }}">
-              <p>{{ product.reference }}</p>
-              <img class="card-img-top img-fluid" src="https://shop.vogue.fr/cdn/shop/products/VOGUECollection_TShirt_Schwarz_back.jpg?v=1648567836&width=1080" alt="">
-              <div class="card-body">
-                  {# <p class="card-text"><a href="/dota/article?id={{ product.id }}" class="text-dark">{{ product.nom }}</a></p> #}
-                  <p class="card-text">{{ product.nom }}</p>
-                  <p class="card-cost">{{ product.prix }} €</p>
-                  <p class="card-cost">{{ product.description }}</p>
-              <!-- Formulaire d'ajout au panier -->
-              <div class="mt-3" id="purchase-btn">
-                  <form method="POST" action="{{ path('add_to_cart') }}"> <!-- Remplacez 'add_to_cart' par votre route -->
-                      <input type="hidden" name="product_id" value="{{ product.id }}"> <!-- ID du produit -->
-
-                      <!-- Quantité -->
-                      <div class="row">
-                          <div class="">
-                              <div class="input-group mb-3">
-                                  <input type="number" name="quantity" class="numberbox1 form-control" value="1" min="1" required>
-                              </div>
-                          </div>
-                      </div>
-
-                        <!-- Taille -->
-                        <div class="row">
-                            <div class="">
-                                {% for asso in listeAssociationTaillesArticle %}
-                                    {% if asso.idArticle == product.id %}
-                                        <div class="form-check form-check-inline">
-                                            <input class="form-check-input" type="radio" name="size" id="inlineRadio{{asso.nomTaille}}{{product.id}}" value="{{asso.nomTaille}}" required>
-                                            <label class="form-check-label" for="inlineRadio1">{{asso.nomTaille}}</label>
-                                        </div>
-                                    {% endif %}
-                                {% endfor %}
-                          </div>
-                      </div>
-
-                      <!-- Bouton -->
-                      <button type="submit" class="btn btn-sm btn-light mt-3">
-                          <i class="fas fa-shopping-cart pr-2"></i> Ajouter au panier
-                      </button>
-                  </form>
-              </div>
-              </div>
-
-
-          </div>
-      </div>
+    <div class="card" data-nom="{{ product.nom | lower }}">
+        <p>{{ product.reference }}</p>
+        <img class="card-img-top img-fluid" 
+             src="{{ product.image is not empty ? asset('uploads/images/' ~ product.image) : 'img/defaultimage.png?v=1648567836&width=1080' }}" 
+             alt="{{ product.nom }}">
+        <div class="card-body">
+            <p class="card-text">{{ product.nom }}</p>
+            <p class="card-cost">{{ product.prix }} €</p>
+            <p class="card-cost">{{ product.description }}</p>
+            <!-- Formulaire d'ajout au panier -->
+            <div class="mt-3" id="purchase-btn">
+                <form method="POST" action="{{ path('add_to_cart') }}">
+                    <input type="hidden" name="product_id" value="{{ product.id }}">
+                    <!-- Quantité -->
+                    <div class="row">
+                        <div class="">
+                            <div class="input-group mb-3">
+                                <input type="number" name="quantity" class="numberbox1 form-control" value="1" min="1" required>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Taille -->
+                    <div class="row">
+                        <div class="">
+                            {% for asso in listeAssociationTaillesArticle %}
+                                {% if asso.idArticle == product.id %}
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="size" id="inlineRadio{{asso.nomTaille}}{{product.id}}" value="{{asso.nomTaille}}" required>
+                                        <label class="form-check-label" for="inlineRadio{{asso.nomTaille}}{{product.id}}">{{asso.nomTaille}}</label>
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <!-- Couleur -->
+                    <div class="row">
+                        <div class="">
+                            {% for asso in listeAssociationCouleursArticle %}
+                                {% if asso.idArticle == product.id %}
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="color" id="inlineRadioCouleurs{{asso.nomCouleur}}{{product.id}}" value="{{asso.nomCouleur}}" required>
+                                        <label class="form-check-label" for="inlineRadioCouleurs{{asso.nomCouleur}}{{product.id}}">{{asso.nomCouleur}}</label>
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <!-- Bouton -->
+                    <button type="submit" class="btn btn-sm btn-light mt-3">
+                        <i class="fas fa-shopping-cart pr-2"></i> Ajouter au panier
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 
     {% endfor %}
   </div>

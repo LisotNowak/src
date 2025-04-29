@@ -186,6 +186,7 @@ class DotationController extends AbstractController
 
             $listeArticles = $entityManager->getRepository(Article::class)->findAll();
             $listeAssociationTaillesArticle = $entityManager->getRepository(AssociationTaillesArticle::class)->findAll();
+            $listeAssociationCouleursArticle = $entityManager->getRepository(AssociationCouleursArticle::class)->findAll();
             $panier = $session->get('cart', []); 
             $nombreArticles = count($panier); 
 
@@ -193,6 +194,7 @@ class DotationController extends AbstractController
                 'listeArticles' => $listeArticles,
                 'nombreArticles' => $nombreArticles,
                 'listeAssociationTaillesArticle' => $listeAssociationTaillesArticle,
+                'listeAssociationCouleursArticle' => $listeAssociationCouleursArticle,
             ]);
         }
 
@@ -258,53 +260,46 @@ class DotationController extends AbstractController
     #[Route('/dota/addToCart', name: 'add_to_cart', methods: ['POST'])]
     public function addToCart(EntityManagerInterface $entityManager, Request $request, SessionInterface $session): Response
     {
-        // Récupérer les informations envoyées par la requête
-        $productId = $request->request->get('product_id'); // Identifiant du produit
-        $quantity = $request->request->get('quantity', 1); // Quantité (par défaut 1)
-        $size = $request->request->get('size'); // Taille du produit
+    // Récupérer les informations envoyées par la requête
+    $productId = $request->request->get('product_id'); // Identifiant du produit
+    $quantity = $request->request->get('quantity', 1); // Quantité (par défaut 1)
+    $size = $request->request->get('size'); // Taille du produit
+    $color = $request->request->get('color'); // Couleur du produit
 
-        // Récupérer le panier actuel ou initialiser un tableau vide
-        $cart = $session->get('cart', []);
+    // Récupérer le panier actuel ou initialiser un tableau vide
+    $cart = $session->get('cart', []);
 
-        // Vérifier si l'article est déjà dans le panier
-        if (isset($cart[$productId.$size])) {
-            if ($cart[$productId.$size]['taille'] == $size) {
-                // Si le produit est déjà dans le panier avec la meme taille, on ajuste la quantité
-                $cart[$productId.$size]['quantite'] += $quantity;
-            }
-            
-        } else {
-            // Sinon, on ajoute le produit avec sa quantité et taille
-            $cart[$productId.$size] = [
+    // Générer une clé unique pour chaque combinaison produit/taille/couleur
+    $cartKey = $productId . '_' . $size . '_' . $color;
+
+    // Vérifier si l'article est déjà dans le panier
+    if (isset($cart[$cartKey])) {
+        // Si le produit est déjà dans le panier avec la même taille et couleur, on ajuste la quantité
+        $cart[$cartKey]['quantite'] += $quantity;
+    } else {
+        // Sinon, on ajoute le produit avec sa quantité, taille et couleur
+        $product = $entityManager->getRepository(Article::class)->find($productId);
+        if ($product) {
+            $cart[$cartKey] = [
                 'id' => $productId,
                 'quantite' => $quantity,
-                'nom' => $entityManager->getRepository(Article::class)->find($productId)->getNom(),
-                'reference' => $entityManager->getRepository(Article::class)->find($productId)->getReference(),
-                'description' => $entityManager->getRepository(Article::class)->find($productId)->getDescription(),
-                'prix' => $entityManager->getRepository(Article::class)->find($productId)->getPrix(),
+                'nom' => $product->getNom(),
+                'reference' => $product->getReference(),
+                'description' => $product->getDescription(),
+                'prix' => $product->getPrix(),
                 'taille' => $size,
-                'point' => $entityManager->getRepository(Article::class)->find($productId)->getPoint()
+                'couleur' => $color,
+                'point' => $product->getPoint(),
             ];
         }
-
-        // Sauvegarder le panier dans la session
-        $session->set('cart', $cart);
-
-        $listeArticles = $entityManager->getRepository(Article::class)->findAll();
-        $panier = $session->get('cart', []); 
-        $nombreArticles = count($panier); 
-        $listeAssociationTaillesArticle = $entityManager->getRepository(AssociationTaillesArticle::class)->findAll();
-
-
-        return $this->render('dotation/index.html.twig', [
-            'listeArticles' => $listeArticles,
-            'nombreArticles' => $nombreArticles,
-            'listeAssociationTaillesArticle' => $listeAssociationTaillesArticle,
-
-        ]);
-
-        return new Response('OK', Response::HTTP_OK);
     }
+
+    // Sauvegarder le panier dans la session
+    $session->set('cart', $cart);
+
+    // Rediriger ou retourner une réponse
+    return $this->redirectToRoute('app_panier_dota');
+}
 
     #[Route('/dota/panier', name: 'app_panier_dota')]
     public function panier_dota(Request $request, EntityManagerInterface $entityManager, SessionInterface $session): Response
