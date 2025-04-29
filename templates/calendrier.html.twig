@@ -449,6 +449,21 @@
             document.getElementById('selectedCategories').value = selectedCategories.join(',');
         }
 
+        // Fonction pour filtrer les événements affichés
+        function filterEvents() {
+            const selectedCategories = Array.from(document.querySelectorAll('.category-filter:checked')).map(cb => cb.value);
+            const events = document.querySelectorAll('.event');
+
+            events.forEach(event => {
+                const eventCategory = event.getAttribute('data-category');
+                if (selectedCategories.length === 0 || selectedCategories.includes(eventCategory)) {
+                    event.style.display = 'block'; // Affiche l'événement
+                } else {
+                    event.style.display = 'none'; // Masque l'événement
+                }
+            });
+        }
+
         // Mettre à jour les catégories sélectionnées avant de soumettre le formulaire
         const monthForm = document.getElementById('monthForm');
         if (monthForm) {
@@ -460,6 +475,9 @@
         filters.forEach(function(filter) {
             filter.addEventListener('change', function() {
                 updateSelectedCategories();
+                filterEvents();
+
+                // Met à jour l'URL avec les catégories sélectionnées
                 const url = new URL(window.location.href);
                 url.searchParams.set('categories', document.getElementById('selectedCategories').value);
                 window.history.replaceState({}, '', url); // Met à jour l'URL sans recharger la page
@@ -474,6 +492,9 @@
                 filter.checked = true;
             }
         });
+
+        // Appliquer le filtre au chargement de la page
+        filterEvents();
     });
 </script>
 
