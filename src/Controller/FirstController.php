@@ -38,6 +38,31 @@ class FirstController extends AbstractController
         // Récupérer les événements depuis l'API
         $apiEvents = $this->eventService->fetchEvents($dateDebut, $dateFin);
 
+        $apiEvents = array_filter($apiEvents, function ($event) {
+            $validCategories = [
+                'Visite',
+                'Déjeuner Pavillon',
+                'Dégustation',
+                'Dîner Pavillon',
+                'Dîner Château',
+                'Déjeuner Extérieur',
+                'Dîner Extérieur',
+                'Formation',
+                'Masterclass Extérieur'               
+            ];
+        
+            if (!isset($event['categorie']['nom'])) {
+                return false;
+            }
+        
+            $nom = $event['categorie']['nom'];
+        
+            return in_array($nom, $validCategories) || strpos($nom, 'Château Latour') === 0;
+        });
+        
+        
+
+
         // Récupérer les événements depuis la base de données
         $dbEvents = $this->entityManager->getRepository(Event::class)->createQueryBuilder('e')
             ->where('e.du BETWEEN :start AND :end OR e.au BETWEEN :start AND :end')
