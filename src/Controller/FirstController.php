@@ -33,7 +33,9 @@ class FirstController extends AbstractController
         // Définir la période du mois sélectionné
         $dateDebut = new \DateTime("$annee-$mois-01");
         $dateFin = clone $dateDebut;
-        $dateFin->modify('last day of this month');
+        // $dateFin->modify('last day of this month')->setTime(23, 59, 59);
+        $dateFin->modify('first day of next month')->setTime(0, 0, 0);
+
 
         // Récupérer les événements depuis l'API
         $apiEvents = $this->eventService->fetchEvents($dateDebut, $dateFin);
@@ -61,6 +63,7 @@ class FirstController extends AbstractController
         });
         
         
+        // var_dump($apiEvents);
 
 
         // Récupérer les événements depuis la base de données
