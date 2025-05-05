@@ -226,6 +226,30 @@ class DotationController extends AbstractController
         
     }
 
+    #[Route('/dota/stock', name: 'app_stock_dota')]
+    public function stock_dota(EntityManagerInterface $entityManager): Response
+    {
+        // Vérifiez si l'utilisateur est déjà authentifié
+        if ($this->isGranted('IS_AUTHENTICATED_FULLY')) {
+            // Redirigez l'utilisateur s'il est déjà authentifié
+
+            $listeArticles = $entityManager->getRepository(Article::class)->findAll();
+            $listeTypes = $entityManager->getRepository(Type::class)->findAll();
+            $listeTailles = $entityManager->getRepository(Taille::class)->findAll();
+            $listeCouleurs = $entityManager->getRepository(Couleur::class)->findAll();
+
+            return $this->render('dotation/stock.html.twig', [
+                'listeArticles' => $listeArticles,
+                'listeTypes' => $listeTypes,
+                'listeTailles' => $listeTailles,
+                'listeCouleurs' => $listeCouleurs,
+            ]);
+        }
+
+        return $this->redirectToRoute('app_accueil');
+        
+    }
+
     #[Route('/dota/article', name: 'app_article_dota')]
     public function article_dota(Request $request, EntityManagerInterface $entityManager, SessionInterface $session): Response
     {

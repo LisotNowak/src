@@ -1,0 +1,45 @@
+{% extends 'base.html.twig' %}  
+{% block title %}Stock{% endblock %}
+
+{% block sidebar %}
+    {% include 'dotation/sidebar.html.twig' with {'active_link': 'stock'} %}
+{% endblock %}
+
+{% block body %}
+
+<div class="container mt-5">
+    <h1 class="text-center">Gestion des Stock</h1>
+
+    <!-- Table des produits -->
+    <div class="mt-4">
+        <h2>Liste des produits</h2>
+        <table class="table table-striped">
+            <thead class="thead-dark">
+                <tr>
+                    <th scope="col">#</th>
+                    <th scope="col">Ref</th>
+                    <th scope="col">Nom</th>
+                    <th scope="col">Type</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for produit in listeArticles %}
+                <tr>
+                    <th scope="row">{{ produit.id }}</th>
+                    <td>{{ produit.reference }}</td>
+                    <td>{{ produit.nom }}</td>
+                    <td>{{ produit.nomType }}</td>
+                   
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+
+</div>
+
+<script>
+</script>
+
+{% endblock %}
