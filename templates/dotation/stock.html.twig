@@ -10,36 +10,73 @@
 <div class="container mt-5">
     <h1 class="text-center">Gestion des Stock</h1>
 
+    <!-- Barre de recherche -->
+    <div class="mt-4">
+        <input type="text" id="searchInput" class="form-control mb-4" placeholder="Rechercher un produit...">
+    </div>
+
     <!-- Table des produits -->
     <div class="mt-4">
-        <h2>Liste des produits</h2>
         <table class="table table-striped">
             <thead class="thead-dark">
                 <tr>
-                    <th scope="col">#</th>
-                    <th scope="col">Ref</th>
-                    <th scope="col">Nom</th>
-                    <th scope="col">Type</th>
+                    <th scope="col">Ref :</th>
+                    <th scope="col">Nom :</th>
+                    <th scope="col">Type :</th>
+                    <th scope="col">Configurations :</th>
                 </tr>
             </thead>
-            <tbody>
-                {% for produit in listeArticles %}
-                <tr>
-                    <th scope="row">{{ produit.id }}</th>
-                    <td>{{ produit.reference }}</td>
-                    <td>{{ produit.nom }}</td>
-                    <td>{{ produit.nomType }}</td>
-                   
+            <tbody id="productTable">
+                {% for produit in produitsAvecDetails %}
+                <tr class="product-row">
+                    <td class="product-ref">{{ produit.article.reference }}</td>
+                    <td class="product-name">{{ produit.article.nom }}</td>
+                    <td>{{ produit.article.nomType }}</td>
+                    <td>
+                        <ul>
+                            {% for config in produit.stockDetails %}
+                                <li>
+                                    Taille: <span class="badge bg-primary">{{ config.taille }}</span>,
+                                    Couleur: <span class="badge bg-secondary">{{ config.couleur }}</span>,
+                                    Stock: 
+                                    <form action="{{ path('update_stock') }}" method="POST" style="display: inline;">
+                                        <input type="hidden" name="referenceArticle" value="{{ produit.article.reference }}">
+                                        <input type="hidden" name="nomTaille" value="{{ config.taille }}">
+                                        <input type="hidden" name="nomCouleur" value="{{ config.couleur }}">
+                                        <input type="number" name="quantity" value="{{ config.stock }}" class="form-control d-inline-block" style="width: 80px;">
+                                        <button type="submit" class="btn btn-sm btn-success">Modifier</button>
+                                    </form>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
-
-
 </div>
 
 <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const searchInput = document.getElementById('searchInput');
+        const productRows = document.querySelectorAll('.product-row');
+
+        searchInput.addEventListener('input', function () {
+            const searchValue = searchInput.value.toLowerCase();
+
+            productRows.forEach(row => {
+                const productName = row.querySelector('.product-name').textContent.toLowerCase();
+                const productRef = row.querySelector('.product-ref').textContent.toLowerCase();
+
+                if (productName.includes(searchValue) || productRef.includes(searchValue)) {
+                    row.style.display = ''; // Afficher la ligne
+                } else {
+                    row.style.display = 'none'; // Masquer la ligne
+                }
+            });
+        });
+    });
 </script>
 
 {% endblock %}

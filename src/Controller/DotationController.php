@@ -6,6 +6,7 @@ use App\Entity\dotation\Article;
 use App\Entity\dotation\Type;
 use App\Entity\dotation\Taille;
 use App\Entity\dotation\Couleur;
+use App\Entity\dotation\Stock;
 use App\Entity\dotation\AssociationCouleursArticle;
 use App\Entity\dotation\AssociationTaillesArticle;
 
@@ -229,25 +230,76 @@ class DotationController extends AbstractController
     #[Route('/dota/stock', name: 'app_stock_dota')]
     public function stock_dota(EntityManagerInterface $entityManager): Response
     {
-        // Vérifiez si l'utilisateur est déjà authentifié
         if ($this->isGranted('IS_AUTHENTICATED_FULLY')) {
-            // Redirigez l'utilisateur s'il est déjà authentifié
-
             $listeArticles = $entityManager->getRepository(Article::class)->findAll();
-            $listeTypes = $entityManager->getRepository(Type::class)->findAll();
-            $listeTailles = $entityManager->getRepository(Taille::class)->findAll();
-            $listeCouleurs = $entityManager->getRepository(Couleur::class)->findAll();
-
+            $produitsAvecDetails = [];
+    
+            foreach ($listeArticles as $article) {
+                $tailles = $entityManager->getRepository(AssociationTaillesArticle::class)->findBy(['idArticle' => $article->getId()]);
+                $couleurs = $entityManager->getRepository(AssociationCouleursArticle::class)->findBy(['idArticle' => $article->getId()]);
+                $stocks = $entityManager->getRepository(Stock::class)->findBy(['referenceArticle' => $article->getReference()]);
+    
+                $stockDetails = [];
+                foreach ($tailles as $taille) {
+                    foreach ($couleurs as $couleur) {
+                        $stock = array_filter($stocks, function ($s) use ($taille, $couleur) {
+                            return $s->getNomTaille() === $taille->getNomTaille() && $s->getNomCouleur() === $couleur->getNomCouleur();
+                        });
+                        $stockDetails[] = [
+                            'taille' => $taille->getNomTaille(),
+                            'couleur' => $couleur->getNomCouleur(),
+                            'stock' => $stock ? reset($stock)->getStock() : 0,
+                        ];
+                    }
+                }
+    
+                $produitsAvecDetails[] = [
+                    'article' => $article,
+                    'stockDetails' => $stockDetails,
+                ];
+            }
+    
             return $this->render('dotation/stock.html.twig', [
-                'listeArticles' => $listeArticles,
-                'listeTypes' => $listeTypes,
-                'listeTailles' => $listeTailles,
-                'listeCouleurs' => $listeCouleurs,
+                'produitsAvecDetails' => $produitsAvecDetails,
             ]);
         }
-
+    
         return $this->redirectToRoute('app_accueil');
-        
+    }
+    
+
+    #[Route('/dota/stock/update', name: 'update_stock', methods: ['POST'])]
+    public function updateStock(Request $request, EntityManagerInterface $entityManager): Response
+    {
+        $referenceArticle = $request->request->get('referenceArticle');
+        $nomTaille = $request->request->get('nomTaille');
+        $nomCouleur = $request->request->get('nomCouleur');
+        $quantity = (int) $request->request->get('quantity');
+    
+        // Rechercher l'entité Stock correspondante
+        $stock = $entityManager->getRepository(Stock::class)->findOneBy([
+            'referenceArticle' => $referenceArticle,
+            'nomTaille' => $nomTaille,
+            'nomCouleur' => $nomCouleur,
+        ]);
+    
+        if ($stock) {
+            // Mettre à jour la quantité
+            $stock->setStock($quantity);
+        } else {
+            // Si aucune entrée n'existe, en créer une nouvelle
+            $stock = new Stock();
+            $stock->setReferenceArticle($referenceArticle);
+            $stock->setNomTaille($nomTaille);
+            $stock->setNomCouleur($nomCouleur);
+            $stock->setStock($quantity);
+            $entityManager->persist($stock);
+        }
+    
+        // Sauvegarder les modifications
+        $entityManager->flush();
+    
+        return $this->redirectToRoute('app_stock_dota');
     }
 
     #[Route('/dota/article', name: 'app_article_dota')]

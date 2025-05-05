@@ -25,6 +25,9 @@ class Stock
     #[ORM\Column(length: 255)]
     private ?string $nomCouleur = null;
 
+    #[ORM\Column]
+    private ?int $stock = null;
+
 
     public function getNomTaille(): ?string
     {
@@ -58,6 +61,18 @@ class Stock
     public function setReferenceArticle(string $referenceArticle): static
     {
         $this->referenceArticle = $referenceArticle;
+
+        return $this;
+    }
+
+    public function getStock(): ?int
+    {
+        return $this->stock;
+    }
+
+    public function setStock(int $stock): static
+    {
+        $this->stock = $stock;
 
         return $this;
     }
