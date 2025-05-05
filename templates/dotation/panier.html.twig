@@ -13,11 +13,12 @@
 
 <div class="container mt-4" id="top-logo">
     <div class="row">
-        <div class="col-md-2" style="right: 5%;">
-            <!-- Just an image -->
-
+     <div class="col-md-3" style="right: 5%;">
+        Points diponibles :
+            {{ app.user.pointDotation }}P
         </div>
-        <div class="col-md-7" id="searchbar">
+        
+        <div class="col-md-6" id="searchbar">
             
         </div>
         <div class="col-md-3 mt-2" id="icons">
@@ -111,9 +112,19 @@
             </tbody>
           </table>
           <hr>
-          <h6 class="pl-2 pt-1">Total :<span class="float-right">{{totalPoints}}P</spanS></h6>
+          <h6 class="pl-2 pt-1">Total :<span class="float-right">{{totalPoints}}P</span></h6>
           <hr>
-          <button class="btn btn-primary mt-2"><a href="checkout.html" class="text-white"><i class="fas fa-shopping-bag pr-2"></i>Valider le panier</a></button>
+          {% if totalPoints <= app.user.pointDotation %}
+            <button class="btn btn-primary mt-2">
+                <a href="checkout.html" class="text-white">
+                    <i class="fas fa-shopping-bag pr-2"></i>Valider le panier
+                </a>
+            </button>
+          {% else %}
+            <div class="alert alert-danger mt-2" role="alert">
+                Vous n'avez pas assez de points pour valider ce panier.
+            </div>
+          {% endif %}
         </div>
         </div>
 
