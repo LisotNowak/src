@@ -68,6 +68,7 @@
         <form method="POST" action="{{ path('remove_from_cart') }}" class="d-inline">
             <input type="hidden" name="product_id" value="{{ article.id }}">
             <input type="hidden" name="size" value="{{ article.taille }}">
+            <input type="hidden" name="color" value="{{ article.couleur }}">
             <button class="btn btn-sm text-muted text-uppercase"><i class="fas fa-trash-alt pr-2"></i>SUPPRIMER ARTICLE</button>
         </form>
     </div>
@@ -77,6 +78,7 @@
         <form method="POST" action="{{ path('update_cart') }}">
             <input type="hidden" name="product_id" value="{{ article.id }}">
             <input type="hidden" name="size" value="{{ article.taille }}">
+            <input type="hidden" name="color" value="{{ article.couleur }}">
             <div class="input-group input-group">
                 <input type="number" name="quantity" class="numberbox3 form-control" value="{{ article.quantite }}" min="0">
                 <div class="input-group-append">

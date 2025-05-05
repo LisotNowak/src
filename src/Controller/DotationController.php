@@ -329,15 +329,18 @@ public function updateCart(Request $request, SessionInterface $session): Respons
 {
     $productId = $request->request->get('product_id');
     $size = $request->request->get('size');
+    $color = $request->request->get('color'); // Ajout de la couleur
     $quantity = $request->request->get('quantity');
 
     $cart = $session->get('cart', []);
 
-    if (isset($cart[$productId . $size])) {
+    $cartKey = $productId . '_' . $size . '_' . $color; // Clé harmonisée
+
+    if (isset($cart[$cartKey])) {
         if ($quantity > 0) {
-            $cart[$productId . $size]['quantite'] = $quantity;
+            $cart[$cartKey]['quantite'] = $quantity;
         } else {
-            unset($cart[$productId . $size]); // Supprime l'article si la quantité est 0
+            unset($cart[$cartKey]); // Supprime l'article si la quantité est 0
         }
     }
 
@@ -351,11 +354,14 @@ public function removeFromCart(Request $request, SessionInterface $session): Res
 {
     $productId = $request->request->get('product_id');
     $size = $request->request->get('size');
+    $color = $request->request->get('color'); // Ajout de la couleur
 
     $cart = $session->get('cart', []);
 
-    if (isset($cart[$productId . $size])) {
-        unset($cart[$productId . $size]); // Supprime l'article
+    $cartKey = $productId . '_' . $size . '_' . $color; // Clé harmonisée
+
+    if (isset($cart[$cartKey])) {
+        unset($cart[$cartKey]); // Supprime l'article
     }
 
     $session->set('cart', $cart);
