@@ -1,4 +1,5 @@
 <?php
+
 // src/Controller/DotationController.php
 namespace App\Controller;
 
@@ -7,6 +8,8 @@ use App\Entity\dotation\Type;
 use App\Entity\dotation\Taille;
 use App\Entity\dotation\Couleur;
 use App\Entity\dotation\Stock;
+use App\Entity\dotation\Commande;
+use App\Entity\dotation\AssociationCommandeArticle;
 use App\Entity\dotation\AssociationCouleursArticle;
 use App\Entity\dotation\AssociationTaillesArticle;
 
@@ -442,6 +445,50 @@ public function removeFromCart(Request $request, SessionInterface $session): Res
 
     $session->set('cart', $cart);
 
+    return $this->redirectToRoute('app_panier_dota');
+}
+
+#[Route('/dota/validerPanier', name: 'valider_panier', methods: ['POST'])]
+public function validerPanier(SessionInterface $session, EntityManagerInterface $entityManager): Response
+{
+    $user = $this->getUser();
+    $panier = $session->get('cart', []);
+
+    if (!$user || empty($panier)) {
+        $this->addFlash('error', 'Erreur : le panier est vide ou l’utilisateur n’est pas connecté.');
+        return $this->redirectToRoute('app_panier_dota');
+    }
+
+    date_default_timezone_set('Europe/Paris');
+
+    // Créer une nouvelle commande
+    $commande = new Commande();
+    $commande->setUserMail($user->getEmail());
+    $commande->setDate((new \DateTime())->format('Y-m-d H:i:s'));
+    $commande->setNomEtat('Validée');
+
+    $entityManager->persist($commande);
+    $entityManager->flush(); // Nécessaire pour obtenir l'ID de la commande
+
+    // Ajouter les articles du panier à la commande via AssociationCommandeArticle
+    foreach ($panier as $item) {
+        $associationCommandeArticle = new AssociationCommandeArticle();
+        $associationCommandeArticle->setIdCommande($commande->getId());
+        $associationCommandeArticle->setIdArticle($item['id']);
+        $associationCommandeArticle->setNomTaille($item['taille']);
+        $associationCommandeArticle->setNomCouleur($item['couleur']);
+        $associationCommandeArticle->setNb($item['quantite']);
+
+        $entityManager->persist($associationCommandeArticle);
+    }
+
+    // Sauvegarder la commande et ses associations
+    $entityManager->flush();
+
+    // Vider le panier
+    $session->remove('cart');
+
+    $this->addFlash('success', 'Votre panier a été validé avec succès.');
     return $this->redirectToRoute('app_panier_dota');
 }
 
