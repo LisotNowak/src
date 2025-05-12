@@ -27,7 +27,12 @@
             <tbody>
                 {% for produit in listeArticles %}
                 <tr>
-                    <th scope="row">{{ produit.id }}</th>
+                    <th scope="row">
+                    <img class="card-img-top img-fluid"
+                        style="width: 100px; height: auto; object-fit: cover;"
+                        src="{{ produit.image is not empty ? asset('uploads/images/' ~ produit.image) : 'img/defaultimage.png?v=1648567836&width=1080' }}"
+                        alt="{{ produit.id }}">
+                    </th>
                     <td>{{ produit.reference }}</td>
                     <td>{{ produit.nom }}</td>
                     <td>{{ produit.point }} P</td>
@@ -103,7 +108,7 @@
                             <div class="form-check form-check-inline">
                                 <input class="form-check-input" type="checkbox" name="produit-couleur[]" id="couleur-{{ couleur.id }}" value="{{ couleur.id }}"
                                     {% if produit.couleurs is not empty and couleur in produit.couleurs %}checked{% endif %}>
-                                <label class="form-check-label" for="couleur-{{ couleur.id }}">
+                                <label class="form-check-label" for="couleur-{{ couleur.id }}" style="background-color: {{couleur.codeCouleur}}; color: white; padding: 4px 8px; border-radius: 5px;">
                                     {{ couleur.nom }}
                                 </label>
                             </div>

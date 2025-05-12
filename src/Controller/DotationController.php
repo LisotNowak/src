@@ -189,6 +189,8 @@ class DotationController extends AbstractController
             // Redirigez l'utilisateur s'il est déjà authentifié
 
             $listeArticles = $entityManager->getRepository(Article::class)->findAll();
+            $listeCouleurs = $entityManager->getRepository(Couleur::class)->findAll();
+
             $listeAssociationTaillesArticle = $entityManager->getRepository(AssociationTaillesArticle::class)->findAll();
             $listeAssociationCouleursArticle = $entityManager->getRepository(AssociationCouleursArticle::class)->findAll();
             $panier = $session->get('cart', []); 
@@ -196,6 +198,7 @@ class DotationController extends AbstractController
 
             return $this->render('dotation/index.html.twig', [
                 'listeArticles' => $listeArticles,
+                'listeCouleurs' => $listeCouleurs,
                 'nombreArticles' => $nombreArticles,
                 'listeAssociationTaillesArticle' => $listeAssociationTaillesArticle,
                 'listeAssociationCouleursArticle' => $listeAssociationCouleursArticle,
@@ -235,23 +238,28 @@ class DotationController extends AbstractController
     {
         if ($this->isGranted('IS_AUTHENTICATED_FULLY')) {
             $listeArticles = $entityManager->getRepository(Article::class)->findAll();
+            $listeCouleurs = $entityManager->getRepository(Couleur::class)->findAll();
+            $couleur = "";
+
             $produitsAvecDetails = [];
     
             foreach ($listeArticles as $article) {
                 $tailles = $entityManager->getRepository(AssociationTaillesArticle::class)->findBy(['idArticle' => $article->getId()]);
-                $couleurs = $entityManager->getRepository(AssociationCouleursArticle::class)->findBy(['idArticle' => $article->getId()]);
+                $assoCouleurs = $entityManager->getRepository(AssociationCouleursArticle::class)->findBy(['idArticle' => $article->getId()]);
                 $stocks = $entityManager->getRepository(Stock::class)->findBy(['referenceArticle' => $article->getReference()]);
-    
                 $stockDetails = [];
                 foreach ($tailles as $taille) {
-                    foreach ($couleurs as $couleur) {
-                        $stock = array_filter($stocks, function ($s) use ($taille, $couleur) {
-                            return $s->getNomTaille() === $taille->getNomTaille() && $s->getNomCouleur() === $couleur->getNomCouleur();
+                    foreach ($assoCouleurs as $assoCouleur) {
+                        $stock = array_filter($stocks, function ($s) use ($taille, $assoCouleur) {
+                            return $s->getNomTaille() === $taille->getNomTaille() && $s->getNomCouleur() === $assoCouleur->getNomCouleur();
                         });
+                        $couleur = $entityManager->getRepository(Couleur::class)->findOneBy(['nom' => $assoCouleur->getNomCouleur()]);
+           
                         $stockDetails[] = [
                             'taille' => $taille->getNomTaille(),
-                            'couleur' => $couleur->getNomCouleur(),
+                            'couleur' => $assoCouleur->getNomCouleur(),
                             'stock' => $stock ? reset($stock)->getStock() : 0,
+                            'codeCouleur' => $couleur->getCodeCouleur(),
                         ];
                     }
                 }

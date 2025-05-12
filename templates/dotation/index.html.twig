@@ -112,7 +112,13 @@
                                 {% if asso.idArticle == product.id %}
                                     <div class="form-check form-check-inline">
                                         <input class="form-check-input" type="radio" name="color" id="inlineRadioCouleurs{{asso.nomCouleur}}{{product.id}}" value="{{asso.nomCouleur}}" required>
-                                        <label class="form-check-label" for="inlineRadioCouleurs{{asso.nomCouleur}}{{product.id}}">{{asso.nomCouleur}}</label>
+                                        {% for couleur in listeCouleurs %}
+                                            {% if asso.nomCouleur == couleur.nom %}
+                                                <label class="form-check-label" for="inlineRadioCouleurs{{asso.nomCouleur}}{{product.id}}" style="background-color: {{couleur.codeCouleur}}; color: white; padding: 4px 8px; border-radius: 5px;">
+                                                    {{asso.nomCouleur}}
+                                                </label>
+                                            {% endif %}
+                                        {% endfor %}
                                     </div>
                                 {% endif %}
                             {% endfor %}

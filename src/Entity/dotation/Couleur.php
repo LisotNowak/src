@@ -17,6 +17,9 @@ class Couleur
     #[ORM\Column(length: 255)]
     private ?string $nom = null;
 
+    #[ORM\Column(length: 255)]
+    private ?string $codeCouleur = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -30,6 +33,18 @@ class Couleur
     public function setNom(string $nom): static
     {
         $this->nom = $nom;
+
+        return $this;
+    }
+
+    public function getCodeCouleur(): ?string
+    {
+        return $this->codeCouleur;
+    }
+
+    public function setCodeCouleur(string $codeCouleur): static
+    {
+        $this->codeCouleur = $codeCouleur;
 
         return $this;
     }

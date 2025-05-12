@@ -8,7 +8,7 @@
 {% block body %}
 
 <div class="container mt-5">
-    <h1 class="text-center">Gestion des Stock</h1>
+    <h1 class="text-center">Gestion des Stocks</h1>
 
     <!-- Barre de recherche -->
     <div class="mt-4">
@@ -20,6 +20,7 @@
         <table class="table table-striped">
             <thead class="thead-dark">
                 <tr>
+                    <th scope="col">Photo :</th>
                     <th scope="col">Ref :</th>
                     <th scope="col">Nom :</th>
                     <th scope="col">Type :</th>
@@ -29,7 +30,15 @@
             <tbody id="productTable">
                 {% for produit in produitsAvecDetails %}
                 <tr class="product-row">
+
+                <td scope="row">
+                    <img class="card-img-top img-fluid"
+                        style="width: 100px; height: auto; object-fit: cover;"
+                        src="{{ produit.article.image is not empty ? asset('uploads/images/' ~ produit.article.image) : 'img/defaultimage.png?v=1648567836&width=1080' }}"
+                        alt="{{ produit.article.id }}">
+                    </td>
                     <td class="product-ref">{{ produit.article.reference }}</td>
+                    
                     <td class="product-name">{{ produit.article.nom }}</td>
                     <td>{{ produit.article.nomType }}</td>
                     <td>
@@ -37,7 +46,7 @@
                             {% for config in produit.stockDetails %}
                                 <li>
                                     Taille: <span class="badge bg-primary">{{ config.taille }}</span>,
-                                    Couleur: <span class="badge bg-secondary">{{ config.couleur }}</span>,
+                                    Couleur: <span class="" style="background-color: {{config.codeCouleur}}; color: white; padding: 1px 2px; border-radius: 5px;">{{ config.couleur }}</span>,
                                     Stock: 
                                     <form action="{{ path('update_stock') }}" method="POST" style="display: inline;">
                                         <input type="hidden" name="referenceArticle" value="{{ produit.article.reference }}">
