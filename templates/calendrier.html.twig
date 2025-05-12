@@ -404,6 +404,17 @@
                                                                         <p>Aucun opérateur</p>
                                                                     {% endif %}
 
+                                                                    {% if event.commentaires is not empty 
+                                                                        and event.commentaires[0] is defined 
+                                                                        and event.commentaires[0]['contenu'] is defined %}
+                                                                        <p><strong>Commentaire :</strong><br>{{ event.commentaires[0]['contenu'] }}</p>
+                                                                    {% endif %}
+
+
+
+                                                                    {% if event.personnes is not empty %}
+                                                                        <p><strong> Nombre personnes total :</strong></br>{{ event.personnes }}</p>                                                                
+                                                                    {% endif %}
 
                                                                     {% if event.categorie == "rdv" or event.categorie == "transporteur" %}
                                                                         <p><strong> Créateur :{{ app.user.userIdentifier }}</strong></p> 
