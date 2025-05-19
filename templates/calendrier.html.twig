@@ -84,7 +84,12 @@
     {% if category is not null %}
         <div class="col-md-3 mb-2">
             <div class="d-flex align-items-center">
-                <div class="color-box" style="width: 30px; height: 30px; background-color: {{ category.categorie is iterable ? category.categorie.couleur : '' }}; border: 2px solid black;"></div>
+                <div class="color-box" style="
+                    width: 30px; 
+                    height: 30px; 
+                    background-color: {{ categorieNom == 'transporteur' ? 'red' : (category.categorie is iterable ? category.categorie.couleur : '') }};
+                    border: 2px solid black;">
+                </div>
                 <span class="ms-2">{{ categorieNom }}</span>
             </div>
         </div>
