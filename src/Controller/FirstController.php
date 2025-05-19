@@ -24,67 +24,75 @@ class FirstController extends AbstractController
         $this->entityManager = $entityManager;
     }
 
-    #[Route('/getAllEvents', name: 'app_getAllEvents')]
-    public function getAllEvents(Request $request): Response
-    {
-        $mois = $request->query->get('mois', date('m'));
-        $annee = $request->query->get('annee', date('Y'));
+#[Route('/getAllEvents', name: 'app_getAllEvents')]
+public function getAllEvents(Request $request): Response
+{
+    $mois = $request->query->get('mois', date('m'));
+    $annee = $request->query->get('annee', date('Y'));
 
-        // Définir la période du mois sélectionné
-        $dateDebut = new \DateTime("$annee-$mois-01");
-        $dateFin = clone $dateDebut;
-        // $dateFin->modify('last day of this month')->setTime(23, 59, 59);
-        $dateFin->modify('first day of next month')->setTime(0, 0, 0);
+    $dateDebut = new \DateTime("$annee-$mois-01");
+    $dateFin = clone $dateDebut;
+    $dateFin->modify('first day of next month')->setTime(0, 0, 0);
 
+    // Récupérer les événements depuis l'API
+    $apiEvents = $this->eventService->fetchEvents($dateDebut, $dateFin);
 
-        // Récupérer les événements depuis l'API
-        $apiEvents = $this->eventService->fetchEvents($dateDebut, $dateFin);
+    $apiEvents = array_filter($apiEvents, function ($event) {
+        $validCategories = [
+            'Visite',
+            'Déjeuner Pavillon',
+            'Dégustation',
+            'Dîner Pavillon',
+            'Dîner Château',
+            'Déjeuner Extérieur',
+            'Dîner Extérieur',
+            'Formation',
+            'Masterclass Extérieur'               
+        ];
+    
+        if (!isset($event['categorie']['nom'])) {
+            return false;
+        }
+    
+        $nom = $event['categorie']['nom'];
+    
+        return in_array($nom, $validCategories) || strpos($nom, 'Château Latour') === 0;
+    });
 
-        $apiEvents = array_filter($apiEvents, function ($event) {
-            $validCategories = [
-                'Visite',
-                'Déjeuner Pavillon',
-                'Dégustation',
-                'Dîner Pavillon',
-                'Dîner Château',
-                'Déjeuner Extérieur',
-                'Dîner Extérieur',
-                'Formation',
-                'Masterclass Extérieur'               
-            ];
-        
-            if (!isset($event['categorie']['nom'])) {
-                return false;
-            }
-        
-            $nom = $event['categorie']['nom'];
-        
-            return in_array($nom, $validCategories) || strpos($nom, 'Château Latour') === 0;
-        });
-        
-        
-        // var_dump($apiEvents);
+    // Ajouter 'commentaires' vide et 'personnes' null à chaque événement API
+    $apiEvents = array_map(function ($event) {
+        $event['commentaires'] = [];
+        $event['personnes'] = null;
+        return $event;
+    }, $apiEvents);
 
+    // Récupérer les événements depuis la base de données
+    $dbEvents = $this->entityManager->getRepository(Event::class)->createQueryBuilder('e')
+        ->where('e.du BETWEEN :start AND :end OR e.au BETWEEN :start AND :end')
+        ->setParameter('start', $dateDebut->format('Y-m-d'))
+        ->setParameter('end', $dateFin->format('Y-m-d'))
+        ->getQuery()
+        ->getResult();
 
-        // Récupérer les événements depuis la base de données
-        $dbEvents = $this->entityManager->getRepository(Event::class)->createQueryBuilder('e')
-            ->where('e.du BETWEEN :start AND :end OR e.au BETWEEN :start AND :end')
-            ->setParameter('start', $dateDebut->format('Y-m-d'))
-            ->setParameter('end', $dateFin->format('Y-m-d'))
-            ->getQuery()
-            ->getResult();
-
-        // Fusionner les événements
-        $allEvents = array_merge($apiEvents, $dbEvents);
-
-        return $this->render('calendrier.html.twig', [
-            'allEvents' => $allEvents,
-            'mois' => $mois,
-            'annee' => $annee,
-            'dateDebut' => $dateDebut,
-            'dateFin' => $dateFin,
-        ]);
+    // Ajouter 'commentaires' vide et 'personnes' null à chaque événement DB
+    foreach ($dbEvents as $event) {
+        $event->commentaires = [];
+        $event->personnes = null;
     }
+
+    // Fusionner les événements
+    $allEvents = array_merge($apiEvents, $dbEvents);
+
+    return $this->render('calendrier.html.twig', [
+        'allEvents' => $allEvents,
+        'mois' => $mois,
+        'annee' => $annee,
+        'dateDebut' => $dateDebut,
+        'dateFin' => $dateFin,
+    ]);
+}
+
+
 
     #[Route('/calendrierAllEvents', name: 'app_calendrierAllEvents')]
     public function calendrierAllEvents(): Response

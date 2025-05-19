@@ -417,7 +417,7 @@
                                                                     {% endif %}
 
                                                                     {% if event.categorie == "rdv" or event.categorie == "transporteur" %}
-                                                                        <p><strong> Créateur :{{ app.user.userIdentifier }}</strong></p> 
+                                                                        <p><strong> Créateur :{{ event.auteur }}</strong></p> 
                                                                     {% endif %}
                                                                 </div>
                                                                 <div class="modal-footer">
