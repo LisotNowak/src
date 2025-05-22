@@ -60,7 +60,6 @@ public function getAllEvents(Request $request): Response
         return in_array($nom, $validCategories) || strpos($nom, 'Château Latour') === 0;
     });
 
-    var_dump($apiEvents);
 
     // Ajouter 'commentaires' vide et 'personnes' null à chaque événement API
     $apiEvents = array_map(function ($event) {
