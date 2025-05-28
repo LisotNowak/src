@@ -6,6 +6,8 @@ use DateTimeImmutable;
 use DateTimeInterface;
 use App\Service\SqlServerService;
 use App\Entity\Product;
+use App\Entity\Droit;
+use App\Entity\AssociationDroitUser;
 use Doctrine\ORM\EntityManagerInterface;
 use App\Service\EventService;
 use Symfony\Component\Routing\Attribute\Route;
@@ -17,6 +19,7 @@ use GuzzleHttp\Client;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use DateTime;
+use Symfony\Component\Security\Core\Security;
 
 class RenderController extends AbstractController
 {
@@ -41,16 +44,27 @@ class RenderController extends AbstractController
         return $this->render('organigramme/organigramme.html.twig');
     }
     
+    // private Security $security;
+
+    // public function __construct(Security $security)
+    // {
+    //     $this->security = $security;
+    // }
 
     #[Route('/calculette', name: 'app_calculette')]
     public function calculette(SqlServerService $sqlServerService): Response
     {
-        $users = $sqlServerService->query("SELECT * FROM AspNetUsers");
+        // Vérifiez si l'utilisateur est déjà authentifié
+        if ($this->isGranted('IS_AUTHENTICATED_FULLY')) {
 
-        return $this->render('calculette.html.twig', [
-            'users' => $users,
+            $users = $sqlServerService->query("SELECT * FROM AspNetUsers");
 
-        ]);
+            return $this->render('calculette.html.twig', [
+                'users' => $users,
+
+            ]);
+        }
+        return $this->redirectToRoute('app_accueil');
 
     }
 
