@@ -70,27 +70,10 @@
         {% endif %}
         </datalist>
         <!-- Champ caché pour l'ID du groupe -->
-        <input type="hidden" name="group" id="selectedgroupId" required>
-
-        <button type="submit">Valider</button>
-    </form>
-
-    <form method="get" action="{{ path('app_calculette_resultat') }}">
-        <label for="userDisplay">Choisir un utilisateur :</label>
-        <input list="userList" name="userDisplay" id="userDisplay" placeholder="Tapez un nom" required>
-        <datalist id="userList">
-        {% if users is defined and users is not empty %}
-            {% for user in users %}
-                <option data-id="{{ user.Id }}" value="{{ user.FirstName ~ ' ' ~ user.LastName }}"></option>
-            {% endfor %}
-        {% endif %}
-
-        </datalist>
-        <!-- Champ caché pour l'ID de l'utilisateur -->
-        <input type="hidden" name="user" id="selectedUserId" required>
+        <input id="selectedgroupId" name="group" type="hidden" value="{{ selectedGroupId|default('') }}">
 
         <label for="selectedWeek">Choisir une semaine :</label>
-        <input type="week" name="week" id="selectedWeek" required>
+        <input type="week" name="week" id="selectedWeek" value="{{ week|default('') }}">
 
         <button type="submit">Valider</button>
     </form>
@@ -255,10 +238,29 @@
 {% block javascripts %}
 <script src="{{ asset('js/calculette.js') }}"></script>
 <script>
-document.querySelector('form.mb-3').addEventListener('submit', function(e) {
-    e.preventDefault(); // Empêche le rechargement de la page
-    // Ici tu peux éventuellement déclencher le chargement AJAX si besoin
-    // Mais le JS sur l'input groupDisplay suffit déjà à charger les users
+document.querySelector('form.mb-3').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const groupId = document.getElementById('selectedgroupId').value;
+    const week = document.getElementById('selectedWeek').value;
+
+    if (!groupId || !week) {
+        this.submit(); // Laisse la validation HTML gérer
+        return;
+    }
+
+    // Vérifie si des membres du groupe ont déjà des heures
+    const resp = await fetch(`/api/group-users-with-hours?groupId=${groupId}&week=${week}`);
+    const usersWithHours = await resp.json();
+
+    if (usersWithHours.length > 0) {
+        let msg = "Les membres suivants ont déjà des heures saisies dans NIC pour cette semaine :\n";
+        msg += usersWithHours.map(u => `${u.FirstName} ${u.LastName}`).join('\n');
+        alert(msg);
+        return; // Bloque la soumission
+    }
+
+    this.submit(); // Aucun membre n'a d'heure, on soumet
 });
 
 document.getElementById('groupDisplay').addEventListener('input', function () {

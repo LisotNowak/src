@@ -120,9 +120,11 @@ class RenderController extends AbstractController
             'user' => $user,
             'week' => $week,
             'timeEntries' => $timeEntries,
-            'weekDates' => $weekDates, // Passer les dates de la semaine à la vue
+            'weekDates' => $weekDates,
             'startDate' => $startDate,
             'endDate' => $endDate,
+            'selectedGroupId' => $request->query->get('group'), // ou le nom de ton paramètre
+            'selectedUserId' => $userId,
         ]);
     }
 
@@ -140,6 +142,36 @@ class RenderController extends AbstractController
              INNER JOIN TimeEntryGroupEmployees tge ON tge.Employee_Id = u.id
              WHERE tge.TimeEntryGroup_Id = :groupId",
             ['groupId' => $groupId]
+        );
+
+        return $this->json($users);
+    }
+
+    #[Route('/api/group-users-with-hours', name: 'api_group_users_with_hours', methods: ['GET'])]
+    public function groupUsersWithHours(Request $request, SqlServerService $sqlServerService): Response
+    {
+        $groupId = $request->query->get('groupId');
+        $week = $request->query->get('week');
+        if (!$groupId || !$week) {
+            return $this->json([]);
+        }
+
+        // Récupère les dates de la semaine
+        [$startDate, $endDate] = $this->getStartAndEndDateFromIsoWeek($week);
+
+        // Récupère les utilisateurs du groupe ayant des heures saisies cette semaine
+        $users = $sqlServerService->query(
+            "SELECT u.Id, u.FirstName, u.LastName
+             FROM AspNetUsers u
+             INNER JOIN TimeEntryGroupEmployees tge ON tge.Employee_Id = u.id
+             INNER JOIN TimeEntries te ON te.Employee_Id = u.Id
+             WHERE tge.TimeEntryGroup_Id = :groupId
+             AND te.DateEntry >= :startDate AND te.DateEntry <= :endDate",
+            [
+                'groupId' => $groupId,
+                'startDate' => $startDate,
+                'endDate' => $endDate,
+            ]
         );
 
         return $this->json($users);
