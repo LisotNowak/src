@@ -57,11 +57,14 @@ class RenderController extends AbstractController
         // Vérifiez si l'utilisateur est déjà authentifié
         if ($this->isGranted('IS_AUTHENTICATED_FULLY')) {
 
-            $users = $sqlServerService->query("SELECT * FROM AspNetUsers");
+            // $users = $sqlServerService->query("SELECT * FROM AspNetUsers");
+
+            $groups = $sqlServerService->query("SELECT * FROM TimeEntryGroups");
+            
 
             return $this->render('calculette.html.twig', [
-                'users' => $users,
-
+                // 'users' => $users,
+                'groups' => $groups,
             ]);
         }
         return $this->redirectToRoute('app_accueil');
@@ -122,6 +125,26 @@ class RenderController extends AbstractController
             'endDate' => $endDate,
         ]);
     }
+
+    #[Route('/api/users-by-group', name: 'api_users_by_group', methods: ['GET'])]
+    public function usersByGroup(Request $request, SqlServerService $sqlServerService): Response
+    {
+        $groupId = $request->query->get('groupId');
+        if (!$groupId) {
+            return $this->json([]);
+        }
+
+        $users = $sqlServerService->query(
+            "SELECT u.Id, u.FirstName, u.LastName
+             FROM AspNetUsers u
+             INNER JOIN TimeEntryGroupEmployees tge ON tge.Employee_Id = u.id
+             WHERE tge.TimeEntryGroup_Id = :groupId",
+            ['groupId' => $groupId]
+        );
+
+        return $this->json($users);
+    }
+
 
     private function getStartAndEndDateFromIsoWeek(string $isoWeek): array
     {

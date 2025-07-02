@@ -59,13 +59,32 @@
 
 <div class="container mt-5">
 
+    <form class="mb-3" method="get" action="">
+        <label for="groupDisplay">Choisir un groupe :</label>
+        <input list="groupList" name="groupDisplay" id="groupDisplay" placeholder="nom groupe" required>
+        <datalist id="groupList">
+        {% if groups is defined and groups is not empty %}
+            {% for group in groups %}
+                <option data-id="{{ group.Id }}" value="{{ group.Label }}"></option>
+            {% endfor %}
+        {% endif %}
+        </datalist>
+        <!-- Champ caché pour l'ID du groupe -->
+        <input type="hidden" name="group" id="selectedgroupId" required>
+
+        <button type="submit">Valider</button>
+    </form>
+
     <form method="get" action="{{ path('app_calculette_resultat') }}">
         <label for="userDisplay">Choisir un utilisateur :</label>
         <input list="userList" name="userDisplay" id="userDisplay" placeholder="Tapez un nom" required>
         <datalist id="userList">
+        {% if users is defined and users is not empty %}
             {% for user in users %}
                 <option data-id="{{ user.Id }}" value="{{ user.FirstName ~ ' ' ~ user.LastName }}"></option>
             {% endfor %}
+        {% endif %}
+
         </datalist>
         <!-- Champ caché pour l'ID de l'utilisateur -->
         <input type="hidden" name="user" id="selectedUserId" required>
@@ -234,23 +253,51 @@
 
 
 {% block javascripts %}
-    <script src="{{ asset('js/calculette.js') }}"></script>
-    <script>
-    document.getElementById('userDisplay').addEventListener('input', function () {
-        const input = this;
-        const datalist = document.getElementById('userList');
-        const hidden = document.getElementById('selectedUserId');
+<script src="{{ asset('js/calculette.js') }}"></script>
+<script>
+document.querySelector('form.mb-3').addEventListener('submit', function(e) {
+    e.preventDefault(); // Empêche le rechargement de la page
+    // Ici tu peux éventuellement déclencher le chargement AJAX si besoin
+    // Mais le JS sur l'input groupDisplay suffit déjà à charger les users
+});
 
-        const option = Array.from(datalist.options).find(
-            opt => opt.value === input.value
-        );
+document.getElementById('groupDisplay').addEventListener('input', function () {
+    const input = this;
+    const datalist = document.getElementById('groupList');
+    const hidden = document.getElementById('selectedgroupId');
+    const option = Array.from(datalist.options).find(
+        opt => opt.value === input.value
+    );
+    hidden.value = option ? option.dataset.id : '';
 
-        hidden.value = option ? option.dataset.id : '';
-    });
+    // Si un groupe est sélectionné, charger les users en AJAX
+    if (hidden.value) {
+        fetch('/api/users-by-group?groupId=' + hidden.value)
+            .then(response => response.json())
+            .then(users => {
+                const userList = document.getElementById('userList');
+                userList.innerHTML = '';
+                users.forEach(user => {
+                    const opt = document.createElement('option');
+                    opt.value = user.FirstName + ' ' + user.LastName;
+                    opt.dataset.id = user.Id;
+                    userList.appendChild(opt);
+                });
+            });
+    }
+});
+
+// Garde la logique pour lier l’id user au champ caché
+document.getElementById('userDisplay').addEventListener('input', function () {
+    const input = this;
+    const datalist = document.getElementById('userList');
+    const hidden = document.getElementById('selectedUserId');
+    const option = Array.from(datalist.options).find(
+        opt => opt.value === input.value
+    );
+    hidden.value = option ? option.dataset.id : '';
+});
 </script>
-
-
-
 {% endblock %}
 
 <!-- Inclure Bootstrap JS -->
