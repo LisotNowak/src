@@ -203,7 +203,7 @@
     </tr>
     <tr>
         <td style="white-space: nowrap;">Dimanche <br>{% if timeEntries[6] is defined %}{{ timeEntries[6].DateEntry|date('Y-m-d') }}{% elseif weekDates[6] is defined %} {{weekDates[6]}} {% endif %}</td>
-        <td><input id="dimancheHSaisie" type="number" class="form-control HSaisie" onKeyUp="calcul()" disabled></td>
+        <td><input id="dimancheHSaisie" type="number" class="form-control dimancheHSaisie" onKeyUp="calcul()" disabled></td>
         <td><input id="dimancheHNorm" type="number" class="form-control HNorm" disabled value="{{ timeEntries[6] is defined ? timeEntries[6].NbHoursNormal : '' }}"></td>
         <td><input id="dimancheHRepComp" type="number" class="form-control HRepComp" disabled value="{{ timeEntries[6] is defined ? timeEntries[6].NbHoursRecoveryTime : '' }}"></td>
         <td><input id="dimancheHCompl" type="number" class="form-control HCompl" disabled value="{{ timeEntries[6] is defined ? timeEntries[6].NbHoursAdd : '' }}"></td>
@@ -225,6 +225,13 @@
     <h4>Total heures semaine :</h4>
         <div class="col-1">
             <input id="totalHsaisie" class="form-control" disabled>
+        </div>
+    </div>
+
+    <!-- Bouton Envoyer heures -->
+    <div class="row mt-3">
+        <div class="col">
+            <button id="envoyerHeuresBtn" class="btn btn-success" type="button">Envoyer heures</button>
         </div>
     </div>
 
@@ -254,6 +261,7 @@ document.querySelector('form.mb-3').addEventListener('submit', async function(e)
         document.getElementById('tableau-heures').innerHTML = 'Tableau des Heures (Non-modifiable, car la semaine est déjà renseignée dans NIC)';
         document.querySelectorAll('.HSaisie').forEach(function(element) {
         element.disabled = true;
+        document.getElementsByClassName('dimancheHSaisie')[0].disabled = true;
         });
 
         let msg = "Les membres suivants ont déjà des heures saisies dans NIC pour cette semaine :\n";
@@ -264,6 +272,7 @@ document.querySelector('form.mb-3').addEventListener('submit', async function(e)
         document.getElementById('tableau-heures').innerHTML = 'Tableau des Heures (modifiable)';
         document.querySelectorAll('.HSaisie').forEach(function(element) {
         element.disabled = false;
+        document.getElementsByClassName('dimancheHSaisie')[0].disabled = false;
         });
     }
 
@@ -286,26 +295,51 @@ document.getElementById('groupDisplay').addEventListener('input', function () {
             .then(response => response.json())
             .then(users => {
                 const userList = document.getElementById('userList');
-                userList.innerHTML = '';
-                users.forEach(user => {
-                    const opt = document.createElement('option');
-                    opt.value = user.FirstName + ' ' + user.LastName;
-                    opt.dataset.id = user.Id;
-                    userList.appendChild(opt);
-                });
             });
     }
 });
 
-// Garde la logique pour lier l’id user au champ caché
-document.getElementById('userDisplay').addEventListener('input', function () {
-    const input = this;
-    const datalist = document.getElementById('userList');
-    const hidden = document.getElementById('selectedUserId');
-    const option = Array.from(datalist.options).find(
-        opt => opt.value === input.value
-    );
-    hidden.value = option ? option.dataset.id : '';
+
+
+document.getElementById('envoyerHeuresBtn').addEventListener('click', function() {
+    // Récupère le groupe et la semaine sélectionnés
+    const groupId = document.getElementById('selectedgroupId').value;
+    const week = document.getElementById('selectedWeek').value;
+
+    // Pour chaque jour, récupère la valeur de chaque champ HSaisie
+    const jours = [
+        'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'
+    ];
+
+    const heures = jours.map(jour => {
+        return {
+            jour: jour,
+            date: document.querySelector(`#${jour}HSaisie`)?.closest('tr')?.querySelector('td')?.innerText.trim(),
+            HSaisie: document.getElementById(`${jour}HSaisie`)?.value || null,
+            HNorm: document.getElementById(`${jour}HNorm`)?.value || null,
+            HRepComp: document.getElementById(`${jour}HRepComp`)?.value || null,
+            HCompl: document.getElementById(`${jour}HCompl`)?.value || null,
+            HS10: document.getElementById(`${jour}HS10`)?.value || null,
+            HRepComp10: document.getElementById(`${jour}HRepComp10`)?.value || null,
+            HS25: document.getElementById(`${jour}HS25`)?.value || null,
+            HRepComp25: document.getElementById(`${jour}HRepComp25`)?.value || null,
+            HS50: document.getElementById(`${jour}HS50`)?.value || null,
+            HRepComp50: document.getElementById(`${jour}HRepComp50`)?.value || null,
+            HS100: document.getElementById(`${jour}HS100`)?.value || null,
+            HRepComp100: document.getElementById(`${jour}HRepComp100`)?.value || null,
+            RTT: document.getElementById(`${jour}RTT`)?.value || null,
+        };
+    });
+
+    const data = {
+        groupId: groupId,
+        week: week,
+        heures: heures
+    };
+
+    // Affiche le JSON dans la console (remplace par un fetch si tu veux l'envoyer au serveur)
+    console.log(JSON.stringify(data, null, 2));
+    alert("JSON généré dans la console !");
 });
 </script>
 {% endblock %}
