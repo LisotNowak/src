@@ -78,16 +78,12 @@
         <button type="submit">Valider</button>
     </form>
 
-    {% if  timeEntries is defined %}
+    
 
-        {% if timeEntries is empty %}
-            <h2 class="mt-4 mb-4">Tableau des Heures | {{user.LastName}} {{user.FirstName}} | {{week}}</h2>
-        {% else %}
-            <h2 class="mt-4 mb-4">Tableau des Heures (Non-modifiable, car la semaine est déjà renseignée dans NIC)</h2>
-        {% endif %}
-    {% else %}
-        <h2>Tableau des Heures</h2>
-    {% endif %}
+
+            <h2 class="mt-4 mb-4" id="tableau-heures">Tableau des Heures</h2>
+
+    
     <table class="table table-bordered">
         <thead>
             <tr>
@@ -245,7 +241,7 @@ document.querySelector('form.mb-3').addEventListener('submit', async function(e)
     const week = document.getElementById('selectedWeek').value;
 
     if (!groupId || !week) {
-        this.submit(); // Laisse la validation HTML gérer
+        alert("Veuillez sélectionner un groupe et une semaine.");
         return;
     }
 
@@ -254,13 +250,25 @@ document.querySelector('form.mb-3').addEventListener('submit', async function(e)
     const usersWithHours = await resp.json();
 
     if (usersWithHours.length > 0) {
+
+        document.getElementById('tableau-heures').innerHTML = 'Tableau des Heures (Non-modifiable, car la semaine est déjà renseignée dans NIC)';
+        document.querySelectorAll('.HSaisie').forEach(function(element) {
+        element.disabled = true;
+        });
+
         let msg = "Les membres suivants ont déjà des heures saisies dans NIC pour cette semaine :\n";
         msg += usersWithHours.map(u => `${u.FirstName} ${u.LastName}`).join('\n');
         alert(msg);
-        return; // Bloque la soumission
+        return;
+    }else{
+        document.getElementById('tableau-heures').innerHTML = 'Tableau des Heures (modifiable)';
+        document.querySelectorAll('.HSaisie').forEach(function(element) {
+        element.disabled = false;
+        });
     }
 
-    this.submit(); // Aucun membre n'a d'heure, on soumet
+    
+    
 });
 
 document.getElementById('groupDisplay').addEventListener('input', function () {
