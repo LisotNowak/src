@@ -203,7 +203,7 @@
     </tr>
     <tr>
         <td style="white-space: nowrap;">Dimanche <br>{% if timeEntries[6] is defined %}{{ timeEntries[6].DateEntry|date('Y-m-d') }}{% elseif weekDates[6] is defined %} {{weekDates[6]}} {% endif %}</td>
-        <td><input id="dimancheHSaisie" type="number" class="form-control dimancheHSaisie" onKeyUp="calcul()" disabled></td>
+        <td><input id="dimancheHSaisie" type="number" class="form-control HSaisie dimancheHSaisie" onKeyUp="calcul()" disabled></td>
         <td><input id="dimancheHNorm" type="number" class="form-control HNorm" disabled value="{{ timeEntries[6] is defined ? timeEntries[6].NbHoursNormal : '' }}"></td>
         <td><input id="dimancheHRepComp" type="number" class="form-control HRepComp" disabled value="{{ timeEntries[6] is defined ? timeEntries[6].NbHoursRecoveryTime : '' }}"></td>
         <td><input id="dimancheHCompl" type="number" class="form-control HCompl" disabled value="{{ timeEntries[6] is defined ? timeEntries[6].NbHoursAdd : '' }}"></td>
