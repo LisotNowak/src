@@ -177,6 +177,76 @@ class RenderController extends AbstractController
         return $this->json($users);
     }
 
+    #[Route('/api/save-time-entries', name: 'api_save_time_entries', methods: ['POST'])]
+    public function saveTimeEntries(Request $request, SqlServerService $sqlServerService): Response
+    {
+        $data = json_decode($request->getContent(), true);
+
+        if (!$data || !isset($data['groupId'], $data['week'], $data['heures'])) {
+            return $this->json(['error' => 'Paramètres manquants'], 400);
+        }
+
+        $groupId = $data['groupId'];
+        $week = $data['week'];
+        $heures = $data['heures'];
+
+        // Récupère les utilisateurs du groupe
+        $users = $sqlServerService->query(
+            "SELECT Employee_Id FROM TimeEntryGroupEmployees WHERE TimeEntryGroup_Id = :groupId",
+            ['groupId' => $groupId]
+        );
+
+        if (empty($users)) {
+            return $this->json(['error' => 'Aucun utilisateur dans ce groupe'], 400);
+        }
+
+        // Pour chaque utilisateur du groupe, insère les heures pour chaque jour
+        foreach ($users as $user) {
+            $employeeId = $user['Employee_Id'];
+            foreach ($heures as $jour) {
+                // Vérifie qu'il y a au moins une heure à enregistrer
+                $hasHours = false;
+                foreach ($jour as $key => $value) {
+                    if (in_array($key, [
+                        'HSaisie','HNorm','HRepComp','HCompl','HS10','HRepComp10','HS25','HRepComp25','HS50','HRepComp50','HS100','HRepComp100','RTT'
+                    ]) && $value !== null && $value !== '') {
+                        $hasHours = true;
+                        break;
+                    }
+                }
+                if (!$hasHours) continue;
+
+                $sqlServerService->execute(
+                    "INSERT INTO TimeEntries (
+                        Employee_Id, DateEntry, NbHoursNormal, NbHoursRecoveryTime, NbHoursAdd, NbHoursAdd10, NbHoursRecoveryTime10,
+                        NbHoursAdd25, NbHoursRecoveryTime25, NbHoursAdd50, NbHoursRecoveryTime50, NbHoursAdd100, NbHoursRecoveryTime100, NbHoursRtt
+                    ) VALUES (
+                        :employeeId, :dateEntry, :NbHoursNormal, :NbHoursRecoveryTime, :NbHoursAdd, :NbHoursAdd10, :NbHoursRecoveryTime10,
+                        :NbHoursAdd25, :NbHoursRecoveryTime25, :NbHoursAdd50, :NbHoursRecoveryTime50, :NbHoursAdd100, :NbHoursRecoveryTime100, :NbHoursRtt
+                    )",
+                    [
+                        'employeeId' => $employeeId,
+                        // Conversion ici :
+                        'dateEntry' => isset($jour['date']) && $jour['date'] ? (new \DateTime($jour['date']))->format('Ymd') : null,
+                        'NbHoursNormal' => $jour['HNorm'] ?? 0,
+                        'NbHoursRecoveryTime' => $jour['HRepComp'] ?? 0,
+                        'NbHoursAdd' => $jour['HCompl'] ?? 0,
+                        'NbHoursAdd10' => $jour['HS10'] ?? 0,
+                        'NbHoursRecoveryTime10' => $jour['HRepComp10'] ?? 0,
+                        'NbHoursAdd25' => $jour['HS25'] ?? 0,
+                        'NbHoursRecoveryTime25' => $jour['HRepComp25'] ?? 0,
+                        'NbHoursAdd50' => $jour['HS50'] ?? 0,
+                        'NbHoursRecoveryTime50' => $jour['HRepComp50'] ?? 0,
+                        'NbHoursAdd100' => $jour['HS100'] ?? 0,
+                        'NbHoursRecoveryTime100' => $jour['HRepComp100'] ?? 0,
+                        'NbHoursRtt' => $jour['RTT'] ?? 0,
+                    ]
+                );
+            }
+        }
+
+        return $this->json(['success' => true]);
+    }
 
     private function getStartAndEndDateFromIsoWeek(string $isoWeek): array
     {

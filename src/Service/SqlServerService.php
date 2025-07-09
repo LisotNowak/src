@@ -35,4 +35,16 @@ class SqlServerService
         $stmt->execute($params);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
+    public function execute(string $sql, array $params = []): void
+    {
+        try {
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute($params);
+        } catch (PDOException $e) {
+            error_log("Erreur SQL : " . $e->getMessage());
+            throw new \RuntimeException("Erreur SQL : " . $e->getMessage());
+        }
+    }
+
 }

@@ -301,46 +301,69 @@ document.getElementById('groupDisplay').addEventListener('input', function () {
 
 
 
-document.getElementById('envoyerHeuresBtn').addEventListener('click', function() {
-    // Récupère le groupe et la semaine sélectionnés
+document.getElementById('envoyerHeuresBtn').addEventListener('click', async function() {
     const groupId = document.getElementById('selectedgroupId').value;
-    const week = document.getElementById('selectedWeek').value;
+    const week = document.getElementById('selectedWeek').value; // ex: "2025-W28"
+    const jours = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
 
-    // Pour chaque jour, récupère la valeur de chaque champ HSaisie
-    const jours = [
-        'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'
-    ];
+    function getDateOfISOWeek(week, day) {
+        const jours = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+        const dayIndex = jours.indexOf(day);
+        if (dayIndex === -1) return null;
 
-    const heures = jours.map(jour => {
-        return {
-            jour: jour,
-            date: document.querySelector(`#${jour}HSaisie`)?.closest('tr')?.querySelector('td')?.innerText.trim(),
-            HSaisie: document.getElementById(`${jour}HSaisie`)?.value || null,
-            HNorm: document.getElementById(`${jour}HNorm`)?.value || null,
-            HRepComp: document.getElementById(`${jour}HRepComp`)?.value || null,
-            HCompl: document.getElementById(`${jour}HCompl`)?.value || null,
-            HS10: document.getElementById(`${jour}HS10`)?.value || null,
-            HRepComp10: document.getElementById(`${jour}HRepComp10`)?.value || null,
-            HS25: document.getElementById(`${jour}HS25`)?.value || null,
-            HRepComp25: document.getElementById(`${jour}HRepComp25`)?.value || null,
-            HS50: document.getElementById(`${jour}HS50`)?.value || null,
-            HRepComp50: document.getElementById(`${jour}HRepComp50`)?.value || null,
-            HS100: document.getElementById(`${jour}HS100`)?.value || null,
-            HRepComp100: document.getElementById(`${jour}HRepComp100`)?.value || null,
-            RTT: document.getElementById(`${jour}RTT`)?.value || null,
-        };
+        // week = "2025-W28"
+        const [year, weekNum] = week.split('-W');
+        // Calcul du lundi de la semaine ISO
+        const date = new Date(Date.UTC(year, 0, 1 + (weekNum - 1) * 7));
+        // Ajuste pour tomber sur le lundi
+        const dayOfWeek = date.getUTCDay();
+        const ISOweekStart = date;
+        if (dayOfWeek <= 4)
+            ISOweekStart.setUTCDate(date.getUTCDate() - date.getUTCDay() + 1);
+        else
+            ISOweekStart.setUTCDate(date.getUTCDate() + 8 - date.getUTCDay());
+        // Ajoute l'offset du jour
+        ISOweekStart.setUTCDate(ISOweekStart.getUTCDate() + dayIndex);
+
+        // Format YYYY-MM-DD
+        return ISOweekStart.toISOString().slice(0, 10);
+    }
+
+    const heures = jours.map(jour => ({
+        jour: jour,
+        date: getDateOfISOWeek(week, jour),
+        HSaisie: document.getElementById(`${jour}HSaisie`)?.value || null,
+        HNorm: document.getElementById(`${jour}HNorm`)?.value || null,
+        HRepComp: document.getElementById(`${jour}HRepComp`)?.value || null,
+        HCompl: document.getElementById(`${jour}HCompl`)?.value || null,
+        HS10: document.getElementById(`${jour}HS10`)?.value || null,
+        HRepComp10: document.getElementById(`${jour}HRepComp10`)?.value || null,
+        HS25: document.getElementById(`${jour}HS25`)?.value || null,
+        HRepComp25: document.getElementById(`${jour}HRepComp25`)?.value || null,
+        HS50: document.getElementById(`${jour}HS50`)?.value || null,
+        HRepComp50: document.getElementById(`${jour}HRepComp50`)?.value || null,
+        HS100: document.getElementById(`${jour}HS100`)?.value || null,
+        HRepComp100: document.getElementById(`${jour}HRepComp100`)?.value || null,
+        RTT: document.getElementById(`${jour}RTT`)?.value || null,
+    }));
+
+    const data = { groupId, week, heures };
+
+    console.log('Données à envoyer :', data);
+
+    const resp = await fetch('/api/save-time-entries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
     });
 
-    const data = {
-        groupId: groupId,
-        week: week,
-        heures: heures
-    };
-
-    // Affiche le JSON dans la console (remplace par un fetch si tu veux l'envoyer au serveur)
-    console.log(JSON.stringify(data, null, 2));
-    alert("JSON généré dans la console !");
+    if (resp.ok) {
+        alert('Heures enregistrées !');
+    } else {
+        alert('Erreur lors de l\'enregistrement');
+    }
 });
+
 </script>
 {% endblock %}
 
