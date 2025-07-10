@@ -54,17 +54,13 @@ class RenderController extends AbstractController
     #[Route('/calculette', name: 'app_calculette')]
     public function calculette(SqlServerService $sqlServerService): Response
     {
-        // Vérifiez si l'utilisateur est déjà authentifié
         if ($this->isGranted('IS_AUTHENTICATED_FULLY')) {
-
-            // $users = $sqlServerService->query("SELECT * FROM AspNetUsers");
-
             $groups = $sqlServerService->query("SELECT * FROM TimeEntryGroups");
-            
+            $tasks = $sqlServerService->query("SELECT Id, Label FROM Tasks WHERE PossibleTimeEntry = 1"); // Filtre si besoin
 
             return $this->render('calculette.html.twig', [
-                // 'users' => $users,
                 'groups' => $groups,
+                'tasks' => $tasks,
             ]);
         }
         return $this->redirectToRoute('app_accueil');
@@ -182,9 +178,11 @@ class RenderController extends AbstractController
     {
         $data = json_decode($request->getContent(), true);
 
-        if (!$data || !isset($data['groupId'], $data['week'], $data['heures'])) {
+        if (!$data || !isset($data['groupId'], $data['week'], $data['heures'], $data['taskId'])) {
             return $this->json(['error' => 'Paramètres manquants'], 400);
         }
+
+        $taskId = $data['taskId']; // <-- Ajout
 
         $groupId = $data['groupId'];
         $week = $data['week'];
@@ -256,12 +254,13 @@ class RenderController extends AbstractController
                             "INSERT INTO TimeEntryVentilations (
                                 NbHours, Comments, TimeEntry_Id, Task_Id, Parcelle_Id, Millesim_Id, IsBonus, WineAppellation_Id
                             ) VALUES (
-                                :nbHours, :comments, :timeEntryId, 5, NULL, 1, 0, NULL
+                                :nbHours, :comments, :timeEntryId, :taskId, NULL, 1, 0, NULL
                             )",
                             [
                                 'nbHours' => $nbHours,
                                 'comments' => null,
                                 'timeEntryId' => $timeEntryId,
+                                'taskId' => $taskId, // <-- Utilise la même tâche pour toute la semaine
                             ]
                         );
                     }

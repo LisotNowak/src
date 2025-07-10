@@ -75,6 +75,14 @@
         <label for="selectedWeek">Choisir une semaine :</label>
         <input type="week" name="week" id="selectedWeek" value="{{ week|default('') }}">
 
+        <label for="selectedTask">Choisir une tâche :</label>
+        <select id="selectedTask" name="task" required>
+            <option value="">Sélectionner une tâche</option>
+            {% for task in tasks %}
+                <option value="{{ task.Id }}">{{ task.Label }}</option>
+            {% endfor %}
+        </select>
+
         <button type="submit">Valider</button>
     </form>
 
@@ -303,7 +311,9 @@ document.getElementById('groupDisplay').addEventListener('input', function () {
 
 document.getElementById('envoyerHeuresBtn').addEventListener('click', async function() {
     const groupId = document.getElementById('selectedgroupId').value;
-    const week = document.getElementById('selectedWeek').value; // ex: "2025-W28"
+    const week = document.getElementById('selectedWeek').value;
+    const taskId = document.getElementById('selectedTask').value; // <-- Ajout
+
     const jours = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
 
     function getDateOfISOWeek(week, day) {
@@ -347,7 +357,7 @@ document.getElementById('envoyerHeuresBtn').addEventListener('click', async func
         RTT: document.getElementById(`${jour}RTT`)?.value || null,
     }));
 
-    const data = { groupId, week, heures };
+    const data = { groupId, week, taskId, heures }; // <-- Ajout taskId
 
     console.log('Données à envoyer :', data);
 
