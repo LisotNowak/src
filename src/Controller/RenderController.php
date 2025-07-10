@@ -216,32 +216,61 @@ class RenderController extends AbstractController
                 }
                 if (!$hasHours) continue;
 
-                $sqlServerService->execute(
-                    "INSERT INTO TimeEntries (
-                        Employee_Id, DateEntry, NbHoursNormal, NbHoursRecoveryTime, NbHoursAdd, NbHoursAdd10, NbHoursRecoveryTime10,
-                        NbHoursAdd25, NbHoursRecoveryTime25, NbHoursAdd50, NbHoursRecoveryTime50, NbHoursAdd100, NbHoursRecoveryTime100, NbHoursRtt
-                    ) VALUES (
-                        :employeeId, :dateEntry, :NbHoursNormal, :NbHoursRecoveryTime, :NbHoursAdd, :NbHoursAdd10, :NbHoursRecoveryTime10,
-                        :NbHoursAdd25, :NbHoursRecoveryTime25, :NbHoursAdd50, :NbHoursRecoveryTime50, :NbHoursAdd100, :NbHoursRecoveryTime100, :NbHoursRtt
-                    )",
-                    [
-                        'employeeId' => $employeeId,
-                        // Conversion ici :
-                        'dateEntry' => isset($jour['date']) && $jour['date'] ? (new \DateTime($jour['date']))->format('Ymd') : null,
-                        'NbHoursNormal' => $jour['HNorm'] ?? 0,
-                        'NbHoursRecoveryTime' => $jour['HRepComp'] ?? 0,
-                        'NbHoursAdd' => $jour['HCompl'] ?? 0,
-                        'NbHoursAdd10' => $jour['HS10'] ?? 0,
-                        'NbHoursRecoveryTime10' => $jour['HRepComp10'] ?? 0,
-                        'NbHoursAdd25' => $jour['HS25'] ?? 0,
-                        'NbHoursRecoveryTime25' => $jour['HRepComp25'] ?? 0,
-                        'NbHoursAdd50' => $jour['HS50'] ?? 0,
-                        'NbHoursRecoveryTime50' => $jour['HRepComp50'] ?? 0,
-                        'NbHoursAdd100' => $jour['HS100'] ?? 0,
-                        'NbHoursRecoveryTime100' => $jour['HRepComp100'] ?? 0,
-                        'NbHoursRtt' => $jour['RTT'] ?? 0,
-                    ]
-                );
+                // --- DEBUT TRANSACTION ---
+                $sqlServerService->beginTransaction();
+                try {
+                    // 1. INSERT TimeEntry
+                    $sqlServerService->execute(
+                        "INSERT INTO TimeEntries (
+                            Employee_Id, DateEntry, NbHoursNormal, NbHoursRecoveryTime, NbHoursAdd, NbHoursAdd10, NbHoursRecoveryTime10,
+                            NbHoursAdd25, NbHoursRecoveryTime25, NbHoursAdd50, NbHoursRecoveryTime50, NbHoursAdd100, NbHoursRecoveryTime100, NbHoursRtt
+                        ) VALUES (
+                            :employeeId, :dateEntry, :NbHoursNormal, :NbHoursRecoveryTime, :NbHoursAdd, :NbHoursAdd10, :NbHoursRecoveryTime10,
+                            :NbHoursAdd25, :NbHoursRecoveryTime25, :NbHoursAdd50, :NbHoursRecoveryTime50, :NbHoursAdd100, :NbHoursRecoveryTime100, :NbHoursRtt
+                        )",
+                        [
+                            'employeeId' => $employeeId,
+                            'dateEntry' => isset($jour['date']) && $jour['date'] ? (new \DateTime($jour['date']))->format('Ymd') : null,
+                            'NbHoursNormal' => $jour['HNorm'] ?? 0,
+                            'NbHoursRecoveryTime' => $jour['HRepComp'] ?? 0,
+                            'NbHoursAdd' => $jour['HCompl'] ?? 0,
+                            'NbHoursAdd10' => $jour['HS10'] ?? 0,
+                            'NbHoursRecoveryTime10' => $jour['HRepComp10'] ?? 0,
+                            'NbHoursAdd25' => $jour['HS25'] ?? 0,
+                            'NbHoursRecoveryTime25' => $jour['HRepComp25'] ?? 0,
+                            'NbHoursAdd50' => $jour['HS50'] ?? 0,
+                            'NbHoursRecoveryTime50' => $jour['HRepComp50'] ?? 0,
+                            'NbHoursAdd100' => $jour['HS100'] ?? 0,
+                            'NbHoursRecoveryTime100' => $jour['HRepComp100'] ?? 0,
+                            'NbHoursRtt' => $jour['RTT'] ?? 0,
+                        ]
+                    );
+                    // 2. Récupère l'ID du dernier TimeEntry inséré
+                    $timeEntryIdResult = $sqlServerService->query("SELECT SCOPE_IDENTITY() AS TimeEntryId");
+                    error_log('timeEntryIdResult: ' . print_r($timeEntryIdResult, true));
+                    $timeEntryId = $sqlServerService->lastInsertId();
+                    error_log('timeEntryId: ' . $timeEntryId);
+                    if ($timeEntryId) {
+                        $nbHours = $jour['HSaisie'] ?? 0;
+                        $sqlServerService->execute(
+                            "INSERT INTO TimeEntryVentilations (
+                                NbHours, Comments, TimeEntry_Id, Task_Id, Parcelle_Id, Millesim_Id, IsBonus, WineAppellation_Id
+                            ) VALUES (
+                                :nbHours, :comments, :timeEntryId, 5, NULL, 1, 0, NULL
+                            )",
+                            [
+                                'nbHours' => $nbHours,
+                                'comments' => null,
+                                'timeEntryId' => $timeEntryId,
+                            ]
+                        );
+                    }
+                    $sqlServerService->commit();
+                } catch (\Throwable $e) {
+                    $sqlServerService->rollBack();
+                    throw $e;
+                }
+                // --- FIN TRANSACTION ---
             }
         }
 

@@ -47,4 +47,23 @@ class SqlServerService
         }
     }
 
+    public function beginTransaction(): void
+    {
+        $this->pdo->beginTransaction();
+    }
+
+    public function commit(): void
+    {
+        $this->pdo->commit();
+    }
+
+    public function rollBack(): void
+    {
+        $this->pdo->rollBack();
+    }
+
+    public function lastInsertId(): string
+    {
+        return $this->pdo->lastInsertId();
+    }
 }
