@@ -1,28 +1,46 @@
 {% extends 'base.html.twig' %} 
 {% block title %}Accueil{% endblock %}
 
-
-
 {% block javascripts %}
 <script type="text/javascript" src="{{asset('js/lib/organigramme/d3.v7.min.js')}}"></script>
 <script type="text/javascript" src="{{asset('js/lib/organigramme/d3-org-chart@2')}}"></script>
 <script type="text/javascript" src="{{asset('js/lib/organigramme/d3-flextree.js')}}"></script>
 
+<script>
+function printDivLandscape(divId) {
+    // Créer une nouvelle fenêtre
+    var content = document.getElementById(divId).innerHTML;
+    var mywindow = window.open('', 'Print', 'height=900,width=1200');
+
+    mywindow.document.write('<html><head><title>Impression</title>');
+
+    // Style pour forcer le paysage à l'impression
+    mywindow.document.write('<style>@page { size: landscape; }</style>');
+
+    mywindow.document.write('</head><body>');
+    mywindow.document.write(content);
+    mywindow.document.write('</body></html>');
+
+    mywindow.document.close();
+    mywindow.focus();
+
+    setTimeout(function() {
+        mywindow.print();
+        mywindow.close();
+    }, 500);
+}
+</script>
 {% endblock %}
 
 {% block body %}
 
+<button onclick="printDivLandscape('chart-container')" style="margin-bottom: 10px;">Imprimer en paysage</button>
 
-
-<div class="chart-container" style="height: 900px; background-color: #fffeff; border-color: blue; border-color: #1271b6; border-width: 5px;border-style: solid;"></div>
-
+<div id="chart-container" class="chart-container" style="height: 900px; background-color: #fffeff; border-color: #1271b6; border-width: 5px; border-style: solid;">
+</div>
 
 <script type="text/javascript" src="{{ asset('js/organigramme/organigrammeV3.js') }}"></script>
-    
-        {# <script> document.getElementById("btnModifier").hidden = false; </script> #}
 
 {% include 'organigramme/modal.html.twig' %}
 
-
 {% endblock %}
-
