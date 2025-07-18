@@ -25,8 +25,9 @@ class Client
     #[ORM\Column(name: "société_nom", type: "string", length: 128, nullable: true)]
     private ?string $societeNom = null;
 
-    #[ORM\Column(name: "catégorie", type: "string", length: 128, nullable: true)]
-    private ?string $categorie = null;
+    #[ORM\ManyToOne(targetEntity: Categorie::class)]
+    #[ORM\JoinColumn(name: "catégorie_id", referencedColumnName: "id", nullable: true)]
+    private ?Categorie $categorie = null;
 
     #[ORM\Column(name: "commentaires", type: "string", length: 128, nullable: true)]
     private ?string $commentaires = null;
@@ -118,16 +119,17 @@ class Client
         return $this;
     }
 
-    public function getCategorie(): ?string
+    public function getCategorie(): ?Categorie
     {
         return $this->categorie;
     }
 
-    public function setCategorie(?string $categorie): self
+    public function setCategorie(?Categorie $categorie): self
     {
         $this->categorie = $categorie;
         return $this;
     }
+
 
     public function getCommentaires(): ?string
     {
