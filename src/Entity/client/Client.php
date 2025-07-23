@@ -7,11 +7,19 @@ use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: ClientRepository::class)]
 #[ORM\Table(name: "client", schema: "client")]
-class Client
-{
+class Client{
+    
     #[ORM\Id]
+    #[ORM\GeneratedValue(strategy: "SEQUENCE")]
+    #[ORM\SequenceGenerator(sequenceName: "client.client_id_seq", allocationSize: 1)]
     #[ORM\Column(name: '"UNIQUEID"', type: "integer", nullable: false)]
     private ?int $uniqueId = null;
+
+    #[ORM\Column(name: "signature", type: "boolean", nullable: true)]
+    private ?bool $signature = null;
+
+    #[ORM\Column(name: "conserver", type: "boolean", nullable: true)]
+    private ?bool $conserver = null;
 
     #[ORM\Column(name: "date_envoi", type: "string", length: 128, nullable: true)]
     private ?string $dateEnvoi = null;
@@ -61,6 +69,10 @@ class Client
 
     #[ORM\Column(name: "langue", type: "string", length: 128, nullable: true)]
     private ?string $langue = null;
+
+    #[ORM\ManyToOne(targetEntity: Signataire::class)]
+    #[ORM\JoinColumn(name: "signataire_id", referencedColumnName: "id", nullable: true)]
+    private ?Signataire $signataire = null;
 
     // Getters and Setters
 
@@ -249,6 +261,39 @@ class Client
     public function setLangue(?string $langue): self
     {
         $this->langue = $langue;
+        return $this;
+    }
+
+    public function getSignataire(): ?Signataire
+    {
+        return $this->signataire;
+    }
+
+    public function setSignataire(?Signataire $signataire): self
+    {
+        $this->signataire = $signataire;
+        return $this;
+    }
+
+    public function getSignature(): ?bool
+    {
+        return $this->signature;
+    }
+
+    public function setSignature(?bool $signature): self
+    {
+        $this->signature = $signature;
+        return $this;
+    }
+
+    public function getConserver(): ?bool
+    {
+        return $this->conserver;
+    }
+
+    public function setConserver(?bool $conserver): self
+    {
+        $this->conserver = $conserver;
         return $this;
     }
 }

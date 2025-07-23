@@ -3,44 +3,46 @@
 {% block title %}Liste des clients{% endblock %}
 
 {% block body %}
-<div class="container mt-4">
-    <h2 class="mb-4">Liste des clients</h2>
-    <form method="get" class="mb-4">
-        <div class="row g-2 align-items-center">
-            <div class="col-auto">
-                <label for="signataire" class="col-form-label fw-bold">Choisir un signataire :</label>
+<div class="mt-4">
+    <div class="container mt-4">
+        <h2 class="mb-4">Liste des clients</h2>
+        <form method="get" class="mb-4">
+            <div class="row g-2 align-items-center">
+                <div class="col-auto">
+                    <label for="signataire" class="col-form-label fw-bold">Choisir un signataire :</label>
+                </div>
+                <div class="col-auto">
+                    <select id="signataire" name="signataire" class="form-select" onchange="this.form.submit()">
+                        <option value="">-- Tous les signataires --</option>
+                        {% for signataire in signataires %}
+                            <option value="{{ signataire.id }}"
+                                {% if signataire_selected == signataire.id %}selected{% endif %}>
+                                {{ signataire.signataire }}
+                            </option>
+                        {% else %}
+                            <option disabled>Aucun signataire trouvé.</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <label for="categorie" class="col-form-label fw-bold">Choisir une catégorie :</label>
+                </div>
+                <div class="col-auto">
+                    <select id="categorie" name="categorie" class="form-select" onchange="this.form.submit()">
+                        <option value="">-- Toutes les catégories --</option>
+                        {% for cat in categories %}
+                            <option value="{{ cat.id }}"
+                                {% if categorie_selected == cat.id %}selected{% endif %}>
+                                {{ cat.nomCategorie }}
+                            </option>
+                        {% else %}
+                            <option disabled>Aucune catégorie trouvée.</option>
+                        {% endfor %}
+                    </select>
+                </div>
             </div>
-            <div class="col-auto">
-                <select id="signataire" name="signataire" class="form-select" onchange="this.form.submit()">
-                    <option value="">-- Tous les signataires --</option>
-                    {% for signataire in signataires %}
-                        <option value="{{ signataire.id }}"
-                            {% if signataire_selected == signataire.id %}selected{% endif %}>
-                            {{ signataire.signataire }}
-                        </option>
-                    {% else %}
-                        <option disabled>Aucun signataire trouvé.</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-auto">
-                <label for="categorie" class="col-form-label fw-bold">Choisir une catégorie :</label>
-            </div>
-            <div class="col-auto">
-                <select id="categorie" name="categorie" class="form-select" onchange="this.form.submit()">
-                    <option value="">-- Toutes les catégories --</option>
-                    {% for cat in categories %}
-                        <option value="{{ cat.id }}"
-                            {% if categorie_selected == cat.id %}selected{% endif %}>
-                            {{ cat.nomCategorie }}
-                        </option>
-                    {% else %}
-                        <option disabled>Aucune catégorie trouvée.</option>
-                    {% endfor %}
-                </select>
-            </div>
-        </div>
-    </form>
+        </form>
+    </div>
 
     <div class="table-responsive">
         <table class="table table-striped table-hover align-middle">
@@ -52,6 +54,9 @@
                     <th>Pays</th>
                     <th>Société</th>
                     <th>Catégorie</th>
+                    <th>Signature Manuscrite</th>
+                    <th>Conserver</th>
+                    <th>Envoi mail</th>
                 </tr>
             </thead>
             <tbody>
@@ -64,7 +69,58 @@
                         <td>{{ client.societeNom }}</td>
                         <td>
                             {{ client.categorie ? client.categorie.nomCategorie : 'Aucune' }}
-                        </td> {# Ajout ici #}
+                        </td>
+                        <td>
+                            <select name="signature_{{ client.uniqueId }}" class="form-select form-select-sm signature-select" data-client-id="{{ client.uniqueId }}" data-signataire="{{ liaisons[client.uniqueId] ? liaisons[client.uniqueId].signataire }}">
+                                <option value="1" {% if liaisons[client.uniqueId] and liaisons[client.uniqueId].signature == true %}selected{% endif %}>Oui</option>
+                                <option value="0" {% if liaisons[client.uniqueId] and liaisons[client.uniqueId].signature == false %}selected{% endif %}>Non</option>
+                            </select>
+                        </td>
+                        <td>
+                            <select name="conserver_{{ client.uniqueId }}" class="form-select form-select-sm conserver-select" data-client-id="{{ client.uniqueId }}" data-signataire="{{ liaisons[client.uniqueId] ? liaisons[client.uniqueId].signataire }}">
+                                <option value="1" {% if liaisons[client.uniqueId] and liaisons[client.uniqueId].conserver == true %}selected{% endif %}>Oui</option>
+                                <option value="0" {% if liaisons[client.uniqueId] and liaisons[client.uniqueId].conserver == false %}selected{% endif %}>Non</option>
+                            </select>
+                        </td>
+                        <td>
+                            <select name="envoi_mail_{{ client.uniqueId }}" class="form-select form-select-sm envoi-mail-select" data-client-id="{{ client.uniqueId }}" data-signataire="{{ liaisons[client.uniqueId] ? liaisons[client.uniqueId].signataire }}">
+                                <option value="1" {% if liaisons[client.uniqueId] and liaisons[client.uniqueId].envoiMail == true %}selected{% endif %}>Oui</option>
+                                <option value="0" {% if liaisons[client.uniqueId] and liaisons[client.uniqueId].envoiMail == false %}selected{% endif %}>Non</option>
+                            </select>
+                        </td>
+{% block javascripts %}
+    {{ parent() }}
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.signature-select, .conserver-select, .envoi-mail-select').forEach(function(select) {
+            select.addEventListener('change', function() {
+                const clientId = this.dataset.clientId;
+                let field = 'signature';
+                if (this.classList.contains('conserver-select')) field = 'conserver';
+                if (this.classList.contains('envoi-mail-select')) field = 'envoiMail';
+                const value = this.value;
+                const signataire = this.dataset.signataire;
+                fetch("{{ path('app_clients_update_field') }}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': '{{ csrf_token('update_client_field') }}'
+                    },
+                    body: JSON.stringify({ id: clientId, signataire: signataire, field: field, value: value })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        alert('Erreur lors de la sauvegarde');
+                    }
+                })
+                .catch(() => alert('Erreur lors de la sauvegarde'));
+            });
+        });
+    });
+    </script>
+{% endblock %}
                     </tr>
                 {% else %}
                     <tr>
