@@ -95,7 +95,7 @@ document.addEventListener('DOMContentLoaded', function() {
           }>
           <img src="${imageUrl}" style="margin-top:-30px;margin-left:${d.width / 2 - 30}px;border-radius:100px;width:60px;height:60px;" />
           <div style="margin-right:10px;margin-top:15px;float:right"></div>
-          <div style="margin-top:-30px;background-color:${color};height:10px;width:${d.width - 2}px;border-radius:1px"></div>
+          <div class="bandeau-user" style="margin-top:-30px;background-color:${color};height:10px;width:${d.width - 2}px;border-radius:1px"></div>
           <div style="padding:20px; padding-top:35px;text-align:center">
               <div style="color:#111672;font-size:16px;font-weight:bold"> ${d.data.name}</div>
               <div style="color:#404040;font-size:16px;margin-top:4px"> ${d.data.tags} </div>

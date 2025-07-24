@@ -5,31 +5,6 @@
 <script type="text/javascript" src="{{asset('js/lib/organigramme/d3.v7.min.js')}}"></script>
 <script type="text/javascript" src="{{asset('js/lib/organigramme/d3-org-chart@2')}}"></script>
 <script type="text/javascript" src="{{asset('js/lib/organigramme/d3-flextree.js')}}"></script>
-
-<script>
-function printDivLandscape(divId) {
-    // Créer une nouvelle fenêtre
-    var content = document.getElementById(divId).innerHTML;
-    var mywindow = window.open('', 'Print', 'height=900,width=1200');
-
-    mywindow.document.write('<html><head><title>Impression</title>');
-
-    // Style pour forcer le paysage à l'impression
-    mywindow.document.write('<style>@page { size: landscape; }</style>');
-
-    mywindow.document.write('</head><body>');
-    mywindow.document.write(content);
-    mywindow.document.write('</body></html>');
-
-    mywindow.document.close();
-    mywindow.focus();
-
-    setTimeout(function() {
-        mywindow.print();
-        mywindow.close();
-    }, 500);
-}
-</script>
 {% endblock %}
 
 {% block body %}
@@ -46,6 +21,42 @@ function printDivLandscape(divId) {
 
 <script type="text/javascript" src="{{ asset('js/organigramme/organigrammeV3.js') }}"></script>
 
+<script>
+// Impression fidèle de la div chart-container (SVG, styles, etc)
+function printDivLandscape(divId) {
+    const chartDiv = document.getElementById(divId);
+    // Récupère le contenu HTML dynamique (inclut le SVG généré)
+    const content = chartDiv.innerHTML;
+
+    // Copie les styles du document
+    let styles = '';
+    for (let i = 0; i < document.styleSheets.length; i++) {
+        try {
+            const rules = document.styleSheets[i].cssRules;
+            if (rules) {
+                for (let j = 0; j < rules.length; j++) {
+                    styles += rules[j].cssText + '\n';
+                }
+            }
+        } catch (e) { /* ignore cross-origin */ }
+    }
+
+    // Ouvre une nouvelle fenêtre pour l'impression
+    const printWindow = window.open('', '', 'height=900,width=1200');
+    printWindow.document.write('<html><head><title>Impression Organigramme</title>');
+    printWindow.document.write('<style>@page { size: landscape; } body { margin:0; } ' + styles + '\n.bandeau-user { margin-top:-30px !important; height:10px !important; border-radius:1px !important; display:block !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } @media print { .bandeau-user { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } } </style>');
+    printWindow.document.write('</head><body>');
+    // Réapplique le style du cadre bleu
+    printWindow.document.write('<div class="chart-container" style="height: 900px; background-color: #fffeff; border-color: #1271b6; border-width: 5px; border-style: solid;">' + content + '</div>');
+    printWindow.document.write('</body></html>');
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(function() {
+        printWindow.print();
+        printWindow.close();
+    }, 500);
+}
+</script>
 {% include 'organigramme/modal.html.twig' %}
 
 {% endblock %}
