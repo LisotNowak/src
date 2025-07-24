@@ -121,7 +121,8 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>`;
         return res;
       })
-      .render();
+      .render()
+      .expandAll();
     document.getElementsByClassName("svg-chart-container").width = "100%";
   }
 
