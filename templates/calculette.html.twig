@@ -86,7 +86,13 @@
         <button type="submit">Valider</button>
     </form>
 
-    
+    <div class="form-check mb-3">
+        <input class="form-check-input" type="checkbox" value="" id="saisonnierCheckbox" checked>
+        <label class="form-check-label" for="saisonnierCheckbox">
+            Saisonnier
+        </label>
+    </div>
+
 
 
             <h2 class="mt-4 mb-4" id="tableau-heures">Tableau des Heures</h2>
@@ -372,6 +378,43 @@ document.getElementById('envoyerHeuresBtn').addEventListener('click', async func
     } else {
         alert('Erreur lors de l\'enregistrement');
     }
+});
+
+function toggleSaisonnierMode(isSaisonnier) {
+    const repCompSelectors = [
+        'HRepComp',
+        'HRepComp10',
+        'HRepComp25',
+        'HRepComp50',
+        'HRepComp100'
+    ];
+
+    const jours = ['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'];
+
+    jours.forEach(jour => {
+        repCompSelectors.forEach(suffix => {
+            const input = document.getElementById(`${jour}${suffix}`);
+            if (input) {
+                if (isSaisonnier) {
+                    input.value = null;
+                    input.disabled = true;
+                } else {
+                    input.disabled = false;
+                }
+            }
+        });
+    });
+}
+
+// Appliquer au chargement initial
+document.addEventListener('DOMContentLoaded', function() {
+    toggleSaisonnierMode(document.getElementById('saisonnierCheckbox').checked);
+});
+
+// Appliquer au changement de la checkbox
+document.getElementById('saisonnierCheckbox').addEventListener('change', function() {
+    toggleSaisonnierMode(this.checked);
+    calcul(); // Recalculer automatiquement
 });
 
 </script>

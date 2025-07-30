@@ -38,6 +38,19 @@ function calcul() {
             }
 
             let jour = InputHSaisie.id.split('H')[0];
+
+            // Si "Saisonnier" est coché, forcer les champs HRepComp* à 0
+            const isSaisonnier = document.getElementById("saisonnierCheckbox")?.checked;
+
+            if (isSaisonnier) {
+                const repCompSuffixes = ["HRepComp", "HRepComp10", "HRepComp25", "HRepComp50", "HRepComp100"];
+                repCompSuffixes.forEach(suffix => {
+                    const field = document.getElementById(jour + suffix);
+                    if (field) {
+                        field.value = null;
+                    }
+                });
+            }
     
             // Réinitialiser les champs du jour en cours
             document.getElementById(jour + "HS25").value = "";
@@ -72,14 +85,20 @@ function calcul() {
                     }
     
                     if (totalHSaisie >= 49 && totalHSaisie <= 60) {
-                        document.querySelectorAll('.HRepComp').forEach(field => {
-                            field.value = "";
-                        });
-    
-                        if (document.getElementById(jour + "HSaisie").value != 0) {
-                            document.getElementById(jour + "HRepComp").value =
-                                (totalHSaisie - 48) * 0.25;
-                        }
+                            const isSaisonnier = document.getElementById("saisonnierCheckbox")?.checked;
+
+                            if (!isSaisonnier) {
+                                document.querySelectorAll('.HRepComp').forEach(field => {
+                                    field.value = "";
+                                });
+
+                                if (document.getElementById(jour + "HSaisie").value != 0) {
+                                    document.getElementById(jour + "HRepComp").value =
+                                        (totalHSaisie - 48) * 0.25;
+                                }
+                            }
+                        
+
     
                         if (totalHSaisie >= 57) {
                             if(document.getElementById(jour+"HCompl").value == ""){
