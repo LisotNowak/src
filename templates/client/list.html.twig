@@ -53,9 +53,9 @@
                     <th>Ville</th>
                     <th>Pays</th>
                     <th>Société</th>
-                    <th>Catégorie</th>
-                    <th>Signature Manuscrite</th>
+                    <th>Catégorie</th> 
                     <th>Conserver</th>
+                    <th>Signature Manuscrite</th>
                     <th>Envoi mail</th>
                 </tr>
             </thead>
@@ -71,15 +71,15 @@
                             {{ client.categorie ? client.categorie.nomCategorie : 'Aucune' }}
                         </td>
                         <td>
-                            <select name="signature_{{ client.uniqueId }}" class="form-select form-select-sm signature-select" data-client-id="{{ client.uniqueId }}" data-signataire="{{ liaisons[client.uniqueId] ? liaisons[client.uniqueId].signataire }}">
-                                <option value="1" {% if liaisons[client.uniqueId] and liaisons[client.uniqueId].signature == true %}selected{% endif %}>Oui</option>
-                                <option value="0" {% if liaisons[client.uniqueId] and liaisons[client.uniqueId].signature == false %}selected{% endif %}>Non</option>
-                            </select>
-                        </td>
-                        <td>
                             <select name="conserver_{{ client.uniqueId }}" class="form-select form-select-sm conserver-select" data-client-id="{{ client.uniqueId }}" data-signataire="{{ liaisons[client.uniqueId] ? liaisons[client.uniqueId].signataire }}">
                                 <option value="1" {% if liaisons[client.uniqueId] and liaisons[client.uniqueId].conserver == true %}selected{% endif %}>Oui</option>
                                 <option value="0" {% if liaisons[client.uniqueId] and liaisons[client.uniqueId].conserver == false %}selected{% endif %}>Non</option>
+                            </select>
+                        </td>
+                        <td>
+                            <select name="signature_{{ client.uniqueId }}" class="form-select form-select-sm signature-select" data-client-id="{{ client.uniqueId }}" data-signataire="{{ liaisons[client.uniqueId] ? liaisons[client.uniqueId].signataire }}">
+                                <option value="1" {% if liaisons[client.uniqueId] and liaisons[client.uniqueId].signature == true %}selected{% endif %}>Oui</option>
+                                <option value="0" {% if liaisons[client.uniqueId] and liaisons[client.uniqueId].signature == false %}selected{% endif %}>Non</option>
                             </select>
                         </td>
                         <td>
