@@ -4,16 +4,73 @@ namespace App\Entity\client;
 
 use App\Repository\client\ClientRepository;
 use Doctrine\ORM\Mapping as ORM;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 
 #[ORM\Entity(repositoryClass: ClientRepository::class)]
-#[ORM\Table(name: "client", schema: "client")]
-class Client{
-    
+#[ORM\Table(name: "clientv2", schema: "client")]
+class Client
+{
     #[ORM\Id]
-    #[ORM\GeneratedValue(strategy: "SEQUENCE")]
-    #[ORM\SequenceGenerator(sequenceName: "client.client_id_seq", allocationSize: 1)]
-    #[ORM\Column(name: '"UNIQUEID"', type: "integer", nullable: false)]
-    private ?int $uniqueId = null;
+    #[ORM\GeneratedValue(strategy: "IDENTITY")]
+    #[ORM\Column(name: "id", type: "integer", nullable: false)]
+    private ?int $id = null;
+
+    #[ORM\Column(name: '"Date d\'envoi"', type: "string", length: 150, nullable: true)]
+    private ?string $dateEnvoi = null;
+
+    #[ORM\Column(name: '"Signataires"', type: "string", length: 150, nullable: true)]
+    private ?string $signataires = null;
+
+    #[ORM\Column(name: '"Priorité FE"', type: "string", length: 150, nullable: true)]
+    private ?string $prioriteFe = null;
+
+    #[ORM\Column(name: '"SociétéNom"', type: "string", length: 150, nullable: true)]
+    private ?string $societeNom = null;
+
+    #[ORM\Column(name: '"Catégorie"', type: "string", length: 150, nullable: true)]
+    private ?string $categorie = null;
+
+    #[ORM\Column(name: '"Commentaires"', type: "string", length: 150, nullable: true)]
+    private ?string $commentaires = null;
+
+    #[ORM\Column(name: '"Code App."', type: "string", length: 150, nullable: true)]
+    private ?string $codeApp = null;
+
+    #[ORM\Column(name: '"PrénomNom Enveloppe"', type: "string", length: 150, nullable: true)]
+    private ?string $prenomNomEnveloppe = null;
+
+    #[ORM\Column(name: '"TriPrénom"', type: "string", length: 150, nullable: true)]
+    private ?string $triPrenom = null;
+
+    #[ORM\Column(name: '"TriNom"', type: "string", length: 150, nullable: true)]
+    private ?string $triNom = null;
+
+    #[ORM\Column(name: '"Adresse 1"', type: "string", length: 150, nullable: true)]
+    private ?string $adresse1 = null;
+
+    #[ORM\Column(name: '"Adresse 2"', type: "string", length: 150, nullable: true)]
+    private ?string $adresse2 = null;
+
+    #[ORM\Column(name: '"Code postal"', type: "string", length: 150, nullable: true)]
+    private ?string $codePostal = null;
+
+    #[ORM\Column(name: '"Ville"', type: "string", length: 150, nullable: true)]
+    private ?string $ville = null;
+
+    #[ORM\Column(name: '"Pays"', type: "string", length: 150, nullable: true)]
+    private ?string $pays = null;
+
+    #[ORM\Column(name: '"Langue"', type: "string", length: 150, nullable: true)]
+    private ?string $langue = null;
+
+    #[ORM\ManyToOne(targetEntity: Categorie::class)]
+    #[ORM\JoinColumn(name: "catégorie_id", referencedColumnName: "id", nullable: true)]
+    private ?Categorie $categorieEntity = null;
+
+    #[ORM\ManyToOne(targetEntity: Signataire::class)]
+    #[ORM\JoinColumn(name: "signataire_id", referencedColumnName: "id", nullable: true)]
+    private ?Signataire $signataireEntity = null;
 
     #[ORM\Column(name: "signature", type: "boolean", nullable: true)]
     private ?bool $signature = null;
@@ -21,70 +78,19 @@ class Client{
     #[ORM\Column(name: "conserver", type: "boolean", nullable: true)]
     private ?bool $conserver = null;
 
-    #[ORM\Column(name: "date_envoi", type: "string", length: 128, nullable: true)]
-    private ?string $dateEnvoi = null;
+    #[ORM\OneToMany(mappedBy: "client", targetEntity: AssociationSignataire::class)]
+    private Collection $associations;
 
-    #[ORM\Column(name: "signataires", type: "string", length: 512, nullable: true)]
-    private ?string $signataires = null;
-
-    #[ORM\Column(name: "prioritéfe", type: "string", length: 128, nullable: true)]
-    private ?string $prioriteFe = null;
-
-    #[ORM\Column(name: "société_nom", type: "string", length: 128, nullable: true)]
-    private ?string $societeNom = null;
-
-    #[ORM\ManyToOne(targetEntity: Categorie::class)]
-    #[ORM\JoinColumn(name: "catégorie_id", referencedColumnName: "id", nullable: true)]
-    private ?Categorie $categorie = null;
-
-    #[ORM\Column(name: "commentaires", type: "string", length: 128, nullable: true)]
-    private ?string $commentaires = null;
-
-    #[ORM\Column(name: "code_app", type: "string", length: 128, nullable: true)]
-    private ?string $codeApp = null;
-
-    #[ORM\Column(name: "prénom_nom", type: "string", length: 128, nullable: true)]
-    private ?string $prenomNom = null;
-
-    #[ORM\Column(name: "prénom", type: "string", length: 128, nullable: true)]
-    private ?string $prenom = null;
-
-    #[ORM\Column(name: "nom", type: "string", length: 128, nullable: true)]
-    private ?string $nom = null;
-
-    #[ORM\Column(name: "adresse1", type: "string", length: 128, nullable: true)]
-    private ?string $adresse1 = null;
-
-    #[ORM\Column(name: "adresse2", type: "string", length: 128, nullable: true)]
-    private ?string $adresse2 = null;
-
-    #[ORM\Column(name: "code_postal", type: "string", length: 128, nullable: true)]
-    private ?string $codePostal = null;
-
-    #[ORM\Column(name: "ville", type: "string", length: 128, nullable: true)]
-    private ?string $ville = null;
-
-    #[ORM\Column(name: "pays", type: "string", length: 128, nullable: true)]
-    private ?string $pays = null;
-
-    #[ORM\Column(name: "langue", type: "string", length: 128, nullable: true)]
-    private ?string $langue = null;
-
-    #[ORM\ManyToOne(targetEntity: Signataire::class)]
-    #[ORM\JoinColumn(name: "signataire_id", referencedColumnName: "id", nullable: true)]
-    private ?Signataire $signataire = null;
-
-    // Getters and Setters
-
-    public function getUniqueId(): ?int
+    public function __construct()
     {
-        return $this->uniqueId;
+        $this->associations = new ArrayCollection();
     }
 
-    public function setUniqueId(?int $uniqueId): self
+    // ... tous les getters et setters
+
+    public function getId(): ?int
     {
-        $this->uniqueId = $uniqueId;
-        return $this;
+        return $this->id;
     }
 
     public function getDateEnvoi(): ?string
@@ -131,17 +137,16 @@ class Client{
         return $this;
     }
 
-    public function getCategorie(): ?Categorie
+    public function getCategorie(): ?string
     {
         return $this->categorie;
     }
 
-    public function setCategorie(?Categorie $categorie): self
+    public function setCategorie(?string $categorie): self
     {
         $this->categorie = $categorie;
         return $this;
     }
-
 
     public function getCommentaires(): ?string
     {
@@ -176,25 +181,25 @@ class Client{
         return $this;
     }
 
-    public function getPrenom(): ?string
+    public function getTriPrenom(): ?string
     {
-        return $this->prenom;
+        return $this->triPrenom;
     }
 
-    public function setPrenom(?string $prenom): self
+    public function setTriPrenom(?string $triPrenom): self
     {
-        $this->prenom = $prenom;
+        $this->triPrenom = $triPrenom;
         return $this;
     }
 
-    public function getNom(): ?string
+    public function getTriNom(): ?string
     {
-        return $this->nom;
+        return $this->triNom;
     }
 
-    public function setNom(?string $nom): self
+    public function setTriNom(?string $triNom): self
     {
-        $this->nom = $nom;
+        $this->triNom = $triNom;
         return $this;
     }
 
@@ -296,4 +301,16 @@ class Client{
         $this->conserver = $conserver;
         return $this;
     }
+
+    public function getCategorieEntity(): ?Categorie
+    {
+        return $this->categorieEntity;
+    }
+
+    public function setCategorieEntity(?Categorie $categorieEntity): self
+    {
+        $this->categorieEntity = $categorieEntity;
+        return $this;
+    }
+
 }

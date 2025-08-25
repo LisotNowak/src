@@ -6,7 +6,7 @@ use App\Repository\client\SignataireRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: SignataireRepository::class)]
-#[ORM\Table(name: "signataire", schema: "client")]
+#[ORM\Table(name: "client.signatairev2", schema: "client")]
 class Signataire
 {
     #[ORM\Id]
@@ -14,8 +14,8 @@ class Signataire
     #[ORM\Column(type: "integer")]
     private ?int $id = null;
 
-    #[ORM\Column(type: "text", unique: true)]
-    private ?string $signataire = null;
+    #[ORM\Column(name: "nom", type: "string", length: 255, unique: true)]
+    private ?string $nom = null;
 
     // Getter pour id
     public function getId(): ?int
@@ -23,16 +23,16 @@ class Signataire
         return $this->id;
     }
 
-    // Getter pour signataire
-    public function getSignataire(): ?string
+    // Getter pour nom
+    public function getNom(): ?string
     {
-        return $this->signataire;
+        return $this->nom;
     }
 
-    // Setter pour signataire
-    public function setSignataire(string $signataire): self
+    // Setter pour nom
+    public function setNom(string $nom): self
     {
-        $this->signataire = $signataire;
+        $this->nom = $nom;
         return $this;
     }
 }

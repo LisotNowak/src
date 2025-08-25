@@ -2,12 +2,11 @@
 
 namespace App\Controller;
 
-use App\Entity\client\LiaisonSignataires;
+use App\Entity\client\Client;
+use App\Entity\client\AssociationSignataire;
+use App\Entity\client\Signataire;
+use App\Entity\client\Categorie;
 use Doctrine\Persistence\ManagerRegistry;
-use Doctrine\ORM\EntityManagerInterface;
-use App\Repository\client\ClientRepository;
-use App\Repository\client\SignataireRepository;
-use App\Repository\client\CategorieRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -15,56 +14,70 @@ use Symfony\Component\Routing\Annotation\Route;
 
 class ClientController extends AbstractController
 {
+#[Route('/clients', name: 'app_clients_list')]
+public function list(Request $request, ManagerRegistry $doctrine): Response
+{
+    $signataireId = $request->query->get('signataire');
+    $categorieId = $request->query->get('categorie');
+    $page = max(1, (int)$request->query->get('page', 1));
+    // $pageSize = 50;
 
-    #[Route('/clients', name: 'app_clients_list')]
-    public function list(
-        Request $request,
-        ClientRepository $clientRepository,
-        SignataireRepository $signataireRepository,
-        CategorieRepository $categorieRepository,
-        ManagerRegistry $doctrine
-    ): Response
-    {
-        $signataireId = $request->query->get('signataire');
-        $categorieId = $request->query->get('categorie');
+    $clientRepo = $doctrine->getRepository(Client::class);
+    $signataireRepo = $doctrine->getRepository(Signataire::class);
+    $categorieRepo = $doctrine->getRepository(Categorie::class);
+    $associationRepo = $doctrine->getRepository(AssociationSignataire::class);
 
-        $signataires = $signataireRepository->findAll();
-        $categories = $categorieRepository->findAll();
+    $signataires = $signataireRepo->findAll();
+    $categories = $categorieRepo->findAll();
 
-        $qb = $clientRepository->createQueryBuilder('c');
+    $clients = [];
 
-        if ($signataireId) {
-            $signataire = $signataireRepository->find($signataireId);
-            $qb->andWhere('c.signataires LIKE :signataire')
-            ->setParameter('signataire', '%' . $signataire->getSignataire() . '%');
-        }
+    // Si un signataire est sélectionné, récupérer uniquement ses clients associés
+    if ($signataireId) {
+        $qb = $clientRepo->createQueryBuilder('c')
+            ->innerJoin('c.associations', 'a')
+            ->andWhere('a.signataire = :signataire')
+            ->setParameter('signataire', $signataireId);
 
         if ($categorieId) {
-            $qb->andWhere('c.categorie = :categorie')
-            ->setParameter('categorie', $categorieId);
+            $qb->andWhere('c.categorieEntity = :categorie')
+               ->setParameter('categorie', $categorieId);
         }
 
-        $clients = ($signataireId || $categorieId)
-            ? $qb->getQuery()->getResult()
-            : [];
+        // Pagination
+        // $qb->setFirstResult(($page - 1) * $pageSize)
+        //    ->setMaxResults($pageSize);
 
-        // Charger les liaisons pour chaque client (par uniqueid)
-        $liaisonRepo = $doctrine->getRepository(LiaisonSignataires::class);
-        $liaisons = [];
-        foreach ($clients as $client) {
-            $liaison = $liaisonRepo->findOneBy(['uniqueid' => $client->getUniqueId()]);
-            $liaisons[$client->getUniqueId()] = $liaison;
-        }
-
-        return $this->render('client/list.html.twig', [
-            'clients' => $clients,
-            'liaisons' => $liaisons,
-            'signataires' => $signataires,
-            'categories' => $categories,
-            'signataire_selected' => $signataireId,
-            'categorie_selected' => $categorieId,
-        ]);
+        $clients = $qb->getQuery()->getResult();
     }
+
+    // Charger les associations uniquement pour les clients récupérés
+    $associations = [];
+    if ($clients) {
+        $clientIds = array_map(fn($c) => $c->getId(), $clients);
+        $assocList = $associationRepo->createQueryBuilder('a')
+            ->andWhere('a.client IN (:clients)')
+            ->setParameter('clients', $clientIds)
+            ->getQuery()
+            ->getResult();
+
+        foreach ($assocList as $assoc) {
+            $associations[$assoc->getClient()->getId()][] = $assoc;
+        }
+    }
+
+    return $this->render('client/list.html.twig', [
+        'clients' => $clients,
+        'associations' => $associations,
+        'signataires' => $signataires,
+        'categories' => $categories,
+        'signataire_selected' => $signataireId,
+        'categorie_selected' => $categorieId,
+        'page' => $page,
+        // 'pageSize' => $pageSize,
+    ]);
+}
+
 
     #[Route('/clients/update-field', name: 'app_clients_update_field', methods: ['POST'])]
     public function updateField(Request $request, ManagerRegistry $doctrine): Response
@@ -72,32 +85,48 @@ class ClientController extends AbstractController
         if (!$request->isXmlHttpRequest()) {
             return $this->json(['success' => false, 'error' => 'Requête non autorisée'], 400);
         }
+
         $data = json_decode($request->getContent(), true);
         if (!isset($data['id'], $data['signataire'], $data['field'], $data['value'])) {
             return $this->json(['success' => false, 'error' => 'Paramètres manquants'], 400);
         }
-        $liaisonRepo = $doctrine->getRepository(LiaisonSignataires::class);
-        $liaison = $liaisonRepo->findOneBy([
-            'uniqueid' => $data['id'],
-            'signataire' => $data['signataire'],
-        ]);
-        if (!$liaison) {
-            return $this->json(['success' => false, 'error' => 'Liaison introuvable'], 404);
+
+        $clientRepo = $doctrine->getRepository(Client::class);
+        $signataireRepo = $doctrine->getRepository(Signataire::class);
+        $associationRepo = $doctrine->getRepository(AssociationSignataire::class);
+
+        $client = $clientRepo->find($data['id']);
+        $signataire = $signataireRepo->find($data['signataire']);
+
+        if (!$client || !$signataire) {
+            return $this->json(['success' => false, 'error' => 'Client ou signataire introuvable'], 404);
         }
+
+        $association = $associationRepo->findOneBy([
+            'client' => $client,
+            'signataire' => $signataire,
+        ]);
+
+        if (!$association) {
+            return $this->json(['success' => false, 'error' => 'Association introuvable'], 404);
+        }
+
         if (!in_array($data['field'], ['signature', 'conserver', 'envoiMail'])) {
             return $this->json(['success' => false, 'error' => 'Champ non autorisé'], 400);
         }
-        $boolValue = $data['value'] == '1' ? true : false;
-        if ($data['field'] === 'signature') {
-            $liaison->setSignature($boolValue);
-        } elseif ($data['field'] === 'conserver') {
-            $liaison->setConserver($boolValue);
-        } elseif ($data['field'] === 'envoiMail') {
-            $liaison->setEnvoiMail($boolValue);
-        }
+
+        $boolValue = $data['value'] == '1';
+
+        match($data['field']) {
+            'signature' => $association->setSignature($boolValue),
+            'conserver' => $association->setConserver($boolValue),
+            'envoiMail' => $association->setEnvoiMail($boolValue),
+        };
+
         $em = $doctrine->getManager();
-        $em->persist($liaison);
+        $em->persist($association);
         $em->flush();
+
         return $this->json(['success' => true]);
     }
 }

@@ -21,22 +21,23 @@ class ClientRepository extends ServiceEntityRepository
         parent::__construct($registry, Client::class);
     }
 
-    // Exemple de méthode personnalisée
+    public function findAll(): array
+    {
+        return $this->createQueryBuilder('c')
+            ->orderBy('c.triNom', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
     public function findByVille(string $ville): array
     {
         return $this->createQueryBuilder('c')
             ->andWhere('c.ville = :ville')
             ->setParameter('ville', $ville)
-            ->orderBy('c.nom', 'ASC')
+            ->orderBy('c.triNom', 'ASC')
             ->getQuery()
             ->getResult();
     }
 
-    public function findAll(): array
-    {
-        return $this->createQueryBuilder('c')
-            ->orderBy('c.nom', 'ASC')
-            ->getQuery()
-            ->getResult();
-    }
+
 }
