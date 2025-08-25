@@ -8,7 +8,7 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 
 #[ORM\Entity(repositoryClass: ClientRepository::class)]
-#[ORM\Table(name: "clientv2", schema: "client")]
+#[ORM\Table(name: "clientv3", schema: "client")]
 class Client
 {
     #[ORM\Id]
@@ -67,16 +67,6 @@ class Client
     #[ORM\ManyToOne(targetEntity: Categorie::class)]
     #[ORM\JoinColumn(name: "catégorie_id", referencedColumnName: "id", nullable: true)]
     private ?Categorie $categorieEntity = null;
-
-    #[ORM\ManyToOne(targetEntity: Signataire::class)]
-    #[ORM\JoinColumn(name: "signataire_id", referencedColumnName: "id", nullable: true)]
-    private ?Signataire $signataireEntity = null;
-
-    #[ORM\Column(name: "signature", type: "boolean", nullable: true)]
-    private ?bool $signature = null;
-
-    #[ORM\Column(name: "conserver", type: "boolean", nullable: true)]
-    private ?bool $conserver = null;
 
     #[ORM\OneToMany(mappedBy: "client", targetEntity: AssociationSignataire::class)]
     private Collection $associations;
@@ -277,28 +267,6 @@ class Client
     public function setSignataire(?Signataire $signataire): self
     {
         $this->signataire = $signataire;
-        return $this;
-    }
-
-    public function getSignature(): ?bool
-    {
-        return $this->signature;
-    }
-
-    public function setSignature(?bool $signature): self
-    {
-        $this->signature = $signature;
-        return $this;
-    }
-
-    public function getConserver(): ?bool
-    {
-        return $this->conserver;
-    }
-
-    public function setConserver(?bool $conserver): self
-    {
-        $this->conserver = $conserver;
         return $this;
     }
 
