@@ -582,4 +582,48 @@ public function validerPanier(SessionInterface $session, EntityManagerInterface 
     return $this->redirectToRoute('app_panier_dota');
 }
 
+    #[Route('/dota/mes-commandes', name: 'app_mes_commandes_dota')]
+    public function mesCommandes(EntityManagerInterface $entityManager): Response
+    {
+        if (!$this->isGranted('IS_AUTHENTICATED_FULLY')) {
+            return $this->redirectToRoute('app_accueil');
+        }
+
+        $user = $this->getUser();
+        $email = $user ? $user->getEmail() : null;
+        if (!$email) {
+            $this->addFlash('error', 'Utilisateur introuvable.');
+            return $this->redirectToRoute('app_index_dota');
+        }
+
+        $commandesEntities = $entityManager->getRepository(Commande::class)
+            ->findBy(['userMail' => $email], ['date' => 'DESC']);
+
+        $commandes = [];
+        foreach ($commandesEntities as $commande) {
+            $assocs = $entityManager->getRepository(AssociationCommandeArticle::class)
+                ->findBy(['idCommande' => $commande->getId()]);
+
+            $items = [];
+            foreach ($assocs as $assoc) {
+                $article = $entityManager->getRepository(Article::class)->find($assoc->getIdArticle());
+                $items[] = [
+                    'article' => $article,
+                    'taille' => $assoc->getNomTaille(),
+                    'couleur' => $assoc->getNomCouleur(),
+                    'quantite' => $assoc->getNb(),
+                ];
+            }
+
+            $commandes[] = [
+                'commande' => $commande,
+                'items' => $items,
+            ];
+        }
+
+        return $this->render('dotation/commandes.html.twig', [
+            'commandes' => $commandes,
+        ]);
+    }
+
 }

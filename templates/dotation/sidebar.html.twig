@@ -6,17 +6,22 @@
     <ul class="nav nav-pills flex-column mb-auto">
         <li class="nav-item">
             <a href="/dota" class="nav-link {% if active_link == 'catalogue' %}active{% else %} link-dark {% endif %}" aria-current="page">
-                Catalogue
+                <i class="fas fa-th-list me-2" aria-hidden="true"></i> Catalogue
             </a>
         </li>
         <li>
             <a href="/dota/stock" class="nav-link {% if active_link == 'stock' %}active{% else %} link-dark {% endif %}">
-                Stock
+                <i class="fas fa-warehouse me-2" aria-hidden="true"></i> Stock
             </a>
         </li>
         <li>
             <a href="/dota/admin" class="nav-link {% if active_link == 'admin' %}active{% else %} link-dark {% endif %}">
-                Administration
+                <i class="fas fa-cogs me-2" aria-hidden="true"></i> Administration
+            </a>
+        </li>
+        <li class="nav-item">
+            <a href="{{ path('app_mes_commandes_dota') }}" class="nav-link {% if active_link == 'mes_commandes' %}active{% else %} link-dark {% endif %}">
+                <i class="fas fa-box me-2" aria-hidden="true"></i> Mes commandes
             </a>
         </li>
     </ul>

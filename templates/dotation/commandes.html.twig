@@ -1,0 +1,54 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Mes commandes{% endblock %}
+
+{% block sidebar %}
+    {% include 'dotation/sidebar.html.twig' with {'active_link': 'mes_commandes'} %}
+{% endblock %}
+
+{% block body %}
+<div class="container mt-4">
+    <h1>Mes commandes</h1>
+
+    {% if commandes is empty %}
+        <div class="alert alert-info">Vous n'avez aucune commande.</div>
+    {% else %}
+        {% for entry in commandes %}
+            {% set commande = entry.commande %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    <strong>Commande #{{ commande.id }}</strong>
+                    <span class="float-right">{{ commande.date }}</span>
+                    <div class="small text-muted">État : {{ commande.nomEtat }}</div>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Réf</th>
+                                <th>Nom</th>
+                                <th>Taille</th>
+                                <th>Couleur</th>
+                                <th>Quantité</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for it in entry.items %}
+                                <tr>
+                                    <td>{{ it.article ? it.article.reference : '—' }}</td>
+                                    <td>{{ it.article ? it.article.nom : 'Article supprimé' }}</td>
+                                    <td>{{ it.taille }}</td>
+                                    <td>{{ it.couleur }}</td>
+                                    <td>{{ it.quantite }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <a href="{{ path('app_index_dota') }}" class="btn btn-secondary">Retour au catalogue</a>
+</div>
+{% endblock %}
