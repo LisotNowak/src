@@ -10,6 +10,26 @@
 <div class="container mt-4">
     <h1>Mes commandes</h1>
 
+    <form method="get" class="mb-3">
+        <div class="row g-2 align-items-center">
+            <div class="col-auto">
+                <label for="etatFilter" class="col-form-label">Filtrer par état :</label>
+            </div>
+            <div class="col-auto">
+                <select id="etatFilter" name="etat" class="form-select" onchange="this.form.submit()">
+                    <option value="" {{ selectedEtat == '' ? 'selected' : '' }}>Tous les états</option>
+                    {% for e in etats %}
+                        <option value="{{ e }}" {{ selectedEtat == e ? 'selected' : '' }}>{{ e }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-auto">
+                <a href="{{ path('app_mes_commandes_dota') }}" class="btn btn-outline-secondary">Réinitialiser</a>
+            </div>
+        </div>
+    </form>
+
     {% if commandes is empty %}
         <div class="alert alert-info">Vous n'avez aucune commande.</div>
     {% else %}
@@ -49,6 +69,5 @@
         {% endfor %}
     {% endif %}
 
-    <a href="{{ path('app_index_dota') }}" class="btn btn-secondary">Retour au catalogue</a>
 </div>
 {% endblock %}

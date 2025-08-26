@@ -1,0 +1,81 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Gestion commandes{% endblock %}
+
+{% block sidebar %}
+    {% include 'dotation/sidebar.html.twig' with {'active_link': 'gestion_commandes'} %}
+{% endblock %}
+
+{% block body %}
+<div class="container mt-4">
+    {# Affichage des messages flash (erreur / success) #}
+    {% for label, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="alert alert-{{ label == 'error' ? 'danger' : label }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endfor %}
+
+    <h1>Gestion des commandes</h1>
+    {% if commandes is empty %}
+        <div class="alert alert-info">Vous n'avez aucune commande.</div>
+    {% else %}
+        {% for entry in commandes %}
+            {% set commande = entry.commande %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    <strong>Commande #{{ commande.id }}</strong>
+                    <span class="float-right">{{ commande.date }}</span>
+                    <div class="small text-muted">État : {{ commande.nomEtat }}</div>
+
+                    {# Actions : mettre en stock (décrémenter) ou mettre en commande #}
+                    <div class="mt-2">
+                        <form method="post" action="{{ path('app_commande_mettre_en_stock', {'id': commande.id}) }}" style="display:inline-block;">
+                            <input type="hidden" name="_token" value="{{ csrf_token('gestion_commande_' ~ commande.id) }}">
+                            <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Décrémenter le stock pour cette commande et passer en \"Sur stock\" ?');">
+                                Mettre en stock
+                            </button>
+                        </form>
+
+                        <form method="post" action="{{ path('app_commande_mettre_sur_commande', {'id': commande.id}) }}" style="display:inline-block;margin-left:8px;">
+                            <input type="hidden" name="_token" value="{{ csrf_token('gestion_commande_' ~ commande.id) }}">
+                            <button type="submit" class="btn btn-sm btn-warning" onclick="return confirm('Placer cette commande sur commande et passer en \"Sur commande\" ?');">
+                                Mettre sur commande
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Réf</th>
+                                <th>Nom</th>
+                                <th>Taille</th>
+                                <th>Couleur</th>
+                                <th>Quantité</th>
+                                <th>Dispo</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for it in entry.items %}
+                                <tr>
+                                    <td>{{ it.article ? it.article.reference : '—' }}</td>
+                                    <td>{{ it.article ? it.article.nom : 'Article supprimé' }}</td>
+                                    <td>{{ it.taille }}</td>
+                                    <td>{{ it.couleur }}</td>
+                                    <td>{{ it.quantite }}</td>
+                                    <td>{{ it.stockDisponible }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+</div>
+{% endblock %}

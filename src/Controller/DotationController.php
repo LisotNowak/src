@@ -583,21 +583,34 @@ public function validerPanier(SessionInterface $session, EntityManagerInterface 
 }
 
     #[Route('/dota/mes-commandes', name: 'app_mes_commandes_dota')]
-    public function mesCommandes(EntityManagerInterface $entityManager): Response
+    public function mesCommandes(Request $request, EntityManagerInterface $entityManager): Response
     {
-        if (!$this->isGranted('IS_AUTHENTICATED_FULLY')) {
+        $user = $this->getUser();
+        if (!$user) {
             return $this->redirectToRoute('app_accueil');
         }
 
-        $user = $this->getUser();
-        $email = $user ? $user->getEmail() : null;
-        if (!$email) {
-            $this->addFlash('error', 'Utilisateur introuvable.');
-            return $this->redirectToRoute('app_index_dota');
-        }
+        $selectedTypeId = (int) $request->query->get('type', 0);
+        $selectedEtat = $request->query->get('etat', '');
 
+        // récupérer la liste des types pour le select
+        $types = $entityManager->getRepository(Type::class)->findBy([], ['nom' => 'ASC']);
+
+        // récupérer la liste des états distincts existants
+        $qb = $entityManager->createQueryBuilder();
+        $qb->select('DISTINCT c.nomEtat')
+           ->from(Commande::class, 'c')
+           ->orderBy('c.nomEtat', 'ASC');
+        $etatsRes = $qb->getQuery()->getArrayResult();
+        $etats = array_map(fn($r) => $r['nomEtat'], $etatsRes);
+
+        // récupérer les commandes de l'utilisateur (on peut filtrer directement par état si demandé)
+        $criteria = ['userMail' => $user->getEmail()];
+        if ($selectedEtat !== '') {
+            $criteria['nomEtat'] = $selectedEtat;
+        }
         $commandesEntities = $entityManager->getRepository(Commande::class)
-            ->findBy(['userMail' => $email], ['date' => 'DESC']);
+            ->findBy($criteria, ['date' => 'DESC']);
 
         $commandes = [];
         foreach ($commandesEntities as $commande) {
@@ -607,11 +620,82 @@ public function validerPanier(SessionInterface $session, EntityManagerInterface 
             $items = [];
             foreach ($assocs as $assoc) {
                 $article = $entityManager->getRepository(Article::class)->find($assoc->getIdArticle());
+                if (!$article) {
+                    continue;
+                }
+
+                // si un filtre type produit est actif, ignorer les articles d'un autre type
+                if ($selectedTypeId > 0) {
+                    $articleType = $article->getType();
+                    $articleTypeId = $articleType ? $articleType->getId() : 0;
+                    if ($articleTypeId !== $selectedTypeId) {
+                        continue;
+                    }
+                }
+
                 $items[] = [
                     'article' => $article,
                     'taille' => $assoc->getNomTaille(),
                     'couleur' => $assoc->getNomCouleur(),
                     'quantite' => $assoc->getNb(),
+                ];
+            }
+
+            if (count($items) === 0) {
+                continue;
+            }
+
+            $commandes[] = [
+                'commande' => $commande,
+                'items' => $items,
+            ];
+        }
+
+        return $this->render('dotation/mesCommandes.html.twig', [
+            'commandes' => $commandes,
+            'types' => $types,
+            'selectedTypeId' => $selectedTypeId,
+            'etats' => $etats,
+            'selectedEtat' => $selectedEtat,
+        ]);
+    }
+
+    #[Route('/dota/gestion-commandes', name: 'app_gestion_commandes_dota')]
+    public function gestionCommandes(EntityManagerInterface $entityManager): Response
+    {
+        if (!$this->isGranted('IS_AUTHENTICATED_FULLY')) {
+            return $this->redirectToRoute('app_accueil');
+        }
+
+        $commandesEntities = $entityManager->getRepository(Commande::class)
+            ->findBy(['nomEtat' => "Validée"], ['date' => 'DESC']);
+
+        $commandes = [];
+        foreach ($commandesEntities as $commande) {
+            $assocs = $entityManager->getRepository(AssociationCommandeArticle::class)
+                ->findBy(['idCommande' => $commande->getId()]);
+
+            $items = [];
+            foreach ($assocs as $assoc) {
+                $article = $entityManager->getRepository(Article::class)->find($assoc->getIdArticle());
+
+                // calculer stock disponible pour la combinaison reference/taille/couleur
+                $stockDisponible = 0;
+                if ($article) {
+                    $stockEntity = $entityManager->getRepository(Stock::class)->findOneBy([
+                        'referenceArticle' => $article->getReference(),
+                        'nomTaille' => $assoc->getNomTaille(),
+                        'nomCouleur' => $assoc->getNomCouleur(),
+                    ]);
+                    $stockDisponible = $stockEntity ? (int) $stockEntity->getStock() : 0;
+                }
+
+                $items[] = [
+                    'article' => $article,
+                    'taille' => $assoc->getNomTaille(),
+                    'couleur' => $assoc->getNomCouleur(),
+                    'quantite' => $assoc->getNb(),
+                    'stockDisponible' => $stockDisponible,
                 ];
             }
 
@@ -621,9 +705,107 @@ public function validerPanier(SessionInterface $session, EntityManagerInterface 
             ];
         }
 
-        return $this->render('dotation/commandes.html.twig', [
+        return $this->render('dotation/gestionCommandes.html.twig', [
             'commandes' => $commandes,
         ]);
     }
 
+    #[Route('/dota/commande/{id}/mettre-en-stock', name: 'app_commande_mettre_en_stock', methods: ['POST'])]
+    public function mettreEnStock(int $id, Request $request, EntityManagerInterface $entityManager): Response
+    {
+        if (!$this->isCsrfTokenValid('gestion_commande_'.$id, $request->request->get('_token'))) {
+            $this->addFlash('error', 'Token CSRF invalide.');
+            return $this->redirectToRoute('app_gestion_commandes_dota');
+        }
+
+        $commande = $entityManager->getRepository(Commande::class)->find($id);
+        if (!$commande) {
+            $this->addFlash('error', 'Commande introuvable.');
+            return $this->redirectToRoute('app_gestion_commandes_dota');
+        }
+
+        $assocs = $entityManager->getRepository(AssociationCommandeArticle::class)->findBy(['idCommande' => $commande->getId()]);
+        if (empty($assocs)) {
+            $this->addFlash('error', 'Aucune ligne trouvée pour cette commande.');
+            return $this->redirectToRoute('app_gestion_commandes_dota');
+        }
+
+        $errors = [];
+        // Vérification disponibilité sans modifier encore la base
+        foreach ($assocs as $assoc) {
+            $article = $entityManager->getRepository(Article::class)->find($assoc->getIdArticle());
+            if (!$article) {
+                $errors[] = "Article introuvable (ID {$assoc->getIdArticle()}).";
+                continue;
+            }
+
+            $stock = $entityManager->getRepository(Stock::class)->findOneBy([
+                'referenceArticle' => $article->getReference(),
+                'nomTaille' => $assoc->getNomTaille(),
+                'nomCouleur' => $assoc->getNomCouleur(),
+            ]);
+
+            if (!$stock) {
+                $errors[] = sprintf('Pas de fiche stock pour %s (%s / %s).', $article->getNom(), $assoc->getNomTaille(), $assoc->getNomCouleur());
+                continue;
+            }
+
+            if ($stock->getStock() < $assoc->getNb()) {
+                $errors[] = sprintf('Stock insuffisant pour %s %s/%s : demandé %d, disponible %d.',
+                    $article->getNom(), $assoc->getNomTaille(), $assoc->getNomCouleur(), $assoc->getNb(), $stock->getStock());
+            }
+        }
+
+        if (!empty($errors)) {
+            // Joindre plusieurs messages et les afficher
+            foreach ($errors as $err) {
+                $this->addFlash('error', $err);
+            }
+            return $this->redirectToRoute('app_gestion_commandes_dota');
+        }
+
+        // Tous les checks OK -> décrémentation
+        foreach ($assocs as $assoc) {
+            $article = $entityManager->getRepository(Article::class)->find($assoc->getIdArticle());
+            $stock = $entityManager->getRepository(Stock::class)->findOneBy([
+                'referenceArticle' => $article->getReference(),
+                'nomTaille' => $assoc->getNomTaille(),
+                'nomCouleur' => $assoc->getNomCouleur(),
+            ]);
+
+            $stock->setStock($stock->getStock() - $assoc->getNb());
+            $entityManager->persist($stock);
+        }
+
+        $commande->setNomEtat('Sur stock');
+        $entityManager->persist($commande);
+        $entityManager->flush();
+
+        $this->addFlash('success', 'Commande passée en "Sur stock" et stocks mis à jour.');
+        return $this->redirectToRoute('app_gestion_commandes_dota');
+    }
+
+    #[Route('/dota/commande/{id}/mettre-sur-commande', name: 'app_commande_mettre_sur_commande', methods: ['POST'])]
+    public function mettreSurCommande(int $id, Request $request, EntityManagerInterface $entityManager): Response
+    {
+        if (!$this->isCsrfTokenValid('gestion_commande_'.$id, $request->request->get('_token'))) {
+            $this->addFlash('error', 'Token CSRF invalide.');
+            return $this->redirectToRoute('app_gestion_commandes_dota');
+        }
+
+        $commande = $entityManager->getRepository(Commande::class)->find($id);
+        if (!$commande) {
+            $this->addFlash('error', 'Commande introuvable.');
+            return $this->redirectToRoute('app_gestion_commandes_dota');
+        }
+
+        $commande->setNomEtat('Sur commande');
+        $entityManager->persist($commande);
+        $entityManager->flush();
+
+        $this->addFlash('success', 'Commande passée en "Sur commande".');
+        return $this->redirectToRoute('app_gestion_commandes_dota');
+    }
+
+    // ...existing code...
 }
