@@ -11,23 +11,27 @@
 
 
 <div class="container mt-4" id="top-logo">
-    <div class="row">
-        <div class="col-md-3" style="right: 5%;">
-        Points diponibles :
-            {{ app.user.pointDotation }}P
+    <div class="row align-items-center">
+        <div class="col-md-3 d-flex align-items-center">
+            <span class="mr-2">Points disponibles :</span>
+            <strong>{{ app.user.pointDotation }}P</strong>
         </div>
+
         <div class="col-md-6" id="searchbar">
-            <div class="input-group mt-3">
+            <div class="input-group">
                 <input type="text" class="form-control" placeholder="Search" aria-label="Search" aria-describedby="button-addon2">
                 <div class="input-group-append">
                   <button class="btn btn-primary" type="button" id="button-addon2" disabled><i class="fas fa-search"></i></button>
                 </div>
-              </div>
+            </div>
         </div>
-        <div class="col-md-3 mt-2" id="icons">
-          
-         <a href="/dota/panier"> <div class="circle float-right mr-2"><i class="fas fa-shopping-cart text-primary"></i><sup><span class="badge badge-danger" style="width: 23px;">{% if nombreArticles is defined %}{{nombreArticles}}{% else %}0{% endif %}</span></sup></div>
-         </a>
+
+        <div class="col-md-3 d-flex justify-content-end align-items-center" id="icons">
+            <a href="/dota/panier" class="d-inline-block">
+                <div class="circle mr-2"><i class="fas fa-shopping-cart text-primary"></i>
+                    <sup><span class="badge badge-danger" style="width: 23px;">{% if nombreArticles is defined %}{{nombreArticles}}{% else %}0{% endif %}</span></sup>
+                </div>
+            </a>
         </div>
     </div>
 </div>
@@ -61,13 +65,17 @@
 <br> <br>
 
 <div class="container cardItem" id="products">
-  <h2>T-shirt</h2>
-  <br>
 
   <div class="container">
     <!-- Une seule row : Bootstrap gère automatiquement le wrapping -->
     <div class="row">
+      {% set currentType = null %}
       {% for product in listeArticles %}
+        {% if product.nomType != currentType %}
+          {% set currentType = product.nomType %}
+          <div class="w-100"><h3 class="mt-4 mb-3">{{ currentType }}</h3></div>
+        {% endif %}
+
         <div class="col-md-3 col-sm-6 mb-4">
           <div class="card h-100" data-nom="{{ product.nom | lower }}">
             <p class="pl-2">{{ product.reference }}</p>

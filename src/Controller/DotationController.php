@@ -188,7 +188,7 @@ class DotationController extends AbstractController
         if ($this->isGranted('IS_AUTHENTICATED_FULLY')) {
             // Redirigez l'utilisateur s'il est déjà authentifié
 
-            $listeArticles = $entityManager->getRepository(Article::class)->findAll();
+            $listeArticles = $entityManager->getRepository(Article::class)->findBy([], ['nomType' => 'ASC', 'nom' => 'ASC']);
             $listeCouleurs = $entityManager->getRepository(Couleur::class)->findAll();
 
             $listeAssociationTaillesArticle = $entityManager->getRepository(AssociationTaillesArticle::class)->findAll();
@@ -396,14 +396,26 @@ class DotationController extends AbstractController
         if ($this->isGranted('IS_AUTHENTICATED_FULLY')) {
             // Redirigez l'utilisateur s'il est déjà authentifié
 
-            
-
             $panier = $session->get('cart', []); 
             $nombreArticles = count($panier); 
 
-            // $product = $entityManager->getRepository(Article::class)->find($id);
+            // Enrichir chaque item du panier avec le nomType de l'article (pour le regroupement)
+            $enriched = [];
+            foreach ($panier as $item) {
+                $articleEntity = $entityManager->getRepository(Article::class)->find($item['id']);
+                $item['nomType'] = $articleEntity ? $articleEntity->getNomType() : 'Autre';
+                $enriched[] = $item;
+            }
+
+            // Grouper les articles par type
+            $panierGrouped = [];
+            foreach ($enriched as $it) {
+                $type = $it['nomType'] ?? 'Autre';
+                $panierGrouped[$type][] = $it;
+            }
 
             return $this->render('dotation/panier.html.twig', [
+                'panierGrouped' => $panierGrouped,
                 'panier' => $panier,
                 'nombreArticles' => $nombreArticles,
             ]);
