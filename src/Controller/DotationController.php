@@ -377,6 +377,7 @@ class DotationController extends AbstractController
                 'taille' => $size,
                 'couleur' => $color,
                 'point' => $product->getPoint(),
+                'image' => $product->getImage(), // <-- Ajouté : nom de fichier image
             ];
         }
     }
