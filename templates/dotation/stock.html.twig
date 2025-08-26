@@ -10,9 +10,27 @@
 <div class="container mt-5">
     <h1 class="text-center">Gestion des Stocks</h1>
 
-    <!-- Barre de recherche -->
-    <div class="mt-4">
-        <input type="text" id="searchInput" class="form-control mb-4" placeholder="Rechercher un produit...">
+    {# Collecte des types disponibles #}
+    {% set types = [] %}
+    {% for produit in produitsAvecDetails %}
+        {% if produit.article.nomType not in types %}
+            {% set types = types|merge([produit.article.nomType]) %}
+        {% endif %}
+    {% endfor %}
+
+    <!-- Barre de recherche et filtre par type -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <input type="text" id="searchInput" class="form-control mb-4" placeholder="Rechercher un produit par Ref ou Nom">
+        </div>
+        <div class="col-md-6">
+            <select id="typeFilter" class="form-select mb-4">
+                <option value="">Tous les types</option>
+                {% for type in types %}
+                    <option value="{{ type|e }}">{{ type }}</option>
+                {% endfor %}
+            </select>
+        </div>
     </div>
 
     <!-- Table des produits -->
@@ -29,7 +47,7 @@
             </thead>
             <tbody id="productTable">
                 {% for produit in produitsAvecDetails %}
-                <tr class="product-row">
+                <tr class="product-row" data-type="{{ produit.article.nomType|lower }}">
 
                 <td scope="row">
                     <img class="card-img-top img-fluid"
@@ -69,22 +87,27 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const searchInput = document.getElementById('searchInput');
+        const typeFilter = document.getElementById('typeFilter');
         const productRows = document.querySelectorAll('.product-row');
 
-        searchInput.addEventListener('input', function () {
-            const searchValue = searchInput.value.toLowerCase();
+        function filterRows() {
+            const searchValue = searchInput.value.trim().toLowerCase();
+            const typeValue = typeFilter.value.trim().toLowerCase();
 
             productRows.forEach(row => {
                 const productName = row.querySelector('.product-name').textContent.toLowerCase();
                 const productRef = row.querySelector('.product-ref').textContent.toLowerCase();
+                const productType = (row.getAttribute('data-type') || '').toLowerCase();
 
-                if (productName.includes(searchValue) || productRef.includes(searchValue)) {
-                    row.style.display = ''; // Afficher la ligne
-                } else {
-                    row.style.display = 'none'; // Masquer la ligne
-                }
+                const matchesSearch = !searchValue || productName.includes(searchValue) || productRef.includes(searchValue);
+                const matchesType = !typeValue || productType === typeValue;
+
+                row.style.display = (matchesSearch && matchesType) ? '' : 'none';
             });
-        });
+        }
+
+        searchInput.addEventListener('input', filterRows);
+        typeFilter.addEventListener('change', filterRows);
     });
 </script>
 
