@@ -35,7 +35,7 @@
         <div class="col-md-3 d-flex justify-content-end align-items-center" id="icons">
             <a href="/dota/panier" class="d-inline-block">
                 <div class="circle mr-2"><i class="fas fa-shopping-cart text-primary"></i>
-                    <sup><span class="badge badge-danger" style="width: 23px;">{% if nombreArticles is defined %}{{nombreArticles}}{% else %}0{% endif %}</span></sup>
+                    <sup><span id="cartBadge" class="badge badge-danger" style="width: 23px;">{% if nombreArticles is defined %}{{nombreArticles}}{% else %}0{% endif %}</span></sup>
                 </div>
             </a>
         </div>
@@ -50,7 +50,47 @@
     </button>
 </div>
 
- {# <div class="container">
+{# Modal après ajout au panier #}
+<div class="modal fade" id="cartModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-body text-center">
+        <p class="mb-3"><strong>Article ajouté au panier</strong></p>
+        <div class="d-flex justify-content-center">
+          <button type="button" id="goToCartBtn" class="btn btn-primary mr-2">Aller au panier</button>
+          <button type="button" id="continueBtn" class="btn btn-secondary" data-dismiss="modal">Continuer mes achats</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# --- Styles pour les pastilles couleur --- #}
+<style>
+.color-option { display:inline-flex; align-items:center; margin-right:0.5rem; position:relative; }
+.color-option input[type="radio"] { position:absolute; opacity:0; width:1px; height:1px; pointer-events:none; }
+.color-option .color-swatch {
+  display:inline-block;
+  width:28px;
+  height:28px;
+  border-radius:6px;
+  border:2px solid rgba(0,0,0,0.08);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+  cursor:pointer;
+}
+.color-option:hover .color-swatch { transform: scale(1.03); box-shadow:0 2px 6px rgba(0,0,0,0.12); }
+.color-option .color-label { margin-left:6px; font-size:12px; color:#444; display:none; } /* hidden but available for screen readers */
+.color-option.selected .color-swatch {
+  transform: scale(1.06);
+  box-shadow: 0 0 0 4px rgba(0,123,255,0.12);
+  border-color: rgba(0,123,255,0.8);
+}
+/* small focus help for keyboard users */
+.color-option input[type="radio"]:focus + .color-swatch { outline: 3px solid rgba(0,123,255,0.14); outline-offset: 2px; }
+</style>
+
+{# <div class="container">
   <div id="carouselExampleControls" class="carousel slide" data-ride="carousel">
     <div class="carousel-inner">
       <div class="carousel-item active">
@@ -100,16 +140,69 @@
               <p class="card-cost">{{ product.point }} P</p>
               <p class="card-cost">{{ product.description }}</p>
 
-              <!-- Formulaire d'ajout au panier (1 formulaire par carte) -->
-              <form method="POST" action="{{ path('add_to_cart') }}" class="mt-auto add-to-cart-form" data-product-id="{{ product.id }}">
-                <input type="hidden" name="product_id" value="{{ product.id }}">
-                <input type="hidden" name="size" value="">
-                <input type="hidden" name="color" value="">
-                <input type="hidden" name="quantity" value="1">
-                <button type="submit" class="btn btn-sm btn-light btn-block mt-3">
-                  <i class="fas fa-shopping-cart pr-2"></i> Ajouter au panier
+              {# --- Choix taille (scopé par produit) --- #}
+              <div class="mb-2">
+                <small class="text-muted">Taille :</small>
+                <div class="mt-1">
+                  {% set hasTaille = false %}
+                  {% for assoc in listeAssociationTaillesArticle %}
+                    {% if assoc.idArticle == product.id %}
+                      {% set hasTaille = true %}
+                      <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio"
+                               name="size_{{ product.id }}"
+                               id="size_{{ product.id }}_{{ loop.index }}"
+                               value="{{ assoc.nomTaille }}">
+                        <label class="form-check-label" for="size_{{ product.id }}_{{ loop.index }}">{{ assoc.nomTaille }}</label>
+                      </div>
+                    {% endif %}
+                  {% endfor %}
+                  {% if not hasTaille %}
+                    <input type="hidden" name="size_{{ product.id }}" value="">
+                  {% endif %}
+                </div>
+              </div>
+
+              {# --- Choix couleur (scopé par produit, pastille cliquable) --- #}
+              <div class="mb-2">
+                <small class="text-muted">Couleur :</small>
+                <div class="mt-1 d-flex align-items-center">
+                  {% set hasColor = false %}
+                  {% for assoc in listeAssociationCouleursArticle %}
+                    {% if assoc.idArticle == product.id %}
+                      {% set hasColor = true %}
+                      {% set colorCode = '' %}
+                      {% for c in listeCouleurs %}
+                        {% if c.nom == assoc.nomCouleur %}
+                          {% set colorCode = c.codeCouleur %}
+                        {% endif %}
+                      {% endfor %}
+                      <label class="mr-2 color-option" title="{{ assoc.nomCouleur }}" role="button" aria-label="Couleur {{ assoc.nomCouleur }}">
+                        <input type="radio" name="color_{{ product.id }}" value="{{ assoc.nomCouleur }}">
+                        <span class="color-swatch" style="background:{{ colorCode ?: '#ffffff' }};"></span>
+                        <span class="color-label sr-only">{{ assoc.nomCouleur }}</span>
+                      </label>
+                    {% endif %}
+                  {% endfor %}
+                  {% if not hasColor %}
+                    <input type="hidden" name="color_{{ product.id }}" value="">
+                  {% endif %}
+                </div>
+              </div>
+
+              {# --- Quantité --- #}
+              <div class="mb-2">
+                <small class="text-muted">Quantité :</small>
+                <div class="mt-1">
+                  <input type="number" name="quantity_{{ product.id }}" min="1" value="1" class="form-control" style="width:90px;">
+                </div>
+              </div>
+
+              <div class="mt-auto">
+                <button class="btn btn-primary btn-block add-to-cart" type="button" data-id="{{ product.id }}" data-points="{{ product.point }}">
+                  <i class="fas fa-cart-plus"></i> Ajouter au panier
                 </button>
-              </form>
+              </div>
             </div>
           </div>
         </div>
@@ -118,167 +211,138 @@
   </div>
 </div>
 
-
-<br>
-<br>
-  
-
-<!-- Modal de confirmation -->
-<div class="modal fade" id="confirmAddModal" tabindex="-1" role="dialog" aria-labelledby="confirmAddModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
-    <div class="modal-content">
-      <div class="modal-body text-center">
-        <p>Article ajouté au panier. Que souhaitez-vous faire ?</p>
-        <div class="d-flex justify-content-around mt-3">
-          <button type="button" id="continueShoppingBtn" class="btn btn-secondary">Continuer mes achats</button>
-          <button type="button" id="goToCartBtn" class="btn btn-primary">Aller au panier</button>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
-<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
-<script src="js/script.js"></script>
-
+{# JS pour soumettre la sélection (scopée par produit) - POST AJAX + modal de confirmation #}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    const searchInput = document.querySelector('#searchbar input');
-    // cibler uniquement les colonnes du catalogue
-    const columns = Array.from(document.querySelectorAll('#products .col-md-3'));
+  function showAjaxAlert(msg) {
+    const a = document.getElementById('ajaxAlert');
+    const m = document.getElementById('ajaxAlertMessage');
+    if (!a || !m) return;
+    m.textContent = msg;
+    a.style.display = 'block';
+    a.classList.add('show');
+    setTimeout(() => { a.classList.remove('show'); a.style.display = 'none'; }, 3000);
+  }
 
-    // écoute sur 'input' pour réagir au fur et à mesure
-    searchInput.addEventListener('input', function () {
-        const query = searchInput.value.trim().toLowerCase();
-
-        // Affiche/masque chaque colonne sans toucher à la structure des lignes
-        columns.forEach(column => {
-            const card = column.querySelector('.card');
-            const productName = card ? (card.getAttribute('data-nom') || '') : '';
-            if (query === '' || productName.includes(query)) {
-                column.style.display = ''; // restaure le style par défaut (Bootstrap gère le layout)
-            } else {
-                column.style.display = 'none';
-            }
-        });
+  // --- Visuel sélection couleur: synchronise les labels avec l'input checked ---
+  function syncColorVisualsForName(name) {
+    document.querySelectorAll('input[name="' + name + '"]').forEach(function(inp) {
+      const lab = inp.closest('.color-option');
+      if (!lab) return;
+      if (inp.checked) lab.classList.add('selected'); else lab.classList.remove('selected');
     });
-});
-</script>
+  }
 
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    // helper : afficher une alerte dismissible jolie
-    function showAlert(message, type = 'danger', autoClose = 5000) {
-        const el = document.getElementById('ajaxAlert');
-        const msg = document.getElementById('ajaxAlertMessage');
-        // enlever classes précédentes
-        el.classList.remove('alert-success','alert-danger','alert-warning','alert-info','fade','show');
-        el.classList.add('alert-' + type, 'fade', 'show');
-        msg.textContent = message;
-        el.style.display = 'block';
-        // clear previous timer
-        if (el._timer) clearTimeout(el._timer);
-        if (autoClose) {
-            el._timer = setTimeout(function () {
-                try { $(el).alert('close'); } catch(e) { el.style.display='none'; }
-            }, autoClose);
+  // initialisation: pour tous les groupes color_*
+  const colorInputs = Array.from(document.querySelectorAll('input[type="radio"]')).filter(i => i.name && i.name.startsWith('color_'));
+  const processedNames = new Set();
+  colorInputs.forEach(function(inp) {
+    if (!processedNames.has(inp.name)) {
+      syncColorVisualsForName(inp.name);
+      processedNames.add(inp.name);
+    }
+    inp.addEventListener('change', function() {
+      syncColorVisualsForName(this.name);
+    });
+  });
+
+  // helper pour afficher le modal (Bootstrap 5 ou fallback jQuery)
+  function showCartModal() {
+    const el = document.getElementById('cartModal');
+    if (!el) return;
+    if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+      new bootstrap.Modal(el).show();
+    } else if (window.jQuery && typeof jQuery(el).modal === 'function') {
+      jQuery(el).modal('show');
+    } else {
+      // fallback minimal
+      alert('Article ajouté au panier');
+    }
+  }
+  // liaison boutons du modal
+  const btnGo = document.getElementById('goToCartBtn');
+  if (btnGo) btnGo.addEventListener('click', function(){ window.location.href = "{{ path('app_panier_dota') }}"; });
+  const btnContinue = document.getElementById('continueBtn');
+  if (btnContinue) btnContinue.addEventListener('click', function(){
+    const el = document.getElementById('cartModal');
+    if (!el) return;
+    if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+      bootstrap.Modal.getInstance(el)?.hide();
+    } else if (window.jQuery && typeof jQuery(el).modal === 'function') {
+      jQuery(el).modal('hide');
+    }
+  });
+
+  document.querySelectorAll('.add-to-cart').forEach(function(button) {
+    button.addEventListener('click', function () {
+      const productId = this.dataset.id;
+      const card = this.closest('.card');
+      if (!card) return;
+
+      const sizeInput = card.querySelector('input[name="size_' + productId + '"]:checked');
+      const colorInput = card.querySelector('input[name="color_' + productId + '"]:checked');
+      const quantityInput = card.querySelector('input[name="quantity_' + productId + '"]');
+
+      const size = sizeInput ? sizeInput.value : '';
+      const color = colorInput ? colorInput.value : '';
+      const quantity = quantityInput ? quantityInput.value : '1';
+
+      // Validation obligatoire : taille puis couleur
+      if (!size) {
+        showAjaxAlert('Veuillez sélectionner une taille.');
+        const tailleZone = card.querySelector('input[name="size_' + productId + '"]');
+        if (tailleZone) tailleZone.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+      if (!color) {
+        showAjaxAlert('Veuillez sélectionner une couleur.');
+        return;
+      }
+
+      // Envoi AJAX (utilise la route add_to_cart qui renvoie JSON si X-Requested-With présent)
+      const url = "{{ path('add_to_cart') }}";
+      const formData = new FormData();
+      formData.append('product_id', productId);
+      formData.append('size', size);
+      formData.append('color', color);
+      formData.append('quantity', quantity);
+
+      fetch(url, {
+        method: 'POST',
+        body: formData,
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      })
+      .then(response => response.json().catch(() => ({ success:false, message:'Réponse invalide' })))
+      .then(data => {
+        if (!data || !data.success) {
+          showAjaxAlert(data.message || 'Erreur lors de l\'ajout.');
+          return;
         }
-    }
+        // Met à jour l'UI : badge et points
+        const badge = document.getElementById('cartBadge');
+        if (badge && typeof data.nombreArticles !== 'undefined') badge.textContent = data.nombreArticles;
+        const pointsInCartEl = document.getElementById('pointsInCart');
+        const pointsRemainingEl = document.getElementById('pointsRemaining');
+        const totalPointsEl = document.getElementById('totalPoints');
+        if (pointsInCartEl && typeof data.pointsInCart !== 'undefined') {
+          pointsInCartEl.textContent = data.pointsInCart + ' P';
+          pointsInCartEl.dataset.value = data.pointsInCart;
+        }
+        if (totalPointsEl && totalPointsEl.dataset.value) {
+          const total = parseInt(totalPointsEl.dataset.value,10) || 0;
+          const remaining = Math.max(total - (data.pointsInCart || 0), 0);
+          if (pointsRemainingEl) { pointsRemainingEl.textContent = remaining + ' P'; pointsRemainingEl.dataset.value = remaining; }
+        }
 
-    // Gère les formulaires d'ajout au panier
-    const forms = document.querySelectorAll('.add-to-cart-form');
-    const badge = document.querySelector('#icons .badge');
-    let pendingForm = null;
-
-    function updateHiddenFields(form) {
-        // récupère taille / couleur / quantité choisis dans le même card
-        const card = form.closest('.card');
-        const quantityInput = card.querySelector('input[name="quantity"]') || card.querySelector('.numberbox1');
-        const sizeInput = card.querySelector('input[name="size"]:checked') || card.querySelector('input[name="size"]');
-        const colorInput = card.querySelector('input[name="color"]:checked') || card.querySelector('input[name="color"]');
-
-        form.querySelector('input[name="quantity"]').value = quantityInput ? quantityInput.value : 1;
-        form.querySelector('input[name="size"]').value = (card.querySelector('input[type="radio"][name="size"]:checked') || {value: ''}).value;
-        form.querySelector('input[name="color"]').value = (card.querySelector('input[type="radio"][name="color"]:checked') || {value: ''}).value;
-    }
-
-    forms.forEach(form => {
-        form.addEventListener('submit', function (e) {
-            e.preventDefault();
-            pendingForm = form;
-            updateHiddenFields(form);
-            $('#confirmAddModal').modal('show');
-        });
+        // Affiche le modal demandant d'aller au panier ou continuer
+        showCartModal();
+      })
+      .catch(err => {
+        console.error(err);
+        showAjaxAlert('Erreur réseau lors de l\'ajout.');
+      });
     });
-
-    // Continuer les achats: envoie en background et met à jour le badge + points restants
-    document.getElementById('continueShoppingBtn').addEventListener('click', function () {
-        if (!pendingForm) { $('#confirmAddModal').modal('hide'); return; }
-        const fd = new FormData(pendingForm);
-        fetch(pendingForm.action, {
-            method: 'POST',
-            body: fd,
-            credentials: 'same-origin',
-            headers: {'X-Requested-With': 'XMLHttpRequest'}
-        }).then(resp => {
-            if (!resp.ok) {
-                // essayer de lire message d'erreur JSON
-                resp.json().then(data => {
-                    if (data && data.message) showAlert(data.message, 'warning');
-                    else showAlert('Erreur serveur lors de l\'ajout.', 'warning');
-                }).catch(()=> showAlert('Erreur serveur lors de l\'ajout.', 'warning'));
-                return;
-            }
-            return resp.json().then(data => {
-                if (!data) return;
-                if (data.success === false) {
-                    // afficher message d'erreur joli
-                    showAlert(data.message || 'Impossible d’ajouter : points insuffisants.', 'danger');
-                    return;
-                }
-                if (data.success) {
-                    try {
-                        if (typeof data.nombreArticles !== 'undefined') {
-                            badge.textContent = data.nombreArticles;
-                        } else {
-                            const current = parseInt(badge.textContent.trim() || '0', 10);
-                            const added = parseInt(fd.get('quantity') || '1', 10);
-                            badge.textContent = current + added;
-                        }
-                        if (typeof data.pointsInCart !== 'undefined') {
-                            const pointsInCartEl = document.getElementById('pointsInCart');
-                            const pointsRemainingEl = document.getElementById('pointsRemaining');
-                            const totalEl = document.getElementById('totalPoints');
-                            const total = parseInt(totalEl.getAttribute('data-value') || totalEl.textContent.replace(/\D/g,''), 10);
-                            const inCart = parseInt(data.pointsInCart, 10) || 0;
-                            const remaining = Math.max(total - inCart, 0);
-                            pointsInCartEl.setAttribute('data-value', inCart);
-                            pointsInCartEl.textContent = inCart + ' P';
-                            pointsRemainingEl.setAttribute('data-value', remaining);
-                            pointsRemainingEl.textContent = remaining + ' P';
-                        }
-                        // petit message de succès non intrusif
-                        showAlert('Article ajouté au panier.', 'success', 3000);
-                    } catch (e) {}
-                }
-            }).catch(()=>{ showAlert('Erreur inattendue.', 'warning'); });
-        }).catch(()=>{ showAlert('Impossible de contacter le serveur.', 'warning'); })
-        .finally(()=> {
-            $('#confirmAddModal').modal('hide');
-            pendingForm = null;
-        });
-    });
-
-    // Aller au panier: soumet normalement (redirigera vers la page panier)
-    document.getElementById('goToCartBtn').addEventListener('click', function () {
-        if (!pendingForm) { $('#confirmAddModal').modal('hide'); return; }
-        // avant soumission normale, s'assurer que les champs cachés sont à jour
-        updateHiddenFields(pendingForm);
-        // soumission normale pour suivre la redirection côté serveur
-        pendingForm.submit();
-    });
+  });
 });
 </script>
 
