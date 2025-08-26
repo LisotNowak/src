@@ -667,46 +667,57 @@ public function validerPanier(SessionInterface $session, EntityManagerInterface 
             return $this->redirectToRoute('app_accueil');
         }
 
-        $commandesEntities = $entityManager->getRepository(Commande::class)
-            ->findBy(['nomEtat' => "Validée"], ['date' => 'DESC']);
+        $buildList = function(string $etat) use ($entityManager) {
+            $commandesEntities = $entityManager->getRepository(Commande::class)
+                ->findBy(['nomEtat' => $etat], ['date' => 'DESC']);
 
-        $commandes = [];
-        foreach ($commandesEntities as $commande) {
-            $assocs = $entityManager->getRepository(AssociationCommandeArticle::class)
-                ->findBy(['idCommande' => $commande->getId()]);
+            $commandes = [];
+            foreach ($commandesEntities as $commande) {
+                $assocs = $entityManager->getRepository(AssociationCommandeArticle::class)
+                    ->findBy(['idCommande' => $commande->getId()]);
 
-            $items = [];
-            foreach ($assocs as $assoc) {
-                $article = $entityManager->getRepository(Article::class)->find($assoc->getIdArticle());
+                $items = [];
+                foreach ($assocs as $assoc) {
+                    $article = $entityManager->getRepository(Article::class)->find($assoc->getIdArticle());
 
-                // calculer stock disponible pour la combinaison reference/taille/couleur
-                $stockDisponible = 0;
-                if ($article) {
-                    $stockEntity = $entityManager->getRepository(Stock::class)->findOneBy([
-                        'referenceArticle' => $article->getReference(),
-                        'nomTaille' => $assoc->getNomTaille(),
-                        'nomCouleur' => $assoc->getNomCouleur(),
-                    ]);
-                    $stockDisponible = $stockEntity ? (int) $stockEntity->getStock() : 0;
+                    $stockDisponible = 0;
+                    if ($article) {
+                        $stockEntity = $entityManager->getRepository(Stock::class)->findOneBy([
+                            'referenceArticle' => $article->getReference(),
+                            'nomTaille' => $assoc->getNomTaille(),
+                            'nomCouleur' => $assoc->getNomCouleur(),
+                        ]);
+                        $stockDisponible = $stockEntity ? (int) $stockEntity->getStock() : 0;
+                    }
+
+                    $items[] = [
+                        'article' => $article,
+                        'taille' => $assoc->getNomTaille(),
+                        'couleur' => $assoc->getNomCouleur(),
+                        'quantite' => $assoc->getNb(),
+                        'stockDisponible' => $stockDisponible,
+                    ];
                 }
 
-                $items[] = [
-                    'article' => $article,
-                    'taille' => $assoc->getNomTaille(),
-                    'couleur' => $assoc->getNomCouleur(),
-                    'quantite' => $assoc->getNb(),
-                    'stockDisponible' => $stockDisponible,
+                if (count($items) === 0) {
+                    continue;
+                }
+
+                $commandes[] = [
+                    'commande' => $commande,
+                    'items' => $items,
                 ];
             }
 
-            $commandes[] = [
-                'commande' => $commande,
-                'items' => $items,
-            ];
-        }
+            return $commandes;
+        };
+
+        $commandes_valide = $buildList('Validée');
+        $commandes_sur_commande = $buildList('Sur commande');
 
         return $this->render('dotation/gestionCommandes.html.twig', [
-            'commandes' => $commandes,
+            'commandes_valide' => $commandes_valide,
+            'commandes_sur_commande' => $commandes_sur_commande,
         ]);
     }
 
