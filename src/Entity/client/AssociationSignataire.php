@@ -14,11 +14,11 @@ class AssociationSignataire
     #[ORM\Column(name: "id", type: "integer", nullable: false)]
     private ?int $id = null;
 
-    #[ORM\ManyToOne(targetEntity: "App\\Entity\\client\\Signataire")]
+    #[ORM\ManyToOne(targetEntity: Signataire::class)]
     #[ORM\JoinColumn(name: "signataire_id", referencedColumnName: "id", nullable: true)]
     private ?Signataire $signataire = null;
 
-    #[ORM\ManyToOne(targetEntity: "App\\Entity\\client\\Client")]
+    #[ORM\ManyToOne(targetEntity: Client::class, inversedBy: "associations")]
     #[ORM\JoinColumn(name: "client_id", referencedColumnName: "id", nullable: true)]
     private ?Client $client = null;
 

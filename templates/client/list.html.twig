@@ -46,6 +46,7 @@
         <table class="table table-striped table-hover align-middle">
             <thead class="table-dark">
                 <tr>
+                    <th>#</th> <!-- New column for row count -->
                     <th>Nom</th>
                     <th>Prénom</th>
                     <th>Ville</th>
@@ -62,49 +63,70 @@
                     {% for client in clients %}
                         {% set clientAssocs = associations[client.id] ?? [] %}
                         {% set assoc = clientAssocs|first %}
-                        <tr>
+                        <tr class="{% if assoc and assoc.conserver %}row-conserver-oui{% endif %}">
+                        
+                            <td>{{ loop.index }}</td>
                             <td>{{ client.triNom }}</td>
                             <td>{{ client.triPrenom }}</td>
                             <td>{{ client.ville }}</td>
                             <td>{{ client.pays }}</td>
                             <td>{{ client.societeNom }}</td>
                             <td>{{ client.categorieEntity ? client.categorieEntity.nomCategorie : 'Aucune' }}</td>
+                            
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <button type="button" class="btn btn-sm conserver-btn conserver-oui"
+                                            data-client-id="{{ client.id }}" data-signataire="{{ assoc ? assoc.signataire.id : '' }}"
+                                            data-value="1" style="background-color: {% if assoc and assoc.conserver %}green{% else %}gray{% endif %}; color: white;">
+                                        Oui
+                                    </button>
+                                    <button type="button" class="btn btn-sm conserver-btn conserver-non"
+                                            data-client-id="{{ client.id }}" data-signataire="{{ assoc ? assoc.signataire.id : '' }}"
+                                            data-value="0" style="background-color: {% if assoc and not assoc.conserver %}red{% else %}gray{% endif %}; color: white;">
+                                        Non
+                                    </button>
+                                </div>
+                            </td>
+
 
                             <td>
-                                <select name="conserver_{{ client.id }}" class="form-select form-select-sm conserver-select"
-                                    data-client-id="{{ client.id }}"
-                                    data-signataire="{{ assoc ? assoc.signataire.id : '' }}">
-                                    <option value="1" {% if assoc and assoc.conserver %}selected{% endif %}>Oui</option>
-                                    <option value="0" {% if assoc and not assoc.conserver %}selected{% endif %}>Non</option>
-                                </select>
+                                <div class="btn-group" role="group">
+                                    <button type="button" class="btn btn-sm signature-btn signature-oui"
+                                            data-client-id="{{ client.id }}" data-signataire="{{ assoc ? assoc.signataire.id : '' }}"
+                                            data-value="1" style="background-color: {% if assoc and assoc.signature %}green{% else %}gray{% endif %}; color: white;">
+                                        Oui
+                                    </button>
+                                    <button type="button" class="btn btn-sm signature-btn signature-non"
+                                            data-client-id="{{ client.id }}" data-signataire="{{ assoc ? assoc.signataire.id : '' }}"
+                                            data-value="0" style="background-color: {% if assoc and not assoc.signature %}red{% else %}gray{% endif %}; color: white;">
+                                        Non
+                                    </button>
+                                </div>
                             </td>
 
                             <td>
-                                <select name="signature_{{ client.id }}" class="form-select form-select-sm signature-select"
-                                    data-client-id="{{ client.id }}"
-                                    data-signataire="{{ assoc ? assoc.signataire.id : '' }}">
-                                    <option value="1" {% if assoc and assoc.signature %}selected{% endif %}>Oui</option>
-                                    <option value="0" {% if assoc and not assoc.signature %}selected{% endif %}>Non</option>
-                                </select>
-                            </td>
-
-                            <td>
-                                <select name="envoi_mail_{{ client.id }}" class="form-select form-select-sm envoi-mail-select"
-                                    data-client-id="{{ client.id }}"
-                                    data-signataire="{{ assoc ? assoc.signataire.id : '' }}">
-                                    <option value="1" {% if assoc and assoc.envoiMail %}selected{% endif %}>Oui</option>
-                                    <option value="0" {% if assoc and not assoc.envoiMail %}selected{% endif %}>Non</option>
-                                </select>
+                                <div class="btn-group" role="group">
+                                    <button type="button" class="btn btn-sm envoi-mail-btn envoi-mail-oui"
+                                            data-client-id="{{ client.id }}" data-signataire="{{ assoc ? assoc.signataire.id : '' }}"
+                                            data-value="1" style="background-color: {% if assoc and assoc.envoiMail %}green{% else %}gray{% endif %}; color: white;">
+                                        Oui
+                                    </button>
+                                    <button type="button" class="btn btn-sm envoi-mail-btn envoi-mail-non"
+                                            data-client-id="{{ client.id }}" data-signataire="{{ assoc ? assoc.signataire.id : '' }}"
+                                            data-value="0" style="background-color: {% if assoc and not assoc.envoiMail %}red{% else %}gray{% endif %}; color: white;">
+                                        Non
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                     {% else %}
                         <tr>
-                            <td colspan="9" class="text-center text-muted">Aucun client trouvé pour ce signataire.</td>
+                            <td colspan="10" class="text-center text-muted">Aucun client trouvé pour ce signataire.</td>
                         </tr>
                     {% endfor %}
                 {% else %}
                     <tr>
-                        <td colspan="9" class="text-center text-muted">Veuillez sélectionner un signataire pour afficher les clients.</td>
+                        <td colspan="10" class="text-center text-muted">Veuillez sélectionner un signataire pour afficher les clients.</td>
                     </tr>
                 {% endif %}
             </tbody>
@@ -113,18 +135,29 @@
     </div>
 </div>
 
+<style>
+/* applique la couleur verte clair à toutes les cellules de la ligne */
+.row-conserver-oui td {
+    background-color: #d4edda !important; /* vert clair */
+}
+</style>
+
+
 {% block javascripts %}
 {{ parent() }}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.signature-select, .conserver-select, .envoi-mail-select').forEach(function(select) {
-        select.addEventListener('change', function() {
+    document.querySelectorAll('.conserver-btn, .signature-btn, .envoi-mail-btn').forEach(function(button) {
+        button.addEventListener('click', function() {
             const clientId = this.dataset.clientId;
-            let field = 'signature';
-            if (this.classList.contains('conserver-select')) field = 'conserver';
-            if (this.classList.contains('envoi-mail-select')) field = 'envoiMail';
-            const value = this.value;
+            const value = this.dataset.value;
             const signataire = this.dataset.signataire;
+            let field = 'signature';
+            if (this.classList.contains('conserver-btn')) field = 'conserver';
+            if (this.classList.contains('envoi-mail-btn')) field = 'envoiMail';
+
+            const row = this.closest('tr'); // récupère la ligne courante
+
             fetch("{{ path('app_clients_update_field') }}", {
                 method: 'POST',
                 headers: {
@@ -136,7 +169,26 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(response => response.json())
             .then(data => {
-                if (!data.success) {
+                if (data.success) {
+                    // Réinitialiser les couleurs des boutons du groupe
+                    const group = this.parentElement;
+                    group.querySelectorAll('button').forEach(btn => btn.style.backgroundColor = 'gray');
+
+                    // Gestion spécifique du champ "conserver"
+                    if (field === 'conserver') {
+                        if (value === '1') {
+                            this.style.backgroundColor = 'green';
+                            row.classList.add('row-conserver-oui'); // applique la classe
+                        } else {
+                            this.style.backgroundColor = 'red';
+                            row.classList.remove('row-conserver-oui'); // supprime la classe
+                        }
+                    } else if (field === 'signature') {
+                        this.style.backgroundColor = value === '1' ? 'green' : 'red';
+                    } else if (field === 'envoiMail') {
+                        this.style.backgroundColor = value === '1' ? 'green' : 'red';
+                    }
+                } else {
                     alert('Erreur lors de la sauvegarde');
                 }
             })
@@ -146,4 +198,6 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
+
+
 {% endblock %}
