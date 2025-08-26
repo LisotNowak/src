@@ -196,10 +196,19 @@ class DotationController extends AbstractController
             $panier = $session->get('cart', []); 
             $nombreArticles = count($panier); 
 
+            // Calcul des points présents dans le panier (point * quantite)
+            $pointsInCart = 0;
+            foreach ($panier as $item) {
+                $qty = isset($item['quantite']) ? (int) $item['quantite'] : 1;
+                $pt  = isset($item['point']) ? (int) $item['point'] : 0;
+                $pointsInCart += $pt * $qty;
+            }
+
             return $this->render('dotation/index.html.twig', [
                 'listeArticles' => $listeArticles,
                 'listeCouleurs' => $listeCouleurs,
                 'nombreArticles' => $nombreArticles,
+                'pointsInCart' => $pointsInCart,
                 'listeAssociationTaillesArticle' => $listeAssociationTaillesArticle,
                 'listeAssociationCouleursArticle' => $listeAssociationCouleursArticle,
             ]);
@@ -347,26 +356,55 @@ class DotationController extends AbstractController
     #[Route('/dota/addToCart', name: 'add_to_cart', methods: ['POST'])]
     public function addToCart(EntityManagerInterface $entityManager, Request $request, SessionInterface $session): Response
     {
-    // Récupérer les informations envoyées par la requête
-    $productId = $request->request->get('product_id'); // Identifiant du produit
-    $quantity = $request->request->get('quantity', 1); // Quantité (par défaut 1)
-    $size = $request->request->get('size'); // Taille du produit
-    $color = $request->request->get('color'); // Couleur du produit
+        $productId = $request->request->get('product_id');
+        $quantity = max(1, (int) $request->request->get('quantity', 1));
+        $size = $request->request->get('size');
+        $color = $request->request->get('color');
 
-    // Récupérer le panier actuel ou initialiser un tableau vide
-    $cart = $session->get('cart', []);
+        $user = $this->getUser();
+        $userPoints = $user ? (int) $user->getPointDotation() : 0;
 
-    // Générer une clé unique pour chaque combinaison produit/taille/couleur
-    $cartKey = $productId . '_' . $size . '_' . $color;
+        $cart = $session->get('cart', []);
 
-    // Vérifier si l'article est déjà dans le panier
-    if (isset($cart[$cartKey])) {
-        // Si le produit est déjà dans le panier avec la même taille et couleur, on ajuste la quantité
-        $cart[$cartKey]['quantite'] += $quantity;
-    } else {
-        // Sinon, on ajoute le produit avec sa quantité, taille et couleur
+        // calcul des points déjà dans le panier
+        $pointsInCart = 0;
+        foreach ($cart as $it) {
+            $qtyIt = isset($it['quantite']) ? (int)$it['quantite'] : 1;
+            $ptIt  = isset($it['point']) ? (int)$it['point'] : 0;
+            $pointsInCart += $qtyIt * $ptIt;
+        }
+
         $product = $entityManager->getRepository(Article::class)->find($productId);
-        if ($product) {
+        if (!$product) {
+            if ($request->isXmlHttpRequest()) {
+                return $this->json(['success' => false, 'message' => 'Produit introuvable.'], 404);
+            }
+            $this->addFlash('error', 'Produit introuvable.');
+            return $this->redirectToRoute('app_index_dota');
+        }
+
+        $productPoint = (int) $product->getPoint();
+        $potentialPoints = $pointsInCart + ($productPoint * $quantity);
+        if ($potentialPoints > $userPoints) {
+            $remaining = max($userPoints - $pointsInCart, 0);
+            if ($request->isXmlHttpRequest()) {
+                return $this->json([
+                    'success' => false,
+                    'message' => 'Ajout impossible : points insuffisants.',
+                    'pointsInCart' => $pointsInCart,
+                    'remaining' => $remaining,
+                    'userPoints' => $userPoints,
+                ], 400);
+            }
+            $this->addFlash('error', "Ajout impossible : il vous reste {$remaining} points.");
+            return $this->redirectToRoute('app_index_dota');
+        }
+
+        $cartKey = $productId . '_' . $size . '_' . $color;
+
+        if (isset($cart[$cartKey])) {
+            $cart[$cartKey]['quantite'] += $quantity;
+        } else {
             $cart[$cartKey] = [
                 'id' => $productId,
                 'quantite' => $quantity,
@@ -377,17 +415,29 @@ class DotationController extends AbstractController
                 'taille' => $size,
                 'couleur' => $color,
                 'point' => $product->getPoint(),
-                'image' => $product->getImage(), // <-- Ajouté : nom de fichier image
+                'image' => $product->getImage(),
             ];
         }
+
+        $session->set('cart', $cart);
+
+        if ($request->isXmlHttpRequest()) {
+            $nombreArticles = count($cart);
+            $pointsInCart = 0;
+            foreach ($cart as $item) {
+                $qty = isset($item['quantite']) ? (int) $item['quantite'] : 1;
+                $pt  = isset($item['point']) ? (int) $item['point'] : 0;
+                $pointsInCart += $pt * $qty;
+            }
+            return $this->json([
+                'success' => true,
+                'nombreArticles' => $nombreArticles,
+                'pointsInCart' => $pointsInCart,
+            ]);
+        }
+
+        return $this->redirectToRoute('app_panier_dota');
     }
-
-    // Sauvegarder le panier dans la session
-    $session->set('cart', $cart);
-
-    // Rediriger ou retourner une réponse
-    return $this->redirectToRoute('app_panier_dota');
-}
 
     #[Route('/dota/panier', name: 'app_panier_dota')]
     public function panier_dota(Request $request, EntityManagerInterface $entityManager, SessionInterface $session): Response
@@ -429,23 +479,42 @@ public function updateCart(Request $request, SessionInterface $session): Respons
 {
     $productId = $request->request->get('product_id');
     $size = $request->request->get('size');
-    $color = $request->request->get('color'); // Ajout de la couleur
-    $quantity = $request->request->get('quantity');
+    $color = $request->request->get('color');
+    $quantity = (int) $request->request->get('quantity');
 
     $cart = $session->get('cart', []);
+    $cartKey = $productId . '_' . $size . '_' . $color;
 
-    $cartKey = $productId . '_' . $size . '_' . $color; // Clé harmonisée
+    // Vérifier points si on augmente la quantité
+    if (isset($cart[$cartKey]) && $quantity > 0) {
+        $user = $this->getUser();
+        $userPoints = $user ? (int)$user->getPointDotation() : 0;
 
+        // calcul points courants hors ligne pour cet item
+        $pointsInCart = 0;
+        foreach ($cart as $key => $it) {
+            if ($key === $cartKey) continue;
+            $pointsInCart += (isset($it['quantite'])?(int)$it['quantite']:1) * (isset($it['point'])?(int)$it['point']:0);
+        }
+
+        $itemPoint = isset($cart[$cartKey]['point']) ? (int)$cart[$cartKey]['point'] : 0;
+        $potential = $pointsInCart + ($itemPoint * $quantity);
+        if ($potential > $userPoints) {
+            $this->addFlash('error', 'Impossible : points insuffisants pour cette quantité.');
+            return $this->redirectToRoute('app_panier_dota');
+        }
+    }
+
+    // mise à jour habituelle
     if (isset($cart[$cartKey])) {
         if ($quantity > 0) {
             $cart[$cartKey]['quantite'] = $quantity;
         } else {
-            unset($cart[$cartKey]); // Supprime l'article si la quantité est 0
+            unset($cart[$cartKey]);
         }
     }
 
     $session->set('cart', $cart);
-
     return $this->redirectToRoute('app_panier_dota');
 }
 
