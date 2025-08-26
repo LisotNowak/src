@@ -61,80 +61,39 @@
 <br> <br>
 
 <div class="container cardItem" id="products">
-<h2>T-shirt</h2>
-<br>
+  <h2>T-shirt</h2>
+  <br>
 
-<div class="container">
-  <div class="row">
-    {% for product in listeArticles %}
-      {% if loop.index > 4 and (loop.index - 1) % 4 == 0 %}
-        </div><div class="row mt-4">
-      {% endif %}
-      <div class="col-md-3">
-    <div class="card" data-nom="{{ product.nom | lower }}">
-        <p>{{ product.reference }}</p>
-        <img class="card-img-top img-fluid" 
-             src="{{ product.image is not empty ? asset('uploads/images/' ~ product.image) : 'img/defaultimage.png?v=1648567836&width=1080' }}" 
-             alt="{{ product.nom }}">
-        <div class="card-body">
-            <p class="card-text">{{ product.nom }}</p>
-            <p class="card-cost">{{ product.prix }} €</p>
-            <p class="card-cost">{{ product.description }}</p>
-            <!-- Formulaire d'ajout au panier -->
-            <div class="mt-3" id="purchase-btn">
-                <form method="POST" action="{{ path('add_to_cart') }}">
-                    <input type="hidden" name="product_id" value="{{ product.id }}">
-                    <!-- Quantité -->
-                    <div class="row">
-                        <div class="">
-                            <div class="input-group mb-3">
-                                <input type="number" name="quantity" class="numberbox1 form-control" value="1" min="1" required>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- Taille -->
-                    <div class="row">
-                        <div class="">
-                            {% for asso in listeAssociationTaillesArticle %}
-                                {% if asso.idArticle == product.id %}
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="radio" name="size" id="inlineRadio{{asso.nomTaille}}{{product.id}}" value="{{asso.nomTaille}}" required>
-                                        <label class="form-check-label" for="inlineRadio{{asso.nomTaille}}{{product.id}}">{{asso.nomTaille}}</label>
-                                    </div>
-                                {% endif %}
-                            {% endfor %}
-                        </div>
-                    </div>
-                    <!-- Couleur -->
-                    <div class="row">
-                        <div class="">
-                            {% for asso in listeAssociationCouleursArticle %}
-                                {% if asso.idArticle == product.id %}
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="radio" name="color" id="inlineRadioCouleurs{{asso.nomCouleur}}{{product.id}}" value="{{asso.nomCouleur}}" required>
-                                        {% for couleur in listeCouleurs %}
-                                            {% if asso.nomCouleur == couleur.nom %}
-                                                <label class="form-check-label" for="inlineRadioCouleurs{{asso.nomCouleur}}{{product.id}}" style="background-color: {{couleur.codeCouleur}}; color: white; padding: 4px 8px; border-radius: 5px;">
-                                                    {{asso.nomCouleur}}
-                                                </label>
-                                            {% endif %}
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                            {% endfor %}
-                        </div>
-                    </div>
-                    <!-- Bouton -->
-                    <button type="submit" class="btn btn-sm btn-light mt-3">
-                        <i class="fas fa-shopping-cart pr-2"></i> Ajouter au panier
-                    </button>
-                </form>
+  <div class="container">
+    <!-- Une seule row : Bootstrap gère automatiquement le wrapping -->
+    <div class="row">
+      {% for product in listeArticles %}
+        <div class="col-md-3 col-sm-6 mb-4">
+          <div class="card h-100" data-nom="{{ product.nom | lower }}">
+            <p class="pl-2">{{ product.reference }}</p>
+            <img class="card-img-top img-fluid"
+                 src="{{ product.image is not empty ? asset('uploads/images/' ~ product.image) : asset('img/defaultimage.png') }}"
+                 alt="{{ product.nom }}">
+            <div class="card-body d-flex flex-column">
+              <p class="card-text">{{ product.nom }}</p>
+              <p class="card-cost">{{ product.point }} P</p>
+              <p class="card-cost">{{ product.description }}</p>
+
+              <!-- Formulaire d'ajout au panier (1 formulaire par carte) -->
+              <form method="POST" action="{{ path('add_to_cart') }}" class="mt-auto add-to-cart-form" data-product-id="{{ product.id }}">
+                <input type="hidden" name="product_id" value="{{ product.id }}">
+                <input type="hidden" name="size" value="">
+                <input type="hidden" name="color" value="">
+                <input type="hidden" name="quantity" value="1">
+                <button type="submit" class="btn btn-sm btn-light btn-block mt-3">
+                  <i class="fas fa-shopping-cart pr-2"></i> Ajouter au panier
+                </button>
+              </form>
             </div>
+          </div>
         </div>
+      {% endfor %}
     </div>
-</div>
-
-    {% endfor %}
   </div>
 </div>
 
@@ -143,8 +102,20 @@
 <br>
   
 
-</body>
-
+<!-- Modal de confirmation -->
+<div class="modal fade" id="confirmAddModal" tabindex="-1" role="dialog" aria-labelledby="confirmAddModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-body text-center">
+        <p>Article ajouté au panier. Que souhaitez-vous faire ?</p>
+        <div class="d-flex justify-content-around mt-3">
+          <button type="button" id="continueShoppingBtn" class="btn btn-secondary">Continuer mes achats</button>
+          <button type="button" id="goToCartBtn" class="btn btn-primary">Aller au panier</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
@@ -154,42 +125,89 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const searchInput = document.querySelector('#searchbar input');
-    const container = document.querySelector('#products .container'); // Conteneur des cartes
-    const columns = Array.from(document.querySelectorAll('.col-md-3')); // Toutes les colonnes
+    // cibler uniquement les colonnes du catalogue
+    const columns = Array.from(document.querySelectorAll('#products .col-md-3'));
 
-    searchInput.addEventListener('keyup', function () {
-        const query = searchInput.value.toLowerCase();
-        const visibleColumns = [];
+    // écoute sur 'input' pour réagir au fur et à mesure
+    searchInput.addEventListener('input', function () {
+        const query = searchInput.value.trim().toLowerCase();
 
-        // Filtre les colonnes selon la recherche
+        // Affiche/masque chaque colonne sans toucher à la structure des lignes
         columns.forEach(column => {
-            const card = column.querySelector('.card'); // Trouvez la carte dans la colonne
-            if (card) { // Vérifiez si la carte existe
-                const productName = card.getAttribute('data-nom'); // Obtenez le nom du produit
-                if (productName.includes(query)) {
-                    column.style.display = ''; // Affiche la colonne
-                    visibleColumns.push(column); // Ajoutez la colonne visible à la liste
-                } else {
-                    column.style.display = 'none'; // Masque complètement la colonne
-                }
+            const card = column.querySelector('.card');
+            const productName = card ? (card.getAttribute('data-nom') || '') : '';
+            if (query === '' || productName.includes(query)) {
+                column.style.display = ''; // restaure le style par défaut (Bootstrap gère le layout)
+            } else {
+                column.style.display = 'none';
             }
-        });
-
-        // Réorganisez les colonnes visibles en lignes
-        container.innerHTML = ''; // Supprimez toutes les lignes existantes
-        let row = null;
-        visibleColumns.forEach((column, index) => {
-            if (index % 4 === 0) { // Créez une nouvelle ligne toutes les 4 colonnes
-                row = document.createElement('div');
-                row.className = 'row mt-4';
-                container.appendChild(row);
-            }
-            row.appendChild(column); // Ajoutez la colonne à la ligne actuelle
         });
     });
 });
+</script>
 
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Gère les formulaires d'ajout au panier
+    const forms = document.querySelectorAll('.add-to-cart-form');
+    const badge = document.querySelector('#icons .badge');
+    let pendingForm = null;
 
+    function updateHiddenFields(form) {
+        // récupère taille / couleur / quantité choisis dans le même card
+        const card = form.closest('.card');
+        const quantityInput = card.querySelector('input[name="quantity"]') || card.querySelector('.numberbox1');
+        const sizeInput = card.querySelector('input[name="size"]:checked') || card.querySelector('input[name="size"]');
+        const colorInput = card.querySelector('input[name="color"]:checked') || card.querySelector('input[name="color"]');
+
+        form.querySelector('input[name="quantity"]').value = quantityInput ? quantityInput.value : 1;
+        form.querySelector('input[name="size"]').value = (card.querySelector('input[type="radio"][name="size"]:checked') || {value: ''}).value;
+        form.querySelector('input[name="color"]').value = (card.querySelector('input[type="radio"][name="color"]:checked') || {value: ''}).value;
+    }
+
+    forms.forEach(form => {
+        // prevent default on submit to show modal first
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            pendingForm = form;
+            updateHiddenFields(form);
+            // show bootstrap modal
+            $('#confirmAddModal').modal('show');
+        });
+    });
+
+    // Continuer les achats: envoie en background et met à jour le badge
+    document.getElementById('continueShoppingBtn').addEventListener('click', function () {
+        if (!pendingForm) { $('#confirmAddModal').modal('hide'); return; }
+        const fd = new FormData(pendingForm);
+        fetch(pendingForm.action, {
+            method: 'POST',
+            body: fd,
+            credentials: 'same-origin',
+            headers: {'X-Requested-With': 'XMLHttpRequest'}
+        }).then(resp => {
+            // incrémente le badge visuel (simple estimation côté client)
+            try {
+                const current = parseInt(badge.textContent.trim() || '0', 10);
+                const added = parseInt(fd.get('quantity') || '1', 10);
+                badge.textContent = current + added;
+            } catch (e) {}
+        }).catch(()=>{})
+        .finally(()=> {
+            $('#confirmAddModal').modal('hide');
+            pendingForm = null;
+        });
+    });
+
+    // Aller au panier: soumet normalement (redirigera vers la page panier)
+    document.getElementById('goToCartBtn').addEventListener('click', function () {
+        if (!pendingForm) { $('#confirmAddModal').modal('hide'); return; }
+        // avant soumission normale, s'assurer que les champs cachés sont à jour
+        updateHiddenFields(pendingForm);
+        // soumission normale pour suivre la redirection côté serveur
+        pendingForm.submit();
+    });
+});
 </script>
 
 {% endblock %}
