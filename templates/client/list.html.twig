@@ -62,7 +62,7 @@
                 {% if signataire_selected %}
                     {% for client in clients %}
                         {% set clientAssocs = associations[client.id] ?? [] %}
-                        {% set assoc = clientAssocs|first %}
+                        {% set assoc = clientAssocs|filter(a => a.signataire.id == signataire_selected)|first %}
                         <tr class="{% if assoc and assoc.conserver %}row-conserver-oui{% endif %}">
                         
                             <td>{{ loop.index }}</td>
@@ -87,7 +87,6 @@
                                     </button>
                                 </div>
                             </td>
-
 
                             <td>
                                 <div class="btn-group" role="group">
@@ -130,6 +129,7 @@
                     </tr>
                 {% endif %}
             </tbody>
+
 
         </table>
     </div>

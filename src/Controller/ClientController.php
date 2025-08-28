@@ -66,7 +66,7 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
         }
     }
 
-    return $this->render('client/temp.html.twig', [
+    return $this->render('client/list.html.twig', [
         'clients' => $clients,
         'associations' => $associations,
         'signataires' => $signataires,
