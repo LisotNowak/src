@@ -3,7 +3,13 @@
 
 
 {% block sidebar %}
-    {% include 'dotation/sidebar.html.twig' with {'active_link': 'catalogue'} %}
+    {% include 'dotation/sidebar.html.twig' with {
+        'active_link': 'catalogue',
+        'currentUser': app.user,
+        'listeUsers': listeUsers|default([]),
+        'nombreArticles': nombreArticles|default(0),
+        'pointsInCart': pointsInCart|default(0)
+    } %}
 {% endblock %}
 
 
@@ -32,7 +38,7 @@
             </div>
         </div>
 
-        <div class="col-md-3 d-flex justify-content-end align-items-center" id="icons">
+        <div class="col-md-3 d-flex justify-content-end align-items-center" id="icons">          
             <a href="/dota/panier" class="d-inline-block">
                 <div class="circle mr-2"><i class="fas fa-shopping-cart text-primary"></i>
                     <sup><span id="cartBadge" class="badge badge-danger" style="width: 23px;">{% if nombreArticles is defined %}{{nombreArticles}}{% else %}0{% endif %}</span></sup>
@@ -213,6 +219,42 @@
 
 {# JS pour soumettre la sélection (scopée par produit) - POST AJAX + modal de confirmation #}
 <script>
+const userSelect = document.getElementById('targetUserSelect');
+if (userSelect) {
+    userSelect.addEventListener('change', function() {
+        const userId = this.value;
+
+        // Mettre à jour la session du user cible
+        fetch("{{ path('set_target_user') }}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ target_user_id: userId })
+        });
+
+        // Récupérer les points du user sélectionné
+        fetch("{{ path('ajax_get_user_points') }}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: userId })
+        })
+        .then(resp => resp.json())
+        .then(data => {
+            if (data.success) {
+                const totalEl = document.getElementById('totalPoints');
+                const inCartEl = document.getElementById('pointsInCart');
+                const remainingEl = document.getElementById('pointsRemaining');
+
+                if (totalEl) totalEl.textContent = data.pointsTotal + ' P';
+                if (inCartEl) inCartEl.textContent = data.pointsInCart + ' P';
+                if (remainingEl) remainingEl.textContent = data.pointsRemaining + ' P';
+            } else {
+                console.error(data.message);
+            }
+        })
+        .catch(console.error);
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function () {
   function showAjaxAlert(msg) {
     const a = document.getElementById('ajaxAlert');
@@ -273,6 +315,21 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
+  // quand l'admin change la cible, on met à jour la session côté serveur (ajax)
+  const targetSelect = document.getElementById('targetUserSelect');
+  if (targetSelect) {
+    targetSelect.addEventListener('change', function () {
+      fetch("{{ path('set_target_user') }}", {
+        method: 'POST',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ target_user_id: this.value || '' })
+      }).catch(e => console.error(e));
+    });
+  }
+
   document.querySelectorAll('.add-to-cart').forEach(function(button) {
     button.addEventListener('click', function () {
       const productId = this.dataset.id;
@@ -306,6 +363,12 @@ document.addEventListener('DOMContentLoaded', function () {
       formData.append('size', size);
       formData.append('color', color);
       formData.append('quantity', quantity);
+
+      // si un admin a sélectionné un utilisateur cible, on l'envoie aussi
+      const sel = document.getElementById('targetUserSelect');
+      if (sel && sel.value) {
+        formData.append('target_user_id', sel.value);
+      }
 
       fetch(url, {
         method: 'POST',

@@ -3,6 +3,27 @@
         <span class="fs-4">Dotation vestimentaire :</span>
     </a>
     <hr>
+
+    {# Affichage utilisateur + select admin uniquement sur la page catalogue #}
+    {% if active_link == 'catalogue' %}
+      <div class="mb-3">
+        <small class="text-muted">Connecté en tant :</small><br>
+        <strong>{{ currentUser ? currentUser.email : 'Invité' }}</strong>
+        <div class="small text-muted">Points : {{ currentUser ? currentUser.pointDotation : 0 }} P</div>
+        {% if is_granted('ROLE_ADMIN') %}
+          <div class="mt-2">
+            <small class="text-muted">Commander pour :</small>
+            <select id="targetUserSelect" class="form-control form-control-sm">
+              <option value="">-- Moi-même --</option>
+              {% for u in listeUsers %}
+                <option value="{{ u.id }}">{{ u.email }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        {% endif %}
+      </div>
+      <hr>
+    {% endif %}
     <ul class="nav nav-pills flex-column mb-auto">
         <li class="nav-item">
             <a href="/dota" class="nav-link {% if active_link == 'catalogue' %}active{% else %} link-dark {% endif %}" aria-current="page">

@@ -12,6 +12,7 @@ use App\Entity\dotation\Commande;
 use App\Entity\dotation\AssociationCommandeArticle;
 use App\Entity\dotation\AssociationCouleursArticle;
 use App\Entity\dotation\AssociationTaillesArticle;
+use App\Entity\User;
 
 // use App\Entity\Article;
 use Doctrine\ORM\EntityManagerInterface;
@@ -27,6 +28,7 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use DateTime;
 use Symfony\Component\HttpFoundation\Session\SessionInterface;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
+use Symfony\Component\HttpFoundation\JsonResponse;
 
 class DotationController extends AbstractController
 {
@@ -204,14 +206,21 @@ class DotationController extends AbstractController
                 $pointsInCart += $pt * $qty;
             }
 
-            return $this->render('dotation/index.html.twig', [
+            $params = [
                 'listeArticles' => $listeArticles,
                 'listeCouleurs' => $listeCouleurs,
                 'nombreArticles' => $nombreArticles,
                 'pointsInCart' => $pointsInCart,
                 'listeAssociationTaillesArticle' => $listeAssociationTaillesArticle,
                 'listeAssociationCouleursArticle' => $listeAssociationCouleursArticle,
-            ]);
+            ];
+
+            // si admin, fournir la liste des utilisateurs pour le select "commander pour"
+            if ($this->isGranted('ROLE_ADMIN')) {
+                $params['listeUsers'] = $entityManager->getRepository(User::class)->findAll();
+            }
+
+            return $this->render('dotation/index.html.twig', $params);
         }
 
         return $this->redirectToRoute('app_accueil');
@@ -353,6 +362,30 @@ class DotationController extends AbstractController
         
     }
 
+    #[Route('/dota/set-target-user', name: 'set_target_user', methods: ['POST'])]
+    public function setTargetUser(Request $request, SessionInterface $session, EntityManagerInterface $entityManager): Response
+    {
+        if (!$this->isGranted('ROLE_ADMIN')) {
+            return $this->json(['success' => false], 403);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $targetId = $data['target_user_id'] ?? null;
+
+        if (!$targetId) {
+            $session->remove('target_user_id');
+            return $this->json(['success' => true]);
+        }
+
+        $user = $entityManager->getRepository(User::class)->find($targetId);
+        if (!$user) {
+            return $this->json(['success' => false, 'message' => 'Utilisateur introuvable'], 404);
+        }
+
+        $session->set('target_user_id', $targetId);
+        return $this->json(['success' => true]);
+    }
+
     #[Route('/dota/addToCart', name: 'add_to_cart', methods: ['POST'])]
     public function addToCart(EntityManagerInterface $entityManager, Request $request, SessionInterface $session): Response
     {
@@ -361,8 +394,22 @@ class DotationController extends AbstractController
         $size = $request->request->get('size');
         $color = $request->request->get('color');
 
+        // Si admin, on peut travailler au nom d'un autre utilisateur (target_user_id)
+        $targetUser = null;
+        if ($this->isGranted('ROLE_ADMIN')) {
+            $targetId = $request->request->get('target_user_id') ?? $session->get('target_user_id');
+            if ($targetId) {
+                $targetUser = $entityManager->getRepository(User::class)->find($targetId);
+                if ($targetUser) {
+                    // mémoriser en session (si fourni via fetch ou select)
+                    $session->set('target_user_id', $targetId);
+                }
+            }
+        }
+
         $user = $this->getUser();
-        $userPoints = $user ? (int) $user->getPointDotation() : 0;
+        // points à utiliser : ceux de la cible si existante ET valide, sinon points de l'utilisateur connecté
+        $userPoints = $targetUser ? (int)$targetUser->getPointDotation() : ($user ? (int) $user->getPointDotation() : 0);
 
         $cart = $session->get('cart', []);
 
@@ -549,11 +596,18 @@ public function validerPanier(SessionInterface $session, EntityManagerInterface 
         return $this->redirectToRoute('app_panier_dota');
     }
 
+    // Si admin et une cible en session, on place la commande pour cet utilisateur
+    $targetId = $session->get('target_user_id');
+    $targetUser = null;
+    if ($this->isGranted('ROLE_ADMIN') && $targetId) {
+        $targetUser = $entityManager->getRepository(User::class)->find($targetId);
+    }
+
     date_default_timezone_set('Europe/Paris');
 
     // Créer une nouvelle commande
     $commande = new Commande();
-    $commande->setUserMail($user->getEmail());
+    $commande->setUserMail($targetUser ? $targetUser->getEmail() : $user->getEmail());
     $commande->setDate((new \DateTime())->format('Y-m-d H:i:s'));
     $commande->setNomEtat('Validée');
 
@@ -575,8 +629,11 @@ public function validerPanier(SessionInterface $session, EntityManagerInterface 
     // Sauvegarder la commande et ses associations
     $entityManager->flush();
 
-    // Vider le panier
+    // Vider le panier et éventuellement la cible
     $session->remove('cart');
+    if ($targetUser) {
+        $session->remove('target_user_id');
+    }
 
     $this->addFlash('success', 'Votre panier a été validé avec succès.');
     return $this->redirectToRoute('app_panier_dota');
@@ -818,5 +875,40 @@ public function validerPanier(SessionInterface $session, EntityManagerInterface 
         return $this->redirectToRoute('app_gestion_commandes_dota');
     }
 
-    // ...existing code...
+    #[Route('/dota/ajax/get_user_points', name: 'ajax_get_user_points', methods: ['POST'])]
+    public function getUserPoints(Request $request, EntityManagerInterface $entityManager, SessionInterface $session): JsonResponse
+    {
+        if (!$this->isGranted('ROLE_ADMIN')) {
+            return new JsonResponse(['success' => false, 'message' => 'Accès refusé'], 403);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $userId = $data['user_id'] ?? null;
+        if (!$userId) {
+            return new JsonResponse(['success' => false, 'message' => 'Utilisateur non spécifié'], 400);
+        }
+
+        $user = $entityManager->getRepository(User::class)->find($userId);
+        if (!$user) {
+            return new JsonResponse(['success' => false, 'message' => 'Utilisateur introuvable'], 404);
+        }
+
+        $pointsTotal = (int) $user->getPointDotation();
+
+        $cart = $session->get('cart', []);
+        $pointsInCart = 0;
+        foreach ($cart as $item) {
+            $pointsInCart += (int) $item['point'] * ((int) $item['quantite'] ?? 1);
+        }
+
+        $pointsRemaining = max($pointsTotal - $pointsInCart, 0);
+
+        return new JsonResponse([
+            'success' => true,
+            'pointsTotal' => $pointsTotal,
+            'pointsInCart' => $pointsInCart,
+            'pointsRemaining' => $pointsRemaining,
+        ]);
+    }
+
 }
