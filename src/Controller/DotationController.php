@@ -195,6 +195,7 @@ class DotationController extends AbstractController
 
             $listeAssociationTaillesArticle = $entityManager->getRepository(AssociationTaillesArticle::class)->findAll();
             $listeAssociationCouleursArticle = $entityManager->getRepository(AssociationCouleursArticle::class)->findAll();
+            $listeTypes = $entityManager->getRepository(Type::class)->findAll();
             $panier = $session->get('cart', []); 
             $nombreArticles = count($panier); 
 
@@ -210,6 +211,7 @@ class DotationController extends AbstractController
                 'listeArticles' => $listeArticles,
                 'listeCouleurs' => $listeCouleurs,
                 'nombreArticles' => $nombreArticles,
+                'listeTypes' => $listeTypes,
                 'pointsInCart' => $pointsInCart,
                 'listeAssociationTaillesArticle' => $listeAssociationTaillesArticle,
                 'listeAssociationCouleursArticle' => $listeAssociationCouleursArticle,

@@ -29,22 +29,34 @@
             </div>
          </div>
 
-        <div class="col-md-6" id="searchbar">
-            <div class="input-group">
-                <input type="text" class="form-control" placeholder="Search" aria-label="Search" aria-describedby="button-addon2">
-                <div class="input-group-append">
-                  <button class="btn btn-primary" type="button" id="button-addon2" disabled><i class="fas fa-search"></i></button>
-                </div>
+        <div class="col-md-5" id="searchbar">
+          <div class="input-group">
+            <input type="text" class="form-control" placeholder="Search" id="searchInput">
+            <div class="input-group-append">
+              <button class="btn btn-primary" type="button" disabled><i class="fas fa-search"></i></button>
             </div>
+          </div>
         </div>
 
-        <div class="col-md-3 d-flex justify-content-end align-items-center" id="icons">          
+        <div class="col-md-3">
+          <select id="typeFilter" class="form-control">
+            <option value="">-- Tous les types --</option>
+            {% for type in listeTypes|map(a => a.nom) %}
+              <option value="{{ type|lower }}">{{ type }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-1 d-flex justify-content-end align-items-center" id="icons">          
             <a href="/dota/panier" class="d-inline-block">
                 <div class="circle mr-2"><i class="fas fa-shopping-cart text-primary"></i>
                     <sup><span id="cartBadge" class="badge badge-danger" style="width: 23px;">{% if nombreArticles is defined %}{{nombreArticles}}{% else %}0{% endif %}</span></sup>
                 </div>
             </a>
         </div>
+
+        
+
     </div>
 </div>
 
@@ -136,7 +148,7 @@
         {% endif %}
 
         <div class="col-md-3 col-sm-6 mb-4">
-          <div class="card h-100" data-nom="{{ product.nom | lower }}">
+          <div class="card h-100" data-nom="{{ product.nom | lower }}" data-type="{{ product.nomType | lower }}">
             <p class="pl-2">{{ product.reference }}</p>
             <img class="card-img-top img-fluid"
                  src="{{ product.image is not empty ? asset('uploads/images/' ~ product.image) : asset('img/defaultimage.png') }}"
@@ -219,6 +231,52 @@
 
 {# JS pour soumettre la sélection (scopée par produit) - POST AJAX + modal de confirmation #}
 <script>
+document.addEventListener('DOMContentLoaded', function () {
+  const searchInput = document.getElementById('searchInput');
+  const typeFilter = document.getElementById('typeFilter');
+  const productCards = document.querySelectorAll('#products .card');
+
+function applyFilters() {
+  const search = searchInput.value.toLowerCase().trim();
+  const selectedType = typeFilter.value;
+
+  productCards.forEach(card => {
+    const nom = card.dataset.nom || '';
+    const type = card.dataset.type || '';
+
+    const matchSearch = nom.includes(search);
+    const matchType = !selectedType || type === selectedType;
+
+    if (matchSearch && matchType) {
+      card.closest('.col-md-3, .col-sm-6').style.display = '';
+    } else {
+      card.closest('.col-md-3, .col-sm-6').style.display = 'none';
+    }
+  });
+
+  // Vérifie les catégories
+  document.querySelectorAll('#products .w-100').forEach(categoryDiv => {
+    let hasVisible = false;
+    let sibling = categoryDiv.nextElementSibling;
+
+    while (sibling && !sibling.matches('.w-100')) {
+      if (sibling.style.display !== 'none') {
+        hasVisible = true;
+        break;
+      }
+      sibling = sibling.nextElementSibling;
+    }
+
+    categoryDiv.style.display = hasVisible ? '' : 'none';
+  });
+}
+
+
+  if (searchInput) searchInput.addEventListener('input', applyFilters);
+  if (typeFilter) typeFilter.addEventListener('change', applyFilters);
+});
+
+
 const userSelect = document.getElementById('targetUserSelect');
 if (userSelect) {
     userSelect.addEventListener('change', function() {
