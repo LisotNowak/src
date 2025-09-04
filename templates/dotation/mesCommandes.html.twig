@@ -37,7 +37,7 @@
             {% set commande = entry.commande %}
             <div class="card mb-3">
                 <div class="card-header">
-                    <strong>Commande #{{ commande.id }}</strong>
+                    <strong>Commande #{{ commande.id }} || {{ commande.userMail }}</strong>
                     <span class="float-right">{{ commande.date }}</span>
                     <div class="small text-muted">État : {{ commande.nomEtat }}</div>
                 </div>
