@@ -101,8 +101,8 @@ class RenderController extends AbstractController
         ]);
     }
 
-    #[Route('/api/users-by-group', name: 'api_users_by_group', methods: ['GET'])]
-    public function usersByGroup(Request $request, SqlServerService $sqlServerService): Response
+    #[Route('/nonpermanent/api/users-by-group', name: 'nonpermanent_api_users_by_group', methods: ['GET'])]
+    public function usersByGroupNonPermanent(Request $request, SqlServerService $sqlServerService): Response
     {
         $groupId = (int)$request->query->get('groupId');
         if (!$groupId) {
@@ -120,8 +120,8 @@ class RenderController extends AbstractController
         return $this->json($users);
     }
 
-    #[Route('/api/group-users-with-hours', name: 'api_group_users_with_hours', methods: ['GET'])]
-    public function groupUsersWithHours(Request $request, SqlServerService $sqlServerService): Response
+    #[Route('/nonpermanent/api/group-users-with-hours', name: 'nonpermanent_api_group_users_with_hours', methods: ['GET'])]
+    public function groupUsersWithHoursNonPermanent(Request $request, SqlServerService $sqlServerService): Response
     {
         $groupId = (int)$request->query->get('groupId');
         $week = $request->query->get('week');
@@ -131,8 +131,6 @@ class RenderController extends AbstractController
 
         [$startDate, $endDate] = $this->getStartAndEndDateFromIsoWeek($week);
 
-        // ❌ Avant : LEFT JOIN => renvoyait tout le monde
-        // ✅ Maintenant : INNER JOIN pour récupérer uniquement ceux qui ont des heures
         $users = $sqlServerService->query(
             "SELECT DISTINCT sw.Id AS SeasonalWorker_Id, sw.FirstName, sw.LastName
             FROM TimeEntryGroupSeasonalWorkers tge
@@ -152,8 +150,8 @@ class RenderController extends AbstractController
     }
 
 
-    #[Route('/api/save-time-entries', name: 'api_save_time_entries', methods: ['POST'])]
-    public function saveTimeEntries(Request $request, SqlServerService $sqlServerService): Response
+    #[Route('/nonpermanent/api/save-time-entries', name: 'nonpermanent_api_save_time_entries', methods: ['POST'])]
+    public function saveTimeEntriesNonPermanent(Request $request, SqlServerService $sqlServerService): Response
     {
         $data = json_decode($request->getContent(), true);
 
@@ -269,5 +267,157 @@ class RenderController extends AbstractController
             $start->format('Y-m-d\TH:i:s'),
             $end->format('Y-m-d\TH:i:s'),
         ];
+    }
+
+    #[Route('/permanent/api/users-by-group', name: 'permanent_api_users_by_group', methods: ['GET'])]
+    public function usersByGroupPermanent(Request $request, SqlServerService $sqlServerService): Response
+    {
+        $groupId = $request->query->get('groupId');
+        if (!$groupId) {
+            return $this->json([]);
+        }
+
+        $users = $sqlServerService->query(
+            "SELECT u.Id, u.FirstName, u.LastName
+             FROM AspNetUsers u
+             INNER JOIN TimeEntryGroupEmployees tge ON tge.Employee_Id = u.id
+             WHERE tge.TimeEntryGroup_Id = :groupId",
+            ['groupId' => $groupId]
+        );
+
+        return $this->json($users);
+    }
+
+    #[Route('/permanent/api/group-users-with-hours', name: 'permanent_api_group_users_with_hours', methods: ['GET'])]
+    public function groupUsersWithHoursPermanent(Request $request, SqlServerService $sqlServerService): Response
+    {
+        $groupId = $request->query->get('groupId');
+        $week = $request->query->get('week');
+        if (!$groupId || !$week) {
+            return $this->json([]);
+        }
+
+        // Récupère les dates de la semaine
+        [$startDate, $endDate] = $this->getStartAndEndDateFromIsoWeek($week);
+
+        // Récupère les utilisateurs du groupe ayant des heures saisies cette semaine
+        $users = $sqlServerService->query(
+            "SELECT u.Id, u.FirstName, u.LastName
+             FROM AspNetUsers u
+             INNER JOIN TimeEntryGroupEmployees tge ON tge.Employee_Id = u.id
+             INNER JOIN TimeEntries te ON te.Employee_Id = u.Id
+             WHERE tge.TimeEntryGroup_Id = :groupId
+             AND te.DateEntry >= :startDate AND te.DateEntry <= :endDate",
+            [
+                'groupId' => $groupId,
+                'startDate' => $startDate,
+                'endDate' => $endDate,
+            ]
+        );
+
+        return $this->json($users);
+    }
+
+    #[Route('/permanent/api/save-time-entries', name: 'permanent_api_save_time_entries', methods: ['POST'])]
+    public function saveTimeEntriesPermanent(Request $request, SqlServerService $sqlServerService): Response
+    {
+        $data = json_decode($request->getContent(), true);
+
+        if (!$data || !isset($data['groupId'], $data['week'], $data['heures'], $data['taskId'])) {
+            return $this->json(['error' => 'Paramètres manquants'], 400);
+        }
+
+        $taskId = $data['taskId']; // <-- Ajout
+
+        $groupId = $data['groupId'];
+        $week = $data['week'];
+        $heures = $data['heures'];
+
+        // Récupère les utilisateurs du groupe
+        $users = $sqlServerService->query(
+            "SELECT Employee_Id FROM TimeEntryGroupEmployees WHERE TimeEntryGroup_Id = :groupId",
+            ['groupId' => $groupId]
+        );
+
+        if (empty($users)) {
+            return $this->json(['error' => 'Aucun utilisateur dans ce groupe'], 400);
+        }
+
+        // Pour chaque utilisateur du groupe, insère les heures pour chaque jour
+        foreach ($users as $user) {
+            $employeeId = $user['Employee_Id'];
+            foreach ($heures as $jour) {
+                // Vérifie qu'il y a au moins une heure à enregistrer
+                $hasHours = false;
+                foreach ($jour as $key => $value) {
+                    if (in_array($key, [
+                        'HSaisie','HNorm','HRepComp','HCompl','HS10','HRepComp10','HS25','HRepComp25','HS50','HRepComp50','HS100','HRepComp100','RTT'
+                    ]) && $value !== null && $value !== '') {
+                        $hasHours = true;
+                        break;
+                    }
+                }
+                if (!$hasHours) continue;
+
+                // --- DEBUT TRANSACTION ---
+                $sqlServerService->beginTransaction();
+                try {
+                    // 1. INSERT TimeEntry
+                    $sqlServerService->execute(
+                        "INSERT INTO TimeEntries (
+                            Employee_Id, DateEntry, NbHoursNormal, NbHoursRecoveryTime, NbHoursAdd, NbHoursAdd10, NbHoursRecoveryTime10,
+                            NbHoursAdd25, NbHoursRecoveryTime25, NbHoursAdd50, NbHoursRecoveryTime50, NbHoursAdd100, NbHoursRecoveryTime100, NbHoursRtt
+                        ) VALUES (
+                            :employeeId, :dateEntry, :NbHoursNormal, :NbHoursRecoveryTime, :NbHoursAdd, :NbHoursAdd10, :NbHoursRecoveryTime10,
+                            :NbHoursAdd25, :NbHoursRecoveryTime25, :NbHoursAdd50, :NbHoursRecoveryTime50, :NbHoursAdd100, :NbHoursRecoveryTime100, :NbHoursRtt
+                        )",
+                        [
+                            'employeeId' => $employeeId,
+                            'dateEntry' => isset($jour['date']) && $jour['date'] ? (new \DateTime($jour['date']))->format('Ymd') : null,
+                            'NbHoursNormal' => $jour['HNorm'] ?? null,
+                            'NbHoursRecoveryTime' => $jour['HRepComp'] ?? null,
+                            'NbHoursAdd' => $jour['HCompl'] ?? null,
+                            'NbHoursAdd10' => $jour['HS10'] ?? null,
+                            'NbHoursRecoveryTime10' => $jour['HRepComp10'] ?? null,
+                            'NbHoursAdd25' => $jour['HS25'] ?? null,
+                            'NbHoursRecoveryTime25' => $jour['HRepComp25'] ?? null,
+                            'NbHoursAdd50' => $jour['HS50'] ?? null,
+                            'NbHoursRecoveryTime50' => $jour['HRepComp50'] ?? null,
+                            'NbHoursAdd100' => $jour['HS100'] ?? null,
+                            'NbHoursRecoveryTime100' => $jour['HRepComp100'] ?? null,
+                            'NbHoursRtt' => $jour['RTT'] ?? null,
+                        ]
+                    );
+                    // 2. Récupère l'ID du dernier TimeEntry inséré
+                    $timeEntryIdResult = $sqlServerService->query("SELECT SCOPE_IDENTITY() AS TimeEntryId");
+                    error_log('timeEntryIdResult: ' . print_r($timeEntryIdResult, true));
+                    $timeEntryId = $sqlServerService->lastInsertId();
+                    error_log('timeEntryId: ' . $timeEntryId);
+                    if ($timeEntryId) {
+                        $nbHours = $jour['HSaisie'] ?? 0;
+                        $sqlServerService->execute(
+                            "INSERT INTO TimeEntryVentilations (
+                                NbHours, Comments, TimeEntry_Id, Task_Id, Parcelle_Id, Millesim_Id, IsBonus, WineAppellation_Id
+                            ) VALUES (
+                                :nbHours, :comments, :timeEntryId, :taskId, NULL, 1, 0, NULL
+                            )",
+                            [
+                                'nbHours' => $nbHours,
+                                'comments' => null,
+                                'timeEntryId' => $timeEntryId,
+                                'taskId' => $taskId, // <-- Utilise la même tâche pour toute la semaine
+                            ]
+                        );
+                    }
+                    $sqlServerService->commit();
+                } catch (\Throwable $e) {
+                    $sqlServerService->rollBack();
+                    throw $e;
+                }
+                // --- FIN TRANSACTION ---
+            }
+        }
+
+        return $this->json(['success' => true]);
     }
 }

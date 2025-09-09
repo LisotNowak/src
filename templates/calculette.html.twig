@@ -58,6 +58,10 @@
 
 
 <div class="container mt-5">
+    <div class="form-check form-switch mb-3">
+    <input class="form-check-input" type="checkbox" id="permanentSwitch">
+    <label class="form-check-label" for="permanentSwitch">Permanent</label>
+    </div>
 
     <form class="mb-3" method="get" action="">
         <label for="groupDisplay">Choisir un groupe :</label>
@@ -255,6 +259,20 @@
 {% block javascripts %}
 <script src="{{ asset('js/calculette.js') }}"></script>
 <script>
+// === Gestion du switch permanent / non permanent ===
+let apiPrefix = "nonpermanent"; // défaut
+
+document.getElementById("permanentSwitch").addEventListener("change", function() {
+    apiPrefix = this.checked ? "permanent" : "nonpermanent";
+    console.log("Préfixe API actif :", apiPrefix);
+});
+
+// Helper pour générer les URLs API
+function apiUrl(path) {
+    return `/${apiPrefix}${path}`;
+}
+
+// === Formulaire groupe ===
 document.querySelector('form.mb-3').addEventListener('submit', async function(e) {
     e.preventDefault();
 
@@ -266,59 +284,47 @@ document.querySelector('form.mb-3').addEventListener('submit', async function(e)
         return;
     }
 
-    // Vérifie si des membres du groupe ont déjà des heures
-    const resp = await fetch(`/api/group-users-with-hours?groupId=${groupId}&week=${week}`);
+    const resp = await fetch(apiUrl(`/api/group-users-with-hours?groupId=${groupId}&week=${week}`));
     const usersWithHours = await resp.json();
 
     if (usersWithHours.length > 0) {
-
         document.getElementById('tableau-heures').innerHTML = 'Tableau des Heures (Non-modifiable, car la semaine est déjà renseignée dans NIC)';
-        document.querySelectorAll('.HSaisie').forEach(function(element) {
-        element.disabled = true;
+        document.querySelectorAll('.HSaisie').forEach(el => el.disabled = true);
         document.getElementsByClassName('dimancheHSaisie')[0].disabled = true;
-        });
 
         let msg = "Les membres suivants ont déjà des heures saisies dans NIC pour cette semaine :\n";
         msg += usersWithHours.map(u => `${u.FirstName} ${u.LastName}`).join('\n');
         alert(msg);
         return;
-    }else{
+    } else {
         document.getElementById('tableau-heures').innerHTML = 'Tableau des Heures (modifiable)';
-        document.querySelectorAll('.HSaisie').forEach(function(element) {
-        element.disabled = false;
+        document.querySelectorAll('.HSaisie').forEach(el => el.disabled = false);
         document.getElementsByClassName('dimancheHSaisie')[0].disabled = false;
-        });
     }
-
-    
-    
 });
 
+// === Sélection du groupe ===
 document.getElementById('groupDisplay').addEventListener('input', function () {
     const input = this;
     const datalist = document.getElementById('groupList');
     const hidden = document.getElementById('selectedgroupId');
-    const option = Array.from(datalist.options).find(
-        opt => opt.value === input.value
-    );
+    const option = Array.from(datalist.options).find(opt => opt.value === input.value);
     hidden.value = option ? option.dataset.id : '';
 
-    // Si un groupe est sélectionné, charger les users en AJAX
     if (hidden.value) {
-        fetch('/api/users-by-group?groupId=' + hidden.value)
+        fetch(apiUrl('/api/users-by-group?groupId=' + hidden.value))
             .then(response => response.json())
             .then(users => {
-                const userList = document.getElementById('userList');
+                console.log("Users chargés :", users);
             });
     }
 });
 
-
-
+// === Envoi des heures ===
 document.getElementById('envoyerHeuresBtn').addEventListener('click', async function() {
     const groupId = document.getElementById('selectedgroupId').value;
     const week = document.getElementById('selectedWeek').value;
-    const taskId = document.getElementById('selectedTask').value; // <-- Ajout
+    const taskId = document.getElementById('selectedTask').value;
 
     const jours = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
 
@@ -326,22 +332,15 @@ document.getElementById('envoyerHeuresBtn').addEventListener('click', async func
         const jours = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
         const dayIndex = jours.indexOf(day);
         if (dayIndex === -1) return null;
-
-        // week = "2025-W28"
         const [year, weekNum] = week.split('-W');
-        // Calcul du lundi de la semaine ISO
         const date = new Date(Date.UTC(year, 0, 1 + (weekNum - 1) * 7));
-        // Ajuste pour tomber sur le lundi
         const dayOfWeek = date.getUTCDay();
         const ISOweekStart = date;
         if (dayOfWeek <= 4)
             ISOweekStart.setUTCDate(date.getUTCDate() - date.getUTCDay() + 1);
         else
             ISOweekStart.setUTCDate(date.getUTCDate() + 8 - date.getUTCDay());
-        // Ajoute l'offset du jour
         ISOweekStart.setUTCDate(ISOweekStart.getUTCDate() + dayIndex);
-
-        // Format YYYY-MM-DD
         return ISOweekStart.toISOString().slice(0, 10);
     }
 
@@ -363,11 +362,9 @@ document.getElementById('envoyerHeuresBtn').addEventListener('click', async func
         RTT: document.getElementById(`${jour}RTT`)?.value || null,
     }));
 
-    const data = { groupId, week, taskId, heures }; // <-- Ajout taskId
+    const data = { groupId, week, taskId, heures };
 
-    console.log('Données à envoyer :', data);
-
-    const resp = await fetch('/api/save-time-entries', {
+    const resp = await fetch(apiUrl('/api/save-time-entries'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -380,17 +377,12 @@ document.getElementById('envoyerHeuresBtn').addEventListener('click', async func
     }
 });
 
+// === Gestion saisonnier ===
 function toggleSaisonnierMode(isSaisonnier) {
     const repCompSelectors = [
-        'HRepComp',
-        'HRepComp10',
-        'HRepComp25',
-        'HRepComp50',
-        'HRepComp100'
+        'HRepComp','HRepComp10','HRepComp25','HRepComp50','HRepComp100'
     ];
-
     const jours = ['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'];
-
     jours.forEach(jour => {
         repCompSelectors.forEach(suffix => {
             const input = document.getElementById(`${jour}${suffix}`);
@@ -406,17 +398,14 @@ function toggleSaisonnierMode(isSaisonnier) {
     });
 }
 
-// Appliquer au chargement initial
 document.addEventListener('DOMContentLoaded', function() {
     toggleSaisonnierMode(document.getElementById('saisonnierCheckbox').checked);
 });
 
-// Appliquer au changement de la checkbox
 document.getElementById('saisonnierCheckbox').addEventListener('change', function() {
     toggleSaisonnierMode(this.checked);
-    calcul(); // Recalculer automatiquement
+    calcul();
 });
-
 </script>
 {% endblock %}
 
