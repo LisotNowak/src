@@ -91,7 +91,7 @@
     </form>
 
     <div class="form-check mb-3">
-        <input class="form-check-input" type="checkbox" value="" id="saisonnierCheckbox" checked>
+        <input class="form-check-input" type="checkbox" value="" id="saisonnierCheckbox" checked disabled>
         <label class="form-check-label" for="saisonnierCheckbox">
             Saisonnier
         </label>
@@ -265,7 +265,23 @@ let apiPrefix = "nonpermanent"; // défaut
 document.getElementById("permanentSwitch").addEventListener("change", function() {
     apiPrefix = this.checked ? "permanent" : "nonpermanent";
     console.log("Préfixe API actif :", apiPrefix);
+
+    const saisonnier = document.getElementById("saisonnierCheckbox");
+
+    if (this.checked) {
+        // Permanent activé → Saisonnier décoché
+        saisonnier.checked = false;
+        toggleSaisonnierMode(false);
+    } else {
+        // Permanent désactivé → Saisonnier coché
+        saisonnier.checked = true;
+        toggleSaisonnierMode(true);
+    }
+
+    calcul(); // si besoin pour relancer le calcul
 });
+
+
 
 // Helper pour générer les URLs API
 function apiUrl(path) {
