@@ -3,60 +3,40 @@
 namespace App\Controller;
 
 use DateTimeImmutable;
-use DateTimeInterface;
 use App\Service\SqlServerService;
-use App\Entity\Product;
-use App\Entity\Droit;
-use App\Entity\AssociationDroitUser;
 use Doctrine\ORM\EntityManagerInterface;
-use App\Service\EventService;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\Security\Http\Authentication\AuthenticationUtils;
-use GuzzleHttp\Client;
-use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use DateTime;
-use Symfony\Component\Security\Core\Security;
 
 class RenderController extends AbstractController
 {
     #[Route('/', name: 'app_accueil')]
     public function number(): Response
     {
-
         return $this->render('accueil.html.twig');
     }
 
     #[Route('/signature', name: 'app_signature')]
     public function signature(): Response
     {
-
         return $this->render('signature.html.twig');
     }
 
     #[Route('/organigramme', name: 'app_organigramme')]
     public function organigramme(): Response
     {
-
         return $this->render('organigramme/organigramme.html.twig');
     }
-    
-    // private Security $security;
-
-    // public function __construct(Security $security)
-    // {
-    //     $this->security = $security;
-    // }
 
     #[Route('/calculette', name: 'app_calculette')]
     public function calculette(SqlServerService $sqlServerService): Response
     {
         if ($this->isGranted('IS_AUTHENTICATED_FULLY')) {
             $groups = $sqlServerService->query("SELECT * FROM TimeEntryGroups");
-            $tasks = $sqlServerService->query("SELECT Id, Label FROM Tasks WHERE PossibleTimeEntry = 1"); // Filtre si besoin
+            $tasks = $sqlServerService->query("SELECT Id, Label FROM Tasks WHERE PossibleTimeEntry = 1");
 
             return $this->render('calculette.html.twig', [
                 'groups' => $groups,
@@ -64,7 +44,6 @@ class RenderController extends AbstractController
             ]);
         }
         return $this->redirectToRoute('app_accueil');
-
     }
 
     #[Route('/calculette/resultat', name: 'app_calculette_resultat', methods: ['GET'])]
@@ -78,19 +57,17 @@ class RenderController extends AbstractController
         }
 
         $userResults = $sqlServerService->query(
-            "SELECT * FROM AspNetUsers WHERE Id = :id", 
-            ['id' => $userId]
+            "SELECT Id, FirstName, LastName FROM SeasonalWorkers WHERE Id = :id",
+            ['id' => (int)$userId]
         );
         $user = $userResults[0] ?? null;
 
         if (!$user) {
-            throw $this->createNotFoundException("Utilisateur non trouvé.");
+            throw $this->createNotFoundException("Travailleur saisonnier non trouvé.");
         }
 
-        // Obtenir les dates de début et fin de semaine
         [$startDate, $endDate] = $this->getStartAndEndDateFromIsoWeek($week);
 
-        // Calculer les dates de chaque jour de la semaine
         $weekDates = [];
         $currentDate = new DateTime($startDate);
         for ($i = 0; $i < 7; $i++) {
@@ -104,12 +81,12 @@ class RenderController extends AbstractController
             AND DateEntry >= :startDate 
             AND DateEntry <= :endDate
         ", [
-            'userId' => $userId,
+            'userId' => (int)$userId,
             'startDate' => $startDate,
             'endDate' => $endDate,
         ]);
 
-        $users = $sqlServerService->query("SELECT * FROM AspNetUsers");
+        $users = $sqlServerService->query("SELECT Id, FirstName, LastName FROM SeasonalWorkers");
 
         return $this->render('calculette.html.twig', [
             'users' => $users,
@@ -119,7 +96,7 @@ class RenderController extends AbstractController
             'weekDates' => $weekDates,
             'startDate' => $startDate,
             'endDate' => $endDate,
-            'selectedGroupId' => $request->query->get('group'), // ou le nom de ton paramètre
+            'selectedGroupId' => $request->query->get('group'),
             'selectedUserId' => $userId,
         ]);
     }
@@ -127,16 +104,16 @@ class RenderController extends AbstractController
     #[Route('/api/users-by-group', name: 'api_users_by_group', methods: ['GET'])]
     public function usersByGroup(Request $request, SqlServerService $sqlServerService): Response
     {
-        $groupId = $request->query->get('groupId');
+        $groupId = (int)$request->query->get('groupId');
         if (!$groupId) {
             return $this->json([]);
         }
 
         $users = $sqlServerService->query(
-            "SELECT u.Id, u.FirstName, u.LastName
-             FROM AspNetUsers u
-             INNER JOIN TimeEntryGroupEmployees tge ON tge.Employee_Id = u.id
-             WHERE tge.TimeEntryGroup_Id = :groupId",
+            "SELECT sw.Id AS Employee_Id, sw.FirstName, sw.LastName
+            FROM TimeEntryGroupSeasonalWorkers tge
+            INNER JOIN SeasonalWorkers sw ON sw.Id = tge.SeasonalWorker_Id
+            WHERE tge.TimeEntryGroup_Id = :groupId",
             ['groupId' => $groupId]
         );
 
@@ -146,23 +123,24 @@ class RenderController extends AbstractController
     #[Route('/api/group-users-with-hours', name: 'api_group_users_with_hours', methods: ['GET'])]
     public function groupUsersWithHours(Request $request, SqlServerService $sqlServerService): Response
     {
-        $groupId = $request->query->get('groupId');
+        $groupId = (int)$request->query->get('groupId');
         $week = $request->query->get('week');
         if (!$groupId || !$week) {
             return $this->json([]);
         }
 
-        // Récupère les dates de la semaine
         [$startDate, $endDate] = $this->getStartAndEndDateFromIsoWeek($week);
 
-        // Récupère les utilisateurs du groupe ayant des heures saisies cette semaine
+        // ❌ Avant : LEFT JOIN => renvoyait tout le monde
+        // ✅ Maintenant : INNER JOIN pour récupérer uniquement ceux qui ont des heures
         $users = $sqlServerService->query(
-            "SELECT u.Id, u.FirstName, u.LastName
-             FROM AspNetUsers u
-             INNER JOIN TimeEntryGroupEmployees tge ON tge.Employee_Id = u.id
-             INNER JOIN TimeEntries te ON te.Employee_Id = u.Id
-             WHERE tge.TimeEntryGroup_Id = :groupId
-             AND te.DateEntry >= :startDate AND te.DateEntry <= :endDate",
+            "SELECT DISTINCT sw.Id AS SeasonalWorker_Id, sw.FirstName, sw.LastName
+            FROM TimeEntryGroupSeasonalWorkers tge
+            INNER JOIN SeasonalWorkers sw ON sw.Id = tge.SeasonalWorker_Id
+            INNER JOIN TimeEntries te ON te.SeasonalWorker_Id = sw.Id
+            WHERE tge.TimeEntryGroup_Id = :groupId
+            AND te.DateEntry >= :startDate
+            AND te.DateEntry <= :endDate",
             [
                 'groupId' => $groupId,
                 'startDate' => $startDate,
@@ -173,6 +151,7 @@ class RenderController extends AbstractController
         return $this->json($users);
     }
 
+
     #[Route('/api/save-time-entries', name: 'api_save_time_entries', methods: ['POST'])]
     public function saveTimeEntries(Request $request, SqlServerService $sqlServerService): Response
     {
@@ -182,15 +161,16 @@ class RenderController extends AbstractController
             return $this->json(['error' => 'Paramètres manquants'], 400);
         }
 
-        $taskId = $data['taskId']; // <-- Ajout
-
-        $groupId = $data['groupId'];
+        $taskId = $data['taskId'];
+        $groupId = (int)$data['groupId'];
         $week = $data['week'];
         $heures = $data['heures'];
 
-        // Récupère les utilisateurs du groupe
         $users = $sqlServerService->query(
-            "SELECT Employee_Id FROM TimeEntryGroupEmployees WHERE TimeEntryGroup_Id = :groupId",
+            "SELECT sw.Id AS Employee_Id, sw.FirstName, sw.LastName
+            FROM TimeEntryGroupSeasonalWorkers tge
+            INNER JOIN SeasonalWorkers sw ON sw.Id = tge.SeasonalWorker_Id
+            WHERE tge.TimeEntryGroup_Id = :groupId",
             ['groupId' => $groupId]
         );
 
@@ -198,15 +178,14 @@ class RenderController extends AbstractController
             return $this->json(['error' => 'Aucun utilisateur dans ce groupe'], 400);
         }
 
-        // Pour chaque utilisateur du groupe, insère les heures pour chaque jour
         foreach ($users as $user) {
-            $employeeId = $user['Employee_Id'];
+            $employeeId = (int)$user['Employee_Id'];
             foreach ($heures as $jour) {
-                // Vérifie qu'il y a au moins une heure à enregistrer
                 $hasHours = false;
                 foreach ($jour as $key => $value) {
                     if (in_array($key, [
-                        'HSaisie','HNorm','HRepComp','HCompl','HS10','HRepComp10','HS25','HRepComp25','HS50','HRepComp50','HS100','HRepComp100','RTT'
+                        'HSaisie','HNorm','HRepComp','HCompl','HS10','HRepComp10','HS25','HRepComp25',
+                        'HS50','HRepComp50','HS100','HRepComp100','RTT'
                     ]) && $value !== null && $value !== '') {
                         $hasHours = true;
                         break;
@@ -214,20 +193,18 @@ class RenderController extends AbstractController
                 }
                 if (!$hasHours) continue;
 
-                // --- DEBUT TRANSACTION ---
                 $sqlServerService->beginTransaction();
                 try {
-                    // 1. INSERT TimeEntry
                     $sqlServerService->execute(
                         "INSERT INTO TimeEntries (
-                            Employee_Id, DateEntry, NbHoursNormal, NbHoursRecoveryTime, NbHoursAdd, NbHoursAdd10, NbHoursRecoveryTime10,
+                            SeasonalWorker_Id, DateEntry, NbHoursNormal, NbHoursRecoveryTime, NbHoursAdd, NbHoursAdd10, NbHoursRecoveryTime10,
                             NbHoursAdd25, NbHoursRecoveryTime25, NbHoursAdd50, NbHoursRecoveryTime50, NbHoursAdd100, NbHoursRecoveryTime100, NbHoursRtt
                         ) VALUES (
-                            :employeeId, :dateEntry, :NbHoursNormal, :NbHoursRecoveryTime, :NbHoursAdd, :NbHoursAdd10, :NbHoursRecoveryTime10,
+                            :seasonalWorkerId, :dateEntry, :NbHoursNormal, :NbHoursRecoveryTime, :NbHoursAdd, :NbHoursAdd10, :NbHoursRecoveryTime10,
                             :NbHoursAdd25, :NbHoursRecoveryTime25, :NbHoursAdd50, :NbHoursRecoveryTime50, :NbHoursAdd100, :NbHoursRecoveryTime100, :NbHoursRtt
                         )",
                         [
-                            'employeeId' => $employeeId,
+                            'seasonalWorkerId' => $employeeId, // ici ton $user['Employee_Id'] correspond en fait à sw.Id
                             'dateEntry' => isset($jour['date']) && $jour['date'] ? (new \DateTime($jour['date']))->format('Ymd') : null,
                             'NbHoursNormal' => $jour['HNorm'] ?? null,
                             'NbHoursRecoveryTime' => $jour['HRepComp'] ?? null,
@@ -243,11 +220,10 @@ class RenderController extends AbstractController
                             'NbHoursRtt' => $jour['RTT'] ?? null,
                         ]
                     );
-                    // 2. Récupère l'ID du dernier TimeEntry inséré
-                    $timeEntryIdResult = $sqlServerService->query("SELECT SCOPE_IDENTITY() AS TimeEntryId");
-                    error_log('timeEntryIdResult: ' . print_r($timeEntryIdResult, true));
+
+
                     $timeEntryId = $sqlServerService->lastInsertId();
-                    error_log('timeEntryId: ' . $timeEntryId);
+
                     if ($timeEntryId) {
                         $nbHours = $jour['HSaisie'] ?? 0;
                         $sqlServerService->execute(
@@ -260,7 +236,7 @@ class RenderController extends AbstractController
                                 'nbHours' => $nbHours,
                                 'comments' => null,
                                 'timeEntryId' => $timeEntryId,
-                                'taskId' => $taskId, // <-- Utilise la même tâche pour toute la semaine
+                                'taskId' => $taskId,
                             ]
                         );
                     }
@@ -269,7 +245,6 @@ class RenderController extends AbstractController
                     $sqlServerService->rollBack();
                     throw $e;
                 }
-                // --- FIN TRANSACTION ---
             }
         }
 
@@ -278,7 +253,7 @@ class RenderController extends AbstractController
 
     private function getStartAndEndDateFromIsoWeek(string $isoWeek): array
     {
-        $isoWeek = str_replace('-W', '', $isoWeek); // ex: "2025-W17" → "202517"
+        $isoWeek = str_replace('-W', '', $isoWeek);
 
         $date = new DateTimeImmutable();
         $date = $date->setISODate(substr($isoWeek, 0, 4), substr($isoWeek, 4, 2));
@@ -287,13 +262,12 @@ class RenderController extends AbstractController
             throw new \InvalidArgumentException("Format de semaine invalide : $isoWeek");
         }
 
-        $start = $date->setTime(0, 0, 0); // Lundi
-        $end = $start->modify('sunday this week')->setTime(23, 59, 59); // Dimanche
+        $start = $date->setTime(0, 0, 0);
+        $end = $start->modify('sunday this week')->setTime(23, 59, 59);
 
         return [
             $start->format('Y-m-d\TH:i:s'),
             $end->format('Y-m-d\TH:i:s'),
         ];
     }
-
 }
