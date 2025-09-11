@@ -193,6 +193,10 @@ class RenderController extends AbstractController
 
                 $sqlServerService->beginTransaction();
                 try {
+
+                    // Debug NbHoursNormal avant insert
+                    error_log('Jour: ' . ($jour['date'] ?? 'inconnu') . ' - NbHoursNormal = ' . ($jour['HNorm'] ?? 0));
+                    
                     $sqlServerService->execute(
                         "INSERT INTO TimeEntries (
                             SeasonalWorker_Id, DateEntry, NbHoursNormal, NbHoursRecoveryTime, NbHoursAdd, NbHoursAdd10, NbHoursRecoveryTime10,
@@ -204,7 +208,7 @@ class RenderController extends AbstractController
                         [
                             'seasonalWorkerId' => $employeeId, // ici ton $user['Employee_Id'] correspond en fait à sw.Id
                             'dateEntry' => isset($jour['date']) && $jour['date'] ? (new \DateTime($jour['date']))->format('Ymd') : null,
-                            'NbHoursNormal' => $jour['HNorm'] ?? null,
+                            'NbHoursNormal' => $jour['HNorm'] ?: 0,
                             'NbHoursRecoveryTime' => $jour['HRepComp'] ?? null,
                             'NbHoursAdd' => $jour['HCompl'] ?? null,
                             'NbHoursAdd10' => $jour['HS10'] ?? null,
@@ -362,6 +366,10 @@ class RenderController extends AbstractController
                 // --- DEBUT TRANSACTION ---
                 $sqlServerService->beginTransaction();
                 try {
+
+                    // Debug NbHoursNormal avant insert
+                    error_log('Jour: ' . ($jour['date'] ?? 'inconnu') . ' - NbHoursNormal = ' . ($jour['HNorm'] ?? 0));
+
                     // 1. INSERT TimeEntry
                     $sqlServerService->execute(
                         "INSERT INTO TimeEntries (
@@ -374,7 +382,7 @@ class RenderController extends AbstractController
                         [
                             'employeeId' => $employeeId,
                             'dateEntry' => isset($jour['date']) && $jour['date'] ? (new \DateTime($jour['date']))->format('Ymd') : null,
-                            'NbHoursNormal' => $jour['HNorm'] ?? null,
+                            'NbHoursNormal' => $jour['HNorm'] ?: 0,
                             'NbHoursRecoveryTime' => $jour['HRepComp'] ?? null,
                             'NbHoursAdd' => $jour['HCompl'] ?? null,
                             'NbHoursAdd10' => $jour['HS10'] ?? null,
