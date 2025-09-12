@@ -8,12 +8,13 @@ function calcul() {
     let totalHSaisie = 0;
     let totalHNorm = 0;
     let totalH25 = 0;
-    let totalHRepComp = 0; // somme globale HRepComp
+    let totalHRepComp = 0; 
+    let totalHCompl = 0;
 
     // Réinitialisation de tous les champs calculés
     const allHSaisieInputs = document.getElementsByClassName("HSaisie");
     const allCalculatedFields = document.querySelectorAll(
-        ".HNorm, .HS25, .HS50, .HRepComp, .dimancheHRepComp"
+        ".HNorm, .HS25, .HS50, .HCompl, .HRepComp, .dimancheHRepComp"
     );
 
     allCalculatedFields.forEach(field => {
@@ -22,7 +23,7 @@ function calcul() {
 
     const isSaisonnier = document.getElementById("saisonnierCheckbox")?.checked;
 
-    let lastRowWithHSaisie = null; // pour savoir où mettre le total final
+    let lastRowWithHSaisie = null; 
 
     // Parcourir les entrées pour effectuer le calcul
     for (let InputHSaisie of allHSaisieInputs) {
@@ -33,10 +34,9 @@ function calcul() {
             totalHSaisie += hSaisie;
 
             if (hSaisie > 0) {
-                lastRowWithHSaisie = InputHSaisie.closest("tr"); // mémorise la dernière ligne
+                lastRowWithHSaisie = InputHSaisie.closest("tr");
             }
 
-            // Vérifier si le total dépasse 60h
             if (totalHSaisie > 60) {
                 const alertModal = new bootstrap.Modal(document.getElementById('alertModal'));
                 alertModal.show();
@@ -47,6 +47,7 @@ function calcul() {
             // Réinitialiser les champs du jour
             document.getElementById(jour + "HS25").value = "";
             document.getElementById(jour + "HS50").value = "";
+            document.getElementById(jour + "HCompl").value = "";
 
             // Calcul heures normales et supplémentaires
             if (totalHSaisie > 35) {
@@ -74,6 +75,15 @@ function calcul() {
                     } else {
                         document.getElementById(jour + "HS50").value = hSaisie;
                     }
+
+                    // === Calcul HCompl (au fil des jours) ===
+                    if (totalHSaisie >= 57) {
+                        let hComplJour = 0;
+                        hComplJour += (56 - 48) * 0.25;   // tranche 49-56
+                        hComplJour += (totalHSaisie - 56) * 0.5; // au-delà de 56
+                        document.getElementById(jour + "HCompl").value = hComplJour.toFixed(2);
+                        totalHCompl += hComplJour;
+                    }
                 }
             } else {
                 document.getElementById(jour + "HNorm").value = hSaisie;
@@ -88,22 +98,30 @@ function calcul() {
         if (totalHSaisie >= 49 && totalHSaisie <= 56) {
             totalHRepComp = (totalHSaisie - 48) * 0.25;
         } else if (totalHSaisie >= 57 && totalHSaisie <= 60) {
-            totalHRepComp = (56 - 48) * 0.25;         // 49h à 56h
-            totalHRepComp += (totalHSaisie - 56) * 0.5; // 57h+
+            totalHRepComp = (56 - 48) * 0.25;
+            totalHRepComp += (totalHSaisie - 56) * 0.5;
         }
 
-        // Ajouter toutes les heures du dimanche
+        // Ajouter heures du dimanche
         let hDimanche = parseFloat(document.querySelector(".dimancheHSaisie")?.value) || 0;
         if (hDimanche > 0) {
             totalHRepComp += hDimanche;
         }
 
-        // Mettre uniquement dans la dernière ligne avec HSaisie > 0
+        // Affichage uniquement sur la dernière ligne
         if (lastRowWithHSaisie) {
-            let targetInput = lastRowWithHSaisie.querySelector(".HRepComp");
-            if (targetInput) {
-                targetInput.value = totalHRepComp.toFixed(2);
+            let targetRepComp = lastRowWithHSaisie.querySelector(".HRepComp");
+            if (targetRepComp) {
+                targetRepComp.value = totalHRepComp.toFixed(2);
             }
+        }
+    }
+
+    // === Total HCompl sur la dernière ligne ===
+    if (lastRowWithHSaisie) {
+        let targetCompl = lastRowWithHSaisie.querySelector(".HCompl");
+        if (targetCompl) {
+            targetCompl.value = totalHCompl.toFixed(2);
         }
     }
 
