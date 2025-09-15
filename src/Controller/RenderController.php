@@ -31,20 +31,47 @@ class RenderController extends AbstractController
         return $this->render('organigramme/organigramme.html.twig');
     }
 
-    #[Route('/calculette', name: 'app_calculette')]
+    #[Route('/calculette/user', name: 'app_calculette_user')]
     public function calculette(SqlServerService $sqlServerService): Response
     {
         if ($this->isGranted('IS_AUTHENTICATED_FULLY')) {
             $groups = $sqlServerService->query("SELECT * FROM TimeEntryGroups");
             $tasks = $sqlServerService->query("SELECT Id, Label FROM Tasks WHERE PossibleTimeEntry = 1");
 
-            return $this->render('calculette.html.twig', [
+            // Récupérer les utilisateurs
+            $users = $sqlServerService->query(
+                "SELECT Id, FirstName, LastName
+                FROM AspNetUsers"
+            );
+
+            return $this->render('calculette/user.html.twig', [
                 'groups' => $groups,
                 'tasks' => $tasks,
+                'users' => $users,
             ]);
         }
         return $this->redirectToRoute('app_accueil');
     }
+
+    #[Route('/calculette', name: 'app_calculette_equipe')]
+    public function calculette_equipe(SqlServerService $sqlServerService): Response
+    {
+        if ($this->isGranted('IS_AUTHENTICATED_FULLY')) {
+            // Récupérer les groupes
+            $groups = $sqlServerService->query("SELECT * FROM TimeEntryGroups");
+
+            // Récupérer les tâches
+            $tasks = $sqlServerService->query("SELECT Id, Label FROM Tasks WHERE PossibleTimeEntry = 1");
+
+            return $this->render('calculette/equipe.html.twig', [
+                'groups' => $groups,
+                'tasks' => $tasks,
+            ]);
+        }
+
+        return $this->redirectToRoute('app_accueil');
+    }
+
 
     #[Route('/calculette/resultat', name: 'app_calculette_resultat', methods: ['GET'])]
     public function calculetteResultat(Request $request, SqlServerService $sqlServerService): Response
@@ -88,7 +115,7 @@ class RenderController extends AbstractController
 
         $users = $sqlServerService->query("SELECT Id, FirstName, LastName FROM SeasonalWorkers");
 
-        return $this->render('calculette.html.twig', [
+        return $this->render('calculette/equipe.html.twig', [
             'users' => $users,
             'user' => $user,
             'week' => $week,
@@ -428,4 +455,240 @@ class RenderController extends AbstractController
 
         return $this->json(['success' => true]);
     }
+
+   #[Route('/nonpermanent/api/user-with-hours', name: 'nonpermanent_api_user_with_hours', methods: ['GET'])]
+public function userWithHoursNonPermanent(Request $request, SqlServerService $sqlServerService): Response
+{
+    $userId = (int)$request->query->get('userId');
+    $week = $request->query->get('week');
+
+    if (!$userId || !$week) {
+        return $this->json([]);
+    }
+
+    [$startDate, $endDate] = $this->getStartAndEndDateFromIsoWeek($week);
+
+    $entries = $sqlServerService->query(
+        "SELECT * FROM TimeEntries
+         WHERE SeasonalWorker_Id = :userId
+           AND DateEntry >= :startDate
+           AND DateEntry <= :endDate",
+        [
+            'userId' => $userId,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+        ]
+    );
+
+    return $this->json($entries);
+}
+
+#[Route('/nonpermanent/api/save-time-entries', name: 'nonpermanent_api_save_time_entries_user', methods: ['POST'])]
+public function saveTimeEntriesUserNonPermanent(Request $request, SqlServerService $sqlServerService): Response
+{
+    $data = json_decode($request->getContent(), true);
+
+    if (!$data || !isset($data['userId'], $data['week'], $data['heures'], $data['taskId'])) {
+        return $this->json(['error' => 'Paramètres manquants'], 400);
+    }
+
+    $userId = (int)$data['userId'];
+    $taskId = $data['taskId'];
+    $heures = $data['heures'];
+
+    foreach ($heures as $jour) {
+        $hasHours = false;
+        foreach ($jour as $key => $value) {
+            if (in_array($key, [
+                'HSaisie','HNorm','HRepComp','HCompl','HS10','HRepComp10','HS25','HRepComp25',
+                'HS50','HRepComp50','HS100','HRepComp100','RTT'
+            ]) && $value !== null && $value !== '') {
+                $hasHours = true;
+                break;
+            }
+        }
+        if (!$hasHours) continue;
+
+        $sqlServerService->beginTransaction();
+        try {
+            $sqlServerService->execute(
+                "INSERT INTO TimeEntries (
+                    SeasonalWorker_Id, DateEntry, NbHoursNormal, NbHoursRecoveryTime, NbHoursAdd, NbHoursAdd10, NbHoursRecoveryTime10,
+                    NbHoursAdd25, NbHoursRecoveryTime25, NbHoursAdd50, NbHoursRecoveryTime50, NbHoursAdd100, NbHoursRecoveryTime100, NbHoursRtt
+                ) VALUES (
+                    :userId, :dateEntry, :NbHoursNormal, :NbHoursRecoveryTime, :NbHoursAdd, :NbHoursAdd10, :NbHoursRecoveryTime10,
+                    :NbHoursAdd25, :NbHoursRecoveryTime25, :NbHoursAdd50, :NbHoursRecoveryTime50, :NbHoursAdd100, :NbHoursRecoveryTime100, :NbHoursRtt
+                )",
+                [
+                    'userId' => $userId,
+                    'dateEntry' => isset($jour['date']) && $jour['date'] ? (new \DateTime($jour['date']))->format('Y-m-d H:i:s') : null,
+                    'NbHoursNormal' => $jour['HNorm'] ?: 0,
+                    'NbHoursRecoveryTime' => $jour['HRepComp'] ?? null,
+                    'NbHoursAdd' => $jour['HCompl'] ?? null,
+                    'NbHoursAdd10' => $jour['HS10'] ?? null,
+                    'NbHoursRecoveryTime10' => $jour['HRepComp10'] ?? null,
+                    'NbHoursAdd25' => $jour['HS25'] ?? null,
+                    'NbHoursRecoveryTime25' => $jour['HRepComp25'] ?? null,
+                    'NbHoursAdd50' => $jour['HS50'] ?? null,
+                    'NbHoursRecoveryTime50' => $jour['HRepComp50'] ?? null,
+                    'NbHoursAdd100' => $jour['HS100'] ?? null,
+                    'NbHoursRecoveryTime100' => $jour['HRepComp100'] ?? null,
+                    'NbHoursRtt' => $jour['RTT'] ?? null,
+                ]
+            );
+
+            $timeEntryId = $sqlServerService->lastInsertId();
+
+            if ($timeEntryId) {
+                $nbHours = $jour['HSaisie'] ?? 0;
+                $sqlServerService->execute(
+                    "INSERT INTO TimeEntryVentilations (
+                        NbHours, Comments, TimeEntry_Id, Task_Id, Parcelle_Id, Millesim_Id, IsBonus, WineAppellation_Id
+                    ) VALUES (
+                        :nbHours, :comments, :timeEntryId, :taskId, NULL, 1, 0, NULL
+                    )",
+                    [
+                        'nbHours' => $nbHours,
+                        'comments' => null,
+                        'timeEntryId' => $timeEntryId,
+                        'taskId' => $taskId,
+                    ]
+                );
+            }
+
+            $sqlServerService->commit();
+        } catch (\Throwable $e) {
+            $sqlServerService->rollBack();
+            throw $e;
+        }
+    }
+
+    return $this->json(['success' => true]);
+}
+
+#[Route('/permanent/api/user-with-hours', name: 'permanent_api_user_with_hours', methods: ['GET'])]
+public function userWithHoursPermanent(Request $request, SqlServerService $sqlServerService): Response
+{
+    $userId = $request->query->get('userId'); // Employee_Id est nvarchar
+    $week = $request->query->get('week');
+
+    if (!$userId || !$week) {
+        return $this->json([]);
+    }
+
+    [$startDate, $endDate] = $this->getStartAndEndDateFromIsoWeek($week);
+
+    $entries = $sqlServerService->query(
+        "SELECT * FROM TimeEntries
+         WHERE Employee_Id = :userId
+           AND DateEntry >= :startDate
+           AND DateEntry <= :endDate",
+        [
+            'userId' => $userId,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+        ]
+    );
+
+    return $this->json($entries);
+}
+
+#[Route('/permanent/api/save-time-entries', name: 'permanent_api_save_time_entries', methods: ['POST'])]
+public function saveTimeEntriesUserPermanent(Request $request, SqlServerService $sqlServerService): Response
+{
+    $data = json_decode($request->getContent(), true);
+
+    if (!$data || !isset($data['userId'], $data['week'], $data['heures'], $data['taskId'])) {
+        return $this->json(['error' => 'Paramètres manquants'], 400);
+    }
+
+    $userId = $data['userId']; 
+    $taskId = $data['taskId'];
+    $heures = $data['heures'];
+    $week = $data['week'];
+
+    foreach ($heures as $jourIndex => $jour) {
+        // Vérifie qu'il y a au moins une heure à enregistrer
+        $hasHours = false;
+        foreach ($jour as $key => $value) {
+            if (in_array($key, [
+                'HSaisie','HNorm','HRepComp','HCompl','HS10','HRepComp10','HS25','HRepComp25',
+                'HS50','HRepComp50','HS100','HRepComp100','RTT'
+            ]) && $value !== null && $value !== '') {
+                $hasHours = true;
+                break;
+            }
+        }
+        if (!$hasHours) continue;
+
+        // --- DEBUT TRANSACTION ---
+        $sqlServerService->beginTransaction();
+        try {
+            // Conversion sécurisée de la date pour SQL Server
+            $dateEntry = isset($jour['date']) && $jour['date']
+                ? (new \DateTime($jour['date']))->format('Ymd') // format sûr pour SQL Server
+                : null;
+
+            // 1. INSERT TimeEntry
+            $sqlServerService->execute(
+                "INSERT INTO TimeEntries (
+                    Employee_Id, DateEntry, NbHoursNormal, NbHoursRecoveryTime, NbHoursAdd, NbHoursAdd10, NbHoursRecoveryTime10,
+                    NbHoursAdd25, NbHoursRecoveryTime25, NbHoursAdd50, NbHoursRecoveryTime50, NbHoursAdd100, NbHoursRecoveryTime100, NbHoursRtt
+                ) VALUES (
+                    :employeeId, :dateEntry, :NbHoursNormal, :NbHoursRecoveryTime, :NbHoursAdd, :NbHoursAdd10, :NbHoursRecoveryTime10,
+                    :NbHoursAdd25, :NbHoursRecoveryTime25, :NbHoursAdd50, :NbHoursRecoveryTime50, :NbHoursAdd100, :NbHoursRecoveryTime100, :NbHoursRtt
+                )",
+                [
+                    'employeeId' => $userId,
+                    'dateEntry' => $dateEntry,
+                    'NbHoursNormal' => $jour['HNorm'] ?? 0,
+                    'NbHoursRecoveryTime' => $jour['HRepComp'] ?? null,
+                    'NbHoursAdd' => $jour['HCompl'] ?? null,
+                    'NbHoursAdd10' => $jour['HS10'] ?? null,
+                    'NbHoursRecoveryTime10' => $jour['HRepComp10'] ?? null,
+                    'NbHoursAdd25' => $jour['HS25'] ?? null,
+                    'NbHoursRecoveryTime25' => $jour['HRepComp25'] ?? null,
+                    'NbHoursAdd50' => $jour['HS50'] ?? null,
+                    'NbHoursRecoveryTime50' => $jour['HRepComp50'] ?? null,
+                    'NbHoursAdd100' => $jour['HS100'] ?? null,
+                    'NbHoursRecoveryTime100' => $jour['HRepComp100'] ?? null,
+                    'NbHoursRtt' => $jour['RTT'] ?? null,
+                ]
+            );
+
+            // 2. Récupère l'ID du dernier TimeEntry inséré
+            $timeEntryId = $sqlServerService->lastInsertId();
+
+            if ($timeEntryId) {
+                $nbHours = $jour['HSaisie'] ?? 0;
+                $sqlServerService->execute(
+                    "INSERT INTO TimeEntryVentilations (
+                        NbHours, Comments, TimeEntry_Id, Task_Id, Parcelle_Id, Millesim_Id, IsBonus, WineAppellation_Id
+                    ) VALUES (
+                        :nbHours, :comments, :timeEntryId, :taskId, NULL, 1, 0, NULL
+                    )",
+                    [
+                        'nbHours' => $nbHours,
+                        'comments' => null,
+                        'timeEntryId' => $timeEntryId,
+                        'taskId' => $taskId,
+                    ]
+                );
+            }
+
+            $sqlServerService->commit();
+        } catch (\Throwable $e) {
+            $sqlServerService->rollBack();
+            throw $e;
+        }
+        // --- FIN TRANSACTION ---
+    }
+
+    return $this->json(['success' => true]);
+}
+
+
+
+
+
 }

@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculette Utilisateur</title>
+    <!-- Inclure Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+
+{% include 'navbar.html.twig' %}
+
+  <!-- Modal -->
+  <div class="modal fade" id="devWarningModal" tabindex="-1" aria-labelledby="devWarningModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header bg-warning">
+          <h5 class="modal-title" id="devWarningModalLabel">⚠️ Attention : Page en cours de développement</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p>
+            Cette page est actuellement en cours de développement. Certaines fonctionnalités peuvent être incomplètes ou comporter des erreurs
+            de calcul. Nous vous remercions de votre compréhension et vous invitons à signaler tout problème rencontré.
+          </p>
+          <div class="alert alert-secondary" role="alert">
+            <strong>Note :</strong> Vos retours sont précieux pour améliorer cette page. Merci !
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+          <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Compris</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="alertModal" tabindex="-1" aria-labelledby="alertModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="alertModalLabel">Alerte</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Le total des heures saisies dépasse 60h. Veuillez vérifier votre saisie.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container mt-5">
+    <div class="form-check form-switch mb-3">
+    <input class="form-check-input" type="checkbox" id="permanentSwitch">
+    <label class="form-check-label" for="permanentSwitch">Permanent</label>
+    </div>
+
+    <form class="mb-3" method="get" action="">
+        <label for="userDisplay">Choisir un utilisateur :</label>
+        <input list="userList" name="userDisplay" id="userDisplay" placeholder="nom utilisateur" required>
+        <datalist id="userList">
+        {% if users is defined and users is not empty %}
+            {% for user in users %}
+                <option data-id="{{ user.Id }}" value="{{ user.FirstName }} {{ user.LastName }}"></option>
+            {% endfor %}
+        {% endif %}
+        </datalist>
+        <!-- Champ caché pour l'ID de l'utilisateur -->
+        <input id="selectedUserId" name="user" type="hidden" value="{{ selectedUserId|default('') }}">
+
+        <label for="selectedWeek">Choisir une semaine :</label>
+        <input type="week" name="week" id="selectedWeek" value="{{ week|default('') }}">
+
+        <label for="selectedTask">Choisir une tâche :</label>
+        <select id="selectedTask" name="task" required>
+            <option value="">Sélectionner une tâche</option>
+            {% for task in tasks %}
+                <option value="{{ task.Id }}">{{ task.Label }}</option>
+            {% endfor %}
+        </select>
+
+        <button type="submit">Valider</button>
+    </form>
+
+    <div class="form-check mb-3">
+        <input class="form-check-input" type="checkbox" value="" id="saisonnierCheckbox" checked>
+        <label class="form-check-label" for="saisonnierCheckbox">
+            Saisonnier
+        </label>
+    </div>
+
+    <h2 class="mt-4 mb-4" id="tableau-heures">Tableau des Heures</h2>
+
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th></th>
+                <th style="width: 50px;">H. effectuée</th>
+                <th>H. Norm.</th>
+                <th>H. rep. comp.</th>
+                <th>H. compl.</th>
+                <th>HS 10%</th>
+                <th>H. rep. comp. 10%</th>
+                <th>HS 25% de 36 à 43</th>
+                <th>H. rep. comp. 25%</th>
+                <th>HS 50% + de 43</th>
+                <th>H. rep. comp. 50%</th>
+                <th>HS 100%</th>
+                <th>H. rep. comp. 100%</th>
+                <th>RTT</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td style="white-space: nowrap;">Lundi <br>{% if timeEntries[0] is defined %}{{ timeEntries[0].DateEntry|date('Y-m-d') }}{% elseif weekDates[0] is defined %} {{weekDates[0]}} {% endif %}</td>
+                <td>
+                    <input id="lundiHSaisie" type="number" class="form-control HSaisie" onKeyUp="calcul()" disabled></td>
+                <td><input id="lundiHNorm" type="number" class="form-control HNorm" disabled value="{{ timeEntries[0] is defined ? timeEntries[0].NbHoursNormal : '' }}"></td>
+                <td><input id="lundiHRepComp" type="number" class="form-control HRepComp" disabled value="{{ timeEntries[0] is defined ? timeEntries[0].NbHoursRecoveryTime : '' }}"></td>
+                <td><input id="lundiHCompl" type="number" class="form-control HCompl" disabled value="{{ timeEntries[0] is defined ? timeEntries[0].NbHoursAdd : '' }}"></td>
+                <td><input id="lundiHS10" type="number" class="form-control" disabled value="{{ timeEntries[0] is defined ? timeEntries[0].NbHoursAdd10 : '' }}"></td>
+                <td><input id="lundiHRepComp10" type="number" class="form-control" disabled value="{{ timeEntries[0] is defined ? timeEntries[0].NbHoursRecoveryTime10 : '' }}"></td>
+                <td><input id="lundiHS25" type="number" class="form-control HS25" disabled value="{{ timeEntries[0] is defined ? timeEntries[0].NbHoursAdd25 : '' }}"></td>
+                <td><input id="lundiHRepComp25" type="number" class="form-control" disabled value="{{ timeEntries[0] is defined ? timeEntries[0].NbHoursRecoveryTime25 : '' }}"></td>
+                <td><input id="lundiHS50" type="number" class="form-control HS50" disabled value="{{ timeEntries[0] is defined ? timeEntries[0].NbHoursAdd50 : '' }}"></td>
+                <td><input id="lundiHRepComp50" type="number" class="form-control" disabled value="{{ timeEntries[0] is defined ? timeEntries[0].NbHoursRecoveryTime50 : '' }}"></td>
+                <td><input id="lundiHS100" type="number" class="form-control" disabled value="{{ timeEntries[0] is defined ? timeEntries[0].NbHoursAdd100 : '' }}"></td>
+                <td><input id="lundiHRepComp100" type="number" class="form-control" disabled value="{{ timeEntries[0] is defined ? timeEntries[0].NbHoursRecoveryTime100 : '' }}"></td>
+                <td><input id="lundiRTT" type="number" class="form-control" disabled value="{{ timeEntries[0] is defined ? timeEntries[0].NbHoursRtt : '' }}"></td>
+            </tr>
+            <tr>
+                <td style="white-space: nowrap;">Mardi <br>{% if timeEntries[1] is defined %}{{ timeEntries[1].DateEntry|date('Y-m-d') }}{% elseif weekDates[1] is defined %} {{weekDates[1]}} {% endif %}</td>
+                <td><input id="mardiHSaisie" type="number" class="form-control HSaisie" onKeyUp="calcul()" disabled></td>
+                <td><input id="mardiHNorm" type="number" class="form-control HNorm" disabled value="{{ timeEntries[1] is defined ? timeEntries[1].NbHoursNormal : '' }}"></td>
+                <td><input id="mardiHRepComp" type="number" class="form-control HRepComp" disabled value="{{ timeEntries[1] is defined ? timeEntries[1].NbHoursRecoveryTime : '' }}"></td>
+                <td><input id="mardiHCompl" type="number" class="form-control HCompl" disabled value="{{ timeEntries[1] is defined ? timeEntries[1].NbHoursAdd : '' }}"></td>
+                <td><input id="mardiHS10" type="number" class="form-control" disabled value="{{ timeEntries[1] is defined ? timeEntries[1].NbHoursAdd10 : '' }}"></td>
+                <td><input id="mardiHRepComp10" type="number" class="form-control" disabled value="{{ timeEntries[1] is defined ? timeEntries[1].NbHoursRecoveryTime10 : '' }}"></td>
+                <td><input id="mardiHS25" type="number" class="form-control HS25" disabled value="{{ timeEntries[1] is defined ? timeEntries[1].NbHoursAdd25 : '' }}"></td>
+                <td><input id="mardiHRepComp25" type="number" class="form-control" disabled value="{{ timeEntries[1] is defined ? timeEntries[1].NbHoursRecoveryTime25 : '' }}"></td>
+                <td><input id="mardiHS50" type="number" class="form-control HS50" disabled value="{{ timeEntries[1] is defined ? timeEntries[1].NbHoursAdd50 : '' }}"></td>
+                <td><input id="mardiHRepComp50" type="number" class="form-control" disabled value="{{ timeEntries[1] is defined ? timeEntries[1].NbHoursRecoveryTime50 : '' }}"></td>
+                <td><input id="mardiHS100" type="number" class="form-control" disabled value="{{ timeEntries[1] is defined ? timeEntries[1].NbHoursAdd100 : '' }}"></td>
+                <td><input id="mardiHRepComp100" type="number" class="form-control" disabled value="{{ timeEntries[1] is defined ? timeEntries[1].NbHoursRecoveryTime100 : '' }}"></td>
+                <td><input id="mardiRTT" type="number" class="form-control" disabled value="{{ timeEntries[1] is defined ? timeEntries[1].NbHoursRtt : '' }}"></td>
+            </tr>
+            <tr>
+                <td style="white-space: nowrap;">Mercredi <br>{% if timeEntries[2] is defined %}{{ timeEntries[2].DateEntry|date('Y-m-d') }}{% elseif weekDates[2] is defined %} {{weekDates[2]}} {% endif %}</td>
+                <td><input id="mercrediHSaisie" type="number" class="form-control HSaisie" onKeyUp="calcul()" disabled></td>
+                <td><input id="mercrediHNorm" type="number" class="form-control HNorm" disabled value="{{ timeEntries[2] is defined ? timeEntries[2].NbHoursNormal : '' }}"></td>
+                <td><input id="mercrediHRepComp" type="number" class="form-control HRepComp" disabled value="{{ timeEntries[2] is defined ? timeEntries[2].NbHoursRecoveryTime : '' }}"></td>
+                <td><input id="mercrediHCompl" type="number" class="form-control HCompl" disabled value="{{ timeEntries[2] is defined ? timeEntries[2].NbHoursAdd : '' }}"></td>
+                <td><input id="mercrediHS10" type="number" class="form-control" disabled value="{{ timeEntries[2] is defined ? timeEntries[2].NbHoursAdd10 : '' }}"></td>
+                <td><input id="mercrediHRepComp10" type="number" class="form-control" disabled value="{{ timeEntries[2] is defined ? timeEntries[2].NbHoursRecoveryTime10 : '' }}"></td>
+                <td><input id="mercrediHS25" type="number" class="form-control HS25" disabled value="{{ timeEntries[2] is defined ? timeEntries[2].NbHoursAdd25 : '' }}"></td>
+                <td><input id="mercrediHRepComp25" type="number" class="form-control" disabled value="{{ timeEntries[2] is defined ? timeEntries[2].NbHoursRecoveryTime25 : '' }}"></td>
+                <td><input id="mercrediHS50" type="number" class="form-control HS50" disabled value="{{ timeEntries[2] is defined ? timeEntries[2].NbHoursAdd50 : '' }}"></td>
+                <td><input id="mercrediHRepComp50" type="number" class="form-control" disabled value="{{ timeEntries[2] is defined ? timeEntries[2].NbHoursRecoveryTime50 : '' }}"></td>
+                <td><input id="mercrediHS100" type="number" class="form-control" disabled value="{{ timeEntries[2] is defined ? timeEntries[2].NbHoursAdd100 : '' }}"></td>
+                <td><input id="mercrediHRepComp100" type="number" class="form-control" disabled value="{{ timeEntries[2] is defined ? timeEntries[2].NbHoursRecoveryTime100 : '' }}"></td>
+                <td><input id="mercrediRTT" type="number" class="form-control" disabled value="{{ timeEntries[2] is defined ? timeEntries[2].NbHoursRtt : '' }}"></td>
+            </tr>
+            <tr>
+                <td style="white-space: nowrap;">Jeudi <br>{% if timeEntries[3] is defined %}{{ timeEntries[3].DateEntry|date('Y-m-d') }}{% elseif weekDates[3] is defined %} {{weekDates[3]}} {% endif %}</td>
+                <td><input id="jeudiHSaisie" type="number" class="form-control HSaisie" onKeyUp="calcul()" disabled></td>
+                <td><input id="jeudiHNorm" type="number" class="form-control HNorm" disabled value="{{ timeEntries[3] is defined ? timeEntries[3].NbHoursNormal : '' }}"></td>
+                <td><input id="jeudiHRepComp" type="number" class="form-control HRepComp" disabled value="{{ timeEntries[3] is defined ? timeEntries[3].NbHoursRecoveryTime : '' }}"></td>
+                <td><input id="jeudiHCompl" type="number" class="form-control HCompl" disabled value="{{ timeEntries[3] is defined ? timeEntries[3].NbHoursAdd : '' }}"></td>
+                <td><input id="jeudiHS10" type="number" class="form-control" disabled value="{{ timeEntries[3] is defined ? timeEntries[3].NbHoursAdd10 : '' }}"></td>
+                <td><input id="jeudiHRepComp10" type="number" class="form-control" disabled value="{{ timeEntries[3] is defined ? timeEntries[3].NbHoursRecoveryTime10 : '' }}"></td>
+                <td><input id="jeudiHS25" type="number" class="form-control HS25" disabled value="{{ timeEntries[3] is defined ? timeEntries[3].NbHoursAdd25 : '' }}"></td>
+                <td><input id="jeudiHRepComp25" type="number" class="form-control" disabled value="{{ timeEntries[3] is defined ? timeEntries[3].NbHoursRecoveryTime25 : '' }}"></td>
+                <td><input id="jeudiHS50" type="number" class="form-control HS50" disabled value="{{ timeEntries[3] is defined ? timeEntries[3].NbHoursAdd50 : '' }}"></td>
+                <td><input id="jeudiHRepComp50" type="number" class="form-control" disabled value="{{ timeEntries[3] is defined ? timeEntries[3].NbHoursRecoveryTime50 : '' }}"></td>
+                <td><input id="jeudiHS100" type="number" class="form-control" disabled value="{{ timeEntries[3] is defined ? timeEntries[3].NbHoursAdd100 : '' }}"></td>
+                <td><input id="jeudiHRepComp100" type="number" class="form-control" disabled value="{{ timeEntries[3] is defined ? timeEntries[3].NbHoursRecoveryTime100 : '' }}"></td>
+                <td><input id="jeudiRTT" type="number" class="form-control" disabled value="{{ timeEntries[3] is defined ? timeEntries[3].NbHoursRtt : '' }}"></td>
+            </tr>
+            <tr>
+                <td style="white-space: nowrap;">Vendredi <br>{% if timeEntries[4] is defined %}{{ timeEntries[4].DateEntry|date('Y-m-d') }}{% elseif weekDates[4] is defined %} {{weekDates[4]}} {% endif %}</td>
+                <td><input id="vendrediHSaisie" type="number" class="form-control HSaisie" onKeyUp="calcul()" disabled></td>
+                <td><input id="vendrediHNorm" type="number" class="form-control HNorm" disabled value="{{ timeEntries[4] is defined ? timeEntries[4].NbHoursNormal : '' }}"></td>
+                <td><input id="vendrediHRepComp" type="number" class="form-control HRepComp" disabled value="{{ timeEntries[4] is defined ? timeEntries[4].NbHoursRecoveryTime : '' }}"></td>
+                <td><input id="vendrediHCompl" type="number" class="form-control HCompl" disabled value="{{ timeEntries[4] is defined ? timeEntries[4].NbHoursAdd : '' }}"></td>
+                <td><input id="vendrediHS10" type="number" class="form-control" disabled value="{{ timeEntries[4] is defined ? timeEntries[4].NbHoursAdd10 : '' }}"></td>
+                <td><input id="vendrediHRepComp10" type="number" class="form-control" disabled value="{{ timeEntries[4] is defined ? timeEntries[4].NbHoursRecoveryTime10 : '' }}"></td>
+                <td><input id="vendrediHS25" type="number" class="form-control HS25" disabled value="{{ timeEntries[4] is defined ? timeEntries[4].NbHoursAdd25 : '' }}"></td>
+                <td><input id="vendrediHRepComp25" type="number" class="form-control" disabled value="{{ timeEntries[4] is defined ? timeEntries[4].NbHoursRecoveryTime25 : '' }}"></td>
+                <td><input id="vendrediHS50" type="number" class="form-control HS50" disabled value="{{ timeEntries[4] is defined ? timeEntries[4].NbHoursAdd50 : '' }}"></td>
+                <td><input id="vendrediHRepComp50" type="number" class="form-control" disabled value="{{ timeEntries[4] is defined ? timeEntries[4].NbHoursRecoveryTime50 : '' }}"></td>
+                <td><input id="vendrediHS100" type="number" class="form-control" disabled value="{{ timeEntries[4] is defined ? timeEntries[4].NbHoursAdd100 : '' }}"></td>
+                <td><input id="vendrediHRepComp100" type="number" class="form-control" disabled value="{{ timeEntries[4] is defined ? timeEntries[4].NbHoursRecoveryTime100 : '' }}"></td>
+                <td><input id="vendrediRTT" type="number" class="form-control" disabled value="{{ timeEntries[4] is defined ? timeEntries[4].NbHoursRtt : '' }}"></td>
+            </tr>
+            <tr>
+                <td style="white-space: nowrap;">Samedi <br>{% if timeEntries[5] is defined %}{{ timeEntries[5].DateEntry|date('Y-m-d') }}{% elseif weekDates[5] is defined %} {{weekDates[5]}} {% endif %}</td>
+                <td><input id="samediHSaisie" type="number" class="form-control HSaisie" onKeyUp="calcul()" disabled></td>
+                <td><input id="samediHNorm" type="number" class="form-control HNorm" disabled value="{{ timeEntries[5] is defined ? timeEntries[5].NbHoursNormal : '' }}"></td>
+                <td><input id="samediHRepComp" type="number" class="form-control HRepComp" disabled value="{{ timeEntries[5] is defined ? timeEntries[5].NbHoursRecoveryTime : '' }}"></td>
+                <td><input id="samediHCompl" type="number" class="form-control HCompl" disabled value="{{ timeEntries[5] is defined ? timeEntries[5].NbHoursAdd : '' }}"></td>
+                <td><input id="samediHS10" type="number" class="form-control" disabled value="{{ timeEntries[5] is defined ? timeEntries[5].NbHoursAdd10 : '' }}"></td>
+                <td><input id="samediHRepComp10" type="number" class="form-control" disabled value="{{ timeEntries[5] is defined ? timeEntries[5].NbHoursRecoveryTime10 : '' }}"></td>
+                <td><input id="samediHS25" type="number" class="form-control HS25" disabled value="{{ timeEntries[5] is defined ? timeEntries[5].NbHoursAdd25 : '' }}"></td>
+                <td><input id="samediHRepComp25" type="number" class="form-control" disabled value="{{ timeEntries[5] is defined ? timeEntries[5].NbHoursRecoveryTime25 : '' }}"></td>
+                <td><input id="samediHS50" type="number" class="form-control HS50" disabled value="{{ timeEntries[5] is defined ? timeEntries[5].NbHoursAdd50 : '' }}"></td>
+                <td><input id="samediHRepComp50" type="number" class="form-control" disabled value="{{ timeEntries[5] is defined ? timeEntries[5].NbHoursRecoveryTime50 : '' }}"></td>
+                <td><input id="samediHS100" type="number" class="form-control" disabled value="{{ timeEntries[5] is defined ? timeEntries[5].NbHoursAdd100 : '' }}"></td>
+                <td><input id="samediHRepComp100" type="number" class="form-control" disabled value="{{ timeEntries[5] is defined ? timeEntries[5].NbHoursRecoveryTime100 : '' }}"></td>
+                <td><input id="samediRTT" type="number" class="form-control" disabled value="{{ timeEntries[5] is defined ? timeEntries[5].NbHoursRtt : '' }}"></td>
+            </tr>
+            <tr>
+                <td style="white-space: nowrap;">Dimanche <br>{% if timeEntries[6] is defined %}{{ timeEntries[6].DateEntry|date('Y-m-d') }}{% elseif weekDates[6] is defined %} {{weekDates[6]}} {% endif %}</td>
+                <td><input id="dimancheHSaisie" type="number" class="form-control HSaisie dimancheHSaisie" onKeyUp="calcul()" disabled></td>
+                <td><input id="dimancheHNorm" type="number" class="form-control HNorm" disabled value="{{ timeEntries[6] is defined ? timeEntries[6].NbHoursNormal : '' }}"></td>
+                <td><input id="dimancheHRepComp" type="number" class="form-control HRepComp" disabled value="{{ timeEntries[6] is defined ? timeEntries[6].NbHoursRecoveryTime : '' }}"></td>
+                <td><input id="dimancheHCompl" type="number" class="form-control HCompl" disabled value="{{ timeEntries[6] is defined ? timeEntries[6].NbHoursAdd : '' }}"></td>
+                <td><input id="dimancheHS10" type="number" class="form-control" disabled value="{{ timeEntries[6] is defined ? timeEntries[6].NbHoursAdd10 : '' }}"></td>
+                <td><input id="dimancheHRepComp10" type="number" class="form-control" disabled value="{{ timeEntries[6] is defined ? timeEntries[6].NbHoursRecoveryTime10 : '' }}"></td>
+                <td><input id="dimancheHS25" type="number" class="form-control HS25" disabled value="{{ timeEntries[6] is defined ? timeEntries[6].NbHoursAdd25 : '' }}"></td>
+                <td><input id="dimancheHRepComp25" type="number" class="form-control" disabled value="{{ timeEntries[6] is defined ? timeEntries[6].NbHoursRecoveryTime25 : '' }}"></td>
+                <td><input id="dimancheHS50" type="number" class="form-control HS50" disabled value="{{ timeEntries[6] is defined ? timeEntries[6].NbHoursAdd50 : '' }}"></td>
+                <td><input id="dimancheHRepComp50" type="number" class="form-control" disabled value="{{ timeEntries[6] is defined ? timeEntries[6].NbHoursRecoveryTime50 : '' }}"></td>
+                <td><input id="dimancheHS100" type="number" class="form-control" disabled value="{{ timeEntries[6] is defined ? timeEntries[6].NbHoursAdd100 : '' }}"></td>
+                <td><input id="dimancheHRepComp100" type="number" class="form-control" disabled value="{{ timeEntries[6] is defined ? timeEntries[6].NbHoursRecoveryTime100 : '' }}"></td>
+                <td><input id="dimancheRTT" type="number" class="form-control" disabled value="{{ timeEntries[6] is defined ? timeEntries[6].NbHoursRtt : '' }}"></td>
+            </tr>
+        </tbody>
+
+
+    </table>
+    
+    <div class="row">
+        <h4>Total heures semaine :</h4>
+        <div class="col-1">
+            <input id="totalHsaisie" class="form-control" disabled>
+        </div>
+    </div>
+
+    <!-- Bouton Envoyer heures -->
+    <div class="row mt-3">
+        <div class="col">
+            <button id="envoyerHeuresBtn" class="btn btn-success" type="button">Envoyer heures</button>
+        </div>
+    </div>
+</div>
+
+{% block javascripts %}
+<script src="{{ asset('js/calculette.js') }}"></script>
+<script>
+// === Gestion du switch permanent / non permanent ===
+let apiPrefix = "nonpermanent"; // défaut
+
+document.getElementById("permanentSwitch").addEventListener("change", function() {
+    apiPrefix = this.checked ? "permanent" : "nonpermanent";
+    console.log("Préfixe API actif :", apiPrefix);
+
+    const saisonnier = document.getElementById("saisonnierCheckbox");
+
+    if (this.checked) {
+        saisonnier.checked = false;
+        toggleSaisonnierMode(false);
+    } else {
+        saisonnier.checked = true;
+        toggleSaisonnierMode(true);
+    }
+    calcul();
+});
+
+// Helper pour générer les URLs API avec nouvelles fonctions
+function apiUrl(path) {
+    // Mise à jour uniquement des URLs
+    if (path.includes('user-with-hours')) return `/${apiPrefix}/api/user-with-hours`;
+    if (path.includes('save-time-entries')) return `/${apiPrefix}/api/save-time-entries`;
+    return `/${apiPrefix}${path}`;
+}
+
+// === Formulaire utilisateur ===
+document.querySelector('form.mb-3').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const userId = document.getElementById('selectedUserId').value;
+    const week = document.getElementById('selectedWeek').value;
+
+    if (!userId || !week) {
+        alert("Veuillez sélectionner un utilisateur et une semaine.");
+        return;
+    }
+
+    const resp = await fetch(`${apiUrl('/api/user-with-hours')}?userId=${userId}&week=${week}`);
+    const userHours = await resp.json();
+
+    if (userHours && userHours.length > 0) {
+        document.getElementById('tableau-heures').innerHTML = 
+            'Tableau des Heures (Non-modifiable, car déjà renseigné dans NIC)';
+        document.querySelectorAll('.HSaisie').forEach(el => el.disabled = true);
+        document.getElementsByClassName('dimancheHSaisie')[0].disabled = true;
+        alert("Cet utilisateur a déjà des heures saisies pour cette semaine !");
+        return;
+    } else {
+        document.getElementById('tableau-heures').innerHTML = 
+            'Tableau des Heures (modifiable)';
+        document.querySelectorAll('.HSaisie').forEach(el => el.disabled = false);
+        document.getElementsByClassName('dimancheHSaisie')[0].disabled = false;
+    }
+});
+
+// === Sélection de l'user ===
+document.getElementById('userDisplay').addEventListener('input', function () {
+    const input = this;
+    const datalist = document.getElementById('userList');
+    const hidden = document.getElementById('selectedUserId');
+    const option = Array.from(datalist.options).find(opt => opt.value === input.value);
+    hidden.value = option ? option.dataset.id : '';
+});
+
+// === Envoi des heures ===
+document.getElementById('envoyerHeuresBtn').addEventListener('click', async function() {
+    const userId = document.getElementById('selectedUserId').value;
+    const week = document.getElementById('selectedWeek').value;
+    const taskId = document.getElementById('selectedTask').value;
+
+    const jours = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+
+    function getDateOfISOWeek(week, day) {
+        const jours = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+        const dayIndex = jours.indexOf(day);
+        if (dayIndex === -1) return null;
+        const [year, weekNum] = week.split('-W');
+        const date = new Date(Date.UTC(year, 0, 1 + (weekNum - 1) * 7));
+        const dayOfWeek = date.getUTCDay();
+        const ISOweekStart = date;
+        if (dayOfWeek <= 4)
+            ISOweekStart.setUTCDate(date.getUTCDate() - date.getUTCDay() + 1);
+        else
+            ISOweekStart.setUTCDate(date.getUTCDate() + 8 - date.getUTCDay());
+        ISOweekStart.setUTCDate(ISOweekStart.getUTCDate() + dayIndex);
+        return ISOweekStart.toISOString().slice(0, 10);
+    }
+
+    const heures = jours.map(jour => ({
+        jour: jour,
+        date: getDateOfISOWeek(week, jour),
+        HSaisie: document.getElementById(`${jour}HSaisie`)?.value || null,
+        HNorm: document.getElementById(`${jour}HNorm`)?.value || null,
+        HRepComp: document.getElementById(`${jour}HRepComp`)?.value || null,
+        HCompl: document.getElementById(`${jour}HCompl`)?.value || null,
+        HS10: document.getElementById(`${jour}HS10`)?.value || null,
+        HRepComp10: document.getElementById(`${jour}HRepComp10`)?.value || null,
+        HS25: document.getElementById(`${jour}HS25`)?.value || null,
+        HRepComp25: document.getElementById(`${jour}HRepComp25`)?.value || null,
+        HS50: document.getElementById(`${jour}HS50`)?.value || null,
+        HRepComp50: document.getElementById(`${jour}HRepComp50`)?.value || null,
+        HS100: document.getElementById(`${jour}HS100`)?.value || null,
+        HRepComp100: document.getElementById(`${jour}HRepComp100`)?.value || null,
+        RTT: document.getElementById(`${jour}RTT`)?.value || null,
+    }));
+
+    const data = { userId, week, taskId, heures };
+
+    const resp = await fetch(apiUrl('/api/save-time-entries'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    });
+
+    if (resp.ok) {
+        alert('Heures enregistrées !');
+    } else {
+        alert('Erreur lors de l\'enregistrement');
+    }
+});
+
+// === Gestion saisonnier ===
+function toggleSaisonnierMode(isSaisonnier) {
+    const repCompSelectors = [
+        'HRepComp','HRepComp10','HRepComp25','HRepComp50','HRepComp100'
+    ];
+    const jours = ['lundi','mardi','mercredi','jeudi','vendredi','samedi','dimanche'];
+    jours.forEach(jour => {
+        repCompSelectors.forEach(suffix => {
+            const input = document.getElementById(`${jour}${suffix}`);
+            if (input) {
+                if (isSaisonnier) {
+                    input.value = null;
+                    input.disabled = true;
+                } else {
+                    input.disabled = false;
+                }
+            }
+        });
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    toggleSaisonnierMode(document.getElementById('saisonnierCheckbox').checked);
+});
+
+document.getElementById('saisonnierCheckbox').addEventListener('change', function() {
+    toggleSaisonnierMode(this.checked);
+    calcul();
+});
+</script>
+
+{% endblock %}
+
+<!-- Inclure Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
