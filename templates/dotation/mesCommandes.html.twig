@@ -64,6 +64,11 @@
                             {% endfor %}
                         </tbody>
                     </table>
+                    <div class="card-footer text-end">
+                        <a href="{{ path('repasser_commande', {'id': commande.id}) }}" class="btn btn-primary">
+                            Repasser la commande
+                        </a>
+                    </div>
                 </div>
             </div>
         {% endfor %}

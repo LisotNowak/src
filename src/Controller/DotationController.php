@@ -912,5 +912,54 @@ public function validerPanier(SessionInterface $session, EntityManagerInterface 
             'pointsRemaining' => $pointsRemaining,
         ]);
     }
+    
+    #[Route('/dota/commande/{id}/repasser', name: 'repasser_commande')]
+    public function repasserCommande(
+        int $id,
+        EntityManagerInterface $entityManager,
+        SessionInterface $session
+    ): Response {
+        $commande = $entityManager->getRepository(Commande::class)->find($id);
+
+        if (!$commande) {
+            $this->addFlash('error', 'Commande introuvable.');
+            return $this->redirectToRoute('app_mes_commandes_dota');
+        }
+
+        // Récupération des lignes de la commande
+        $assocs = $entityManager->getRepository(AssociationCommandeArticle::class)
+            ->findBy(['idCommande' => $commande->getId()]);
+
+        // Réinitialiser le panier
+        $cart = [];
+
+        foreach ($assocs as $assoc) {
+            $article = $entityManager->getRepository(Article::class)->find($assoc->getIdArticle());
+            if (!$article) {
+                continue; // article supprimé
+            }
+
+            $cartKey = $article->getId() . '_' . $assoc->getNomTaille() . '_' . $assoc->getNomCouleur();
+
+            $cart[$cartKey] = [
+                'id' => $article->getId(),
+                'quantite' => $assoc->getNb(),
+                'nom' => $article->getNom(),
+                'reference' => $article->getReference(),
+                'description' => $article->getDescription(),
+                'prix' => $article->getPrix(),
+                'taille' => $assoc->getNomTaille(),
+                'couleur' => $assoc->getNomCouleur(),
+                'point' => $article->getPoint(),
+                'image' => $article->getImage(),
+            ];
+        }
+
+        $session->set('cart', $cart);
+
+        $this->addFlash('success', 'La commande a été rechargée dans votre panier.');
+
+        return $this->redirectToRoute('app_panier_dota');
+    }
 
 }
