@@ -483,7 +483,7 @@ public function userWithHoursNonPermanent(Request $request, SqlServerService $sq
     return $this->json($entries);
 }
 
-#[Route('/nonpermanent/api/save-time-entries', name: 'nonpermanent_api_save_time_entries_user', methods: ['POST'])]
+#[Route('/nonpermanent/api/user/save-time-entries', name: 'nonpermanent_user_api_save_time_entries', methods: ['POST'])]
 public function saveTimeEntriesUserNonPermanent(Request $request, SqlServerService $sqlServerService): Response
 {
     $data = json_decode($request->getContent(), true);
@@ -593,7 +593,7 @@ public function userWithHoursPermanent(Request $request, SqlServerService $sqlSe
     return $this->json($entries);
 }
 
-#[Route('/permanent/api/save-time-entries', name: 'permanent_api_save_time_entries', methods: ['POST'])]
+#[Route('/permanent/api/user/save-time-entries', name: 'permanent_user_api_save_time_entries', methods: ['POST'])]
 public function saveTimeEntriesUserPermanent(Request $request, SqlServerService $sqlServerService): Response
 {
     $data = json_decode($request->getContent(), true);
@@ -687,6 +687,27 @@ public function saveTimeEntriesUserPermanent(Request $request, SqlServerService 
     return $this->json(['success' => true]);
 }
 
+#[Route('/api/permanent-users', name: 'api_permanent_users', methods: ['GET'])]
+public function getPermanentUsers(SqlServerService $sqlServerService): Response
+{
+    $users = $sqlServerService->query(
+        "SELECT Id, FirstName, LastName 
+         FROM AspNetUsers"
+    );
+
+    return $this->json($users);
+}
+
+#[Route('/api/nonpermanent-users', name: 'api_nonpermanent_users', methods: ['GET'])]
+public function getNonPermanentUsers(SqlServerService $sqlServerService): Response
+{
+    $users = $sqlServerService->query(
+        "SELECT Id, FirstName, LastName 
+         FROM SeasonalWorkers"
+    );
+
+    return $this->json($users);
+}
 
 
 

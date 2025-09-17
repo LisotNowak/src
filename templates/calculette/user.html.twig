@@ -87,7 +87,7 @@
     </form>
 
     <div class="form-check mb-3">
-        <input class="form-check-input" type="checkbox" value="" id="saisonnierCheckbox" checked>
+        <input class="form-check-input" type="checkbox" value="" id="saisonnierCheckbox" checked disabled>
         <label class="form-check-label" for="saisonnierCheckbox">
             Saisonnier
         </label>
@@ -252,14 +252,49 @@
 <script src="{{ asset('js/calculette.js') }}"></script>
 <script>
 // === Gestion du switch permanent / non permanent ===
-let apiPrefix = "nonpermanent"; // défaut
+let apiPrefix = "nonpermanent"; // par défaut = saisonniers
 
+const userList = document.getElementById("userList");
+const userInput = document.getElementById("userDisplay");
+const hiddenUserId = document.getElementById("selectedUserId");
+
+// Fonction pour charger les utilisateurs selon le type
+async function loadUsers(type) {
+    try {
+        const resp = await fetch(`/api/${type}-users`); 
+        if (!resp.ok) throw new Error("Erreur API");
+        const users = await resp.json();
+
+        // Nettoyer la datalist
+        userList.innerHTML = "";
+
+        // Ajouter les nouveaux utilisateurs
+        users.forEach(u => {
+            const opt = document.createElement("option");
+            opt.value = `${u.FirstName} ${u.LastName}`;
+            opt.dataset.id = u.Id;
+            userList.appendChild(opt);
+        });
+
+        // Reset champ input
+        userInput.value = "";
+        hiddenUserId.value = "";
+    } catch (err) {
+        console.error("Erreur chargement utilisateurs:", err);
+        alert("Impossible de charger la liste des utilisateurs.");
+    }
+}
+
+// Gestion du switch permanent
 document.getElementById("permanentSwitch").addEventListener("change", function() {
     apiPrefix = this.checked ? "permanent" : "nonpermanent";
     console.log("Préfixe API actif :", apiPrefix);
 
-    const saisonnier = document.getElementById("saisonnierCheckbox");
+    // Charger la bonne liste
+    loadUsers(apiPrefix);
 
+    // Gérer la checkbox saisonnier
+    const saisonnier = document.getElementById("saisonnierCheckbox");
     if (this.checked) {
         saisonnier.checked = false;
         toggleSaisonnierMode(false);
@@ -270,11 +305,22 @@ document.getElementById("permanentSwitch").addEventListener("change", function()
     calcul();
 });
 
+// === Sélection de l'user ===
+userInput.addEventListener("input", function () {
+    const option = Array.from(userList.options).find(opt => opt.value === this.value);
+    hiddenUserId.value = option ? option.dataset.id : "";
+});
+
+// Charger par défaut au démarrage
+document.addEventListener("DOMContentLoaded", () => {
+    loadUsers(apiPrefix);
+});
+
 // Helper pour générer les URLs API avec nouvelles fonctions
 function apiUrl(path) {
     // Mise à jour uniquement des URLs
     if (path.includes('user-with-hours')) return `/${apiPrefix}/api/user-with-hours`;
-    if (path.includes('save-time-entries')) return `/${apiPrefix}/api/save-time-entries`;
+    if (path.includes('save-time-entries')) return `/${apiPrefix}/api/user/save-time-entries`;
     return `/${apiPrefix}${path}`;
 }
 
