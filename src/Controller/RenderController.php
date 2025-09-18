@@ -254,7 +254,19 @@ class RenderController extends AbstractController
                     $timeEntryId = $sqlServerService->lastInsertId();
 
                     if ($timeEntryId) {
-                        $nbHours = $jour['HSaisie'] ?? 0;
+                        $nbHours = 
+                            ($jour['HNorm'] ?? 0) +
+                            ($jour['HRepComp'] ?? 0) +
+                            ($jour['HCompl'] ?? 0) +
+                            ($jour['HS10'] ?? 0) +
+                            ($jour['HRepComp10'] ?? 0) +
+                            ($jour['HS25'] ?? 0) +
+                            ($jour['HRepComp25'] ?? 0) +
+                            ($jour['HS50'] ?? 0) +
+                            ($jour['HRepComp50'] ?? 0) +
+                            ($jour['HS100'] ?? 0) +
+                            ($jour['HRepComp100'] ?? 0);
+
                         $sqlServerService->execute(
                             "INSERT INTO TimeEntryVentilations (
                                 NbHours, Comments, TimeEntry_Id, Task_Id, Parcelle_Id, Millesim_Id, IsBonus, WineAppellation_Id
@@ -429,7 +441,19 @@ class RenderController extends AbstractController
                     $timeEntryId = $sqlServerService->lastInsertId();
                     error_log('timeEntryId: ' . $timeEntryId);
                     if ($timeEntryId) {
-                        $nbHours = $jour['HSaisie'] ?? 0;
+                        $nbHours = 
+                            ($jour['HNorm'] ?? 0) +
+                            ($jour['HRepComp'] ?? 0) +
+                            ($jour['HCompl'] ?? 0) +
+                            ($jour['HS10'] ?? 0) +
+                            ($jour['HRepComp10'] ?? 0) +
+                            ($jour['HS25'] ?? 0) +
+                            ($jour['HRepComp25'] ?? 0) +
+                            ($jour['HS50'] ?? 0) +
+                            ($jour['HRepComp50'] ?? 0) +
+                            ($jour['HS100'] ?? 0) +
+                            ($jour['HRepComp100'] ?? 0);
+
                         $sqlServerService->execute(
                             "INSERT INTO TimeEntryVentilations (
                                 NbHours, Comments, TimeEntry_Id, Task_Id, Parcelle_Id, Millesim_Id, IsBonus, WineAppellation_Id
@@ -540,7 +564,19 @@ public function saveTimeEntriesUserNonPermanent(Request $request, SqlServerServi
             $timeEntryId = $sqlServerService->lastInsertId();
 
             if ($timeEntryId) {
-                $nbHours = $jour['HSaisie'] ?? 0;
+                $nbHours = 
+                    ($jour['HNorm'] ?? 0) +
+                    ($jour['HRepComp'] ?? 0) +
+                    ($jour['HCompl'] ?? 0) +
+                    ($jour['HS10'] ?? 0) +
+                    ($jour['HRepComp10'] ?? 0) +
+                    ($jour['HS25'] ?? 0) +
+                    ($jour['HRepComp25'] ?? 0) +
+                    ($jour['HS50'] ?? 0) +
+                    ($jour['HRepComp50'] ?? 0) +
+                    ($jour['HS100'] ?? 0) +
+                    ($jour['HRepComp100'] ?? 0);
+
                 $sqlServerService->execute(
                     "INSERT INTO TimeEntryVentilations (
                         NbHours, Comments, TimeEntry_Id, Task_Id, Parcelle_Id, Millesim_Id, IsBonus, WineAppellation_Id
@@ -660,7 +696,19 @@ public function saveTimeEntriesUserPermanent(Request $request, SqlServerService 
             $timeEntryId = $sqlServerService->lastInsertId();
 
             if ($timeEntryId) {
-                $nbHours = $jour['HSaisie'] ?? 0;
+                $nbHours = 
+                    ($jour['HNorm'] ?? 0) +
+                    ($jour['HRepComp'] ?? 0) +
+                    ($jour['HCompl'] ?? 0) +
+                    ($jour['HS10'] ?? 0) +
+                    ($jour['HRepComp10'] ?? 0) +
+                    ($jour['HS25'] ?? 0) +
+                    ($jour['HRepComp25'] ?? 0) +
+                    ($jour['HS50'] ?? 0) +
+                    ($jour['HRepComp50'] ?? 0) +
+                    ($jour['HS100'] ?? 0) +
+                    ($jour['HRepComp100'] ?? 0);
+
                 $sqlServerService->execute(
                     "INSERT INTO TimeEntryVentilations (
                         NbHours, Comments, TimeEntry_Id, Task_Id, Parcelle_Id, Millesim_Id, IsBonus, WineAppellation_Id
