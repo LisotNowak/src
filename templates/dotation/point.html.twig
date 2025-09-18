@@ -1,0 +1,68 @@
+{% extends 'base.html.twig' %}
+{% block title %}Gestion Point{% endblock %}
+
+{% block sidebar %}
+    {% include 'dotation/sidebar.html.twig' with {'active_link': 'GestionPoint'} %}
+{% endblock %}
+
+{% block body %}
+<div class="container mt-4">
+    <h2 class="mb-4">Gestion des points utilisateurs</h2>
+
+    <div class="table-responsive">
+        <table class="table table-striped table-bordered align-middle text-center">
+            <thead class="table-dark">
+                <tr>
+                    <th scope="col">Email</th>
+                    <th scope="col">Points</th>
+                    <th scope="col">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in listeUsers %}
+                    <tr>
+                        <td>{{ user.email }}</td>
+                        <td style="width: 150px;">
+                            <input type="number" 
+                                   value="{{ user.pointDotation }}" 
+                                   id="points-{{ user.id }}" 
+                                   class="form-control text-center">
+                        </td>
+                        <td>
+                            <button class="btn btn-success btn-sm" 
+                                    onclick="updatePoints({{ user.id }})">
+                                <i class="bi bi-save"></i> Sauvegarder
+                            </button>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="3" class="text-muted">Aucun utilisateur trouvé.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+function updatePoints(userId) {
+    const points = document.getElementById('points-' + userId).value;
+
+    fetch('{{ path("admin_update_points") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, points: points })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            // Bootstrap toast ou simple alert
+            alert("✅ Points mis à jour : " + data.points);
+        } else {
+            alert("❌ Erreur : " + data.message);
+        }
+    });
+}
+</script>
+{% endblock %}

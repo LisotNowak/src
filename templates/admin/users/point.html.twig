@@ -1,0 +1,14 @@
+{% extends 'base.html.twig' %}
+{% block title %}Administration points{% endblock %}
+{% block body %}
+<div class="container mt-4">
+    <h1>Modifier les points de {{ user.email }}</h1>
+
+    {{ form_start(form) }}
+        {{ form_row(form.pointDotation) }}
+        <button class="btn btn-primary mt-2">Mettre à jour</button>
+    {{ form_end(form) }}
+
+    <a href="{{ path('admin_users_index') }}" class="btn btn-secondary mt-3">Retour</a>
+</div>
+{% endblock %}

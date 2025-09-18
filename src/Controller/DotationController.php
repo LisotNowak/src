@@ -253,6 +253,24 @@ class DotationController extends AbstractController
         
     }
 
+    #[Route('/dota/point', name: 'app_point_dota')]
+    public function point_dota(EntityManagerInterface $entityManager): Response
+    {
+        // Vérifiez si l'utilisateur est déjà authentifié
+        if ($this->isGranted('IS_AUTHENTICATED_FULLY')) {
+            // Redirigez l'utilisateur s'il est déjà authentifié
+
+            $listeUsers = $entityManager->getRepository(User::class)->findAll();
+
+            return $this->render('dotation/point.html.twig', [
+                'listeUsers' => $listeUsers,
+            ]);
+        }
+
+        return $this->redirectToRoute('app_accueil');
+
+    }
+
     #[Route('/dota/stock', name: 'app_stock_dota')]
     public function stock_dota(EntityManagerInterface $entityManager): Response
     {
@@ -961,5 +979,33 @@ public function validerPanier(SessionInterface $session, EntityManagerInterface 
 
         return $this->redirectToRoute('app_panier_dota');
     }
+
+    #[Route('/dota/admin/update-points', name: 'admin_update_points', methods: ['POST'])]
+    public function updateUserPoints(Request $request, EntityManagerInterface $entityManager): JsonResponse
+    {
+        if (!$this->isGranted('ROLE_ADMIN')) {
+            return new JsonResponse(['success' => false, 'message' => 'Accès refusé'], 403);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $userId = $data['user_id'] ?? null;
+        $newPoints = $data['points'] ?? null;
+
+        if (!$userId || $newPoints === null) {
+            return new JsonResponse(['success' => false, 'message' => 'Paramètres manquants'], 400);
+        }
+
+        $user = $entityManager->getRepository(User::class)->find($userId);
+        if (!$user) {
+            return new JsonResponse(['success' => false, 'message' => 'Utilisateur introuvable'], 404);
+        }
+
+        $user->setPointDotation((int) $newPoints);
+        $entityManager->persist($user);
+        $entityManager->flush();
+
+        return new JsonResponse(['success' => true, 'points' => $user->getPointDotation()]);
+    }
+
 
 }

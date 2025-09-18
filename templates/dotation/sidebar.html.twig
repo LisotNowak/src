@@ -35,11 +35,6 @@
                 <i class="fas fa-warehouse me-2" aria-hidden="true"></i> Stock
             </a>
         </li>
-        <li>
-            <a href="/dota/admin" class="nav-link {% if active_link == 'admin' %}active{% else %} link-dark {% endif %}">
-                <i class="fas fa-cogs me-2" aria-hidden="true"></i> Administration
-            </a>
-        </li>
         <li class="nav-item">
             <a href="{{ path('app_mes_commandes_dota') }}" class="nav-link {% if active_link == 'mes_commandes' %}active{% else %} link-dark {% endif %}">
                 <i class="fas fa-box me-2" aria-hidden="true"></i> Mes commandes
@@ -49,6 +44,16 @@
         <li class="nav-item">
             <a href="{{ path('app_gestion_commandes_dota') }}" class="nav-link {% if active_link == 'gestion_commandes' %}active{% else %} link-dark {% endif %}">
                 <i class="fas fa-box me-2" aria-hidden="true"></i> Gestion des commandes
+            </a>
+        </li>
+                <li>
+            <a href="/dota/admin" class="nav-link {% if active_link == 'admin' %}active{% else %} link-dark {% endif %}">
+                <i class="fas fa-cogs me-2" aria-hidden="true"></i> Administration
+            </a>
+        </li>
+                <li>
+            <a href="/dota/point" class="nav-link {% if active_link == 'GestionPoint' %}active{% else %} link-dark {% endif %}">
+                <i class="fa fa-coins me-2" aria-hidden="true"></i> Gestion des points
             </a>
         </li>
     </ul>
