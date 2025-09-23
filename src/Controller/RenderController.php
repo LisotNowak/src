@@ -545,7 +545,7 @@ public function saveTimeEntriesUserNonPermanent(Request $request, SqlServerServi
                 )",
                 [
                     'userId' => $userId,
-                    'dateEntry' => isset($jour['date']) && $jour['date'] ? (new \DateTime($jour['date']))->format('Y-m-d H:i:s') : null,
+                    'dateEntry' => isset($jour['date']) && $jour['date'] ? (new \DateTime($jour['date']))->format('Ymd') : null,
                     'NbHoursNormal' => $jour['HNorm'] ?: 0,
                     'NbHoursRecoveryTime' => $jour['HRepComp'] ?? null,
                     'NbHoursAdd' => $jour['HCompl'] ?? null,
