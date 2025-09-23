@@ -75,23 +75,6 @@ function calcul() {
                     } else {
                         document.getElementById(jour + "HS50").value = hSaisie;
                     }
-
-                    // === Calcul HCompl (au fil des jours) ===
-                    if (totalHSaisie >= 49) {
-                        let hComplJour = 0;
-
-                        if (totalHSaisie <= 56) {
-                            // Tranche 49–56 : 0,25 par heure au-delà de 48
-                            hComplJour = (totalHSaisie - 48) * 0.25;
-                        } else {
-                            // Au-delà de 56
-                            hComplJour = (56 - 48) * 0.25;           // heures 49–56
-                            hComplJour += (totalHSaisie - 56) * 0.5; // heures >56
-                        }
-
-                        document.getElementById(jour + "HCompl").value = hComplJour.toFixed(2);
-                        totalHCompl += hComplJour;
-                    }
                 }
             } else {
                 document.getElementById(jour + "HNorm").value = hSaisie;
@@ -101,7 +84,7 @@ function calcul() {
         }
     }
 
-    // === Nouveau calcul HRepComp global ===
+    // === Calcul HRepComp global ===
     if (!isSaisonnier) {
         if (totalHSaisie >= 49 && totalHSaisie <= 56) {
             totalHRepComp = (totalHSaisie - 48) * 0.25;
@@ -125,11 +108,21 @@ function calcul() {
         }
     }
 
-    // === Total HCompl sur la dernière ligne ===
-    if (lastRowWithHSaisie) {
-        let targetCompl = lastRowWithHSaisie.querySelector(".HCompl");
-        if (targetCompl) {
-            targetCompl.value = totalHCompl.toFixed(2);
+    // === Calcul HCompl global ===
+    if (totalHSaisie >= 49) {
+        if (totalHSaisie <= 56) {
+            totalHCompl = (totalHSaisie - 48) * 0.25;
+        } else {
+            totalHCompl = (56 - 48) * 0.25;           // 49–56
+            totalHCompl += (totalHSaisie - 56) * 0.5; // >56
+        }
+
+        // Affichage uniquement sur la dernière ligne
+        if (lastRowWithHSaisie) {
+            let targetCompl = lastRowWithHSaisie.querySelector(".HCompl");
+            if (targetCompl) {
+                targetCompl.value = totalHCompl.toFixed(2);
+            }
         }
     }
 
