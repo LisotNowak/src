@@ -77,10 +77,18 @@ function calcul() {
                     }
 
                     // === Calcul HCompl (au fil des jours) ===
-                    if (totalHSaisie >= 57) {
+                    if (totalHSaisie >= 49) {
                         let hComplJour = 0;
-                        hComplJour += (56 - 48) * 0.25;   // tranche 49-56
-                        hComplJour += (totalHSaisie - 56) * 0.5; // au-delà de 56
+
+                        if (totalHSaisie <= 56) {
+                            // Tranche 49–56 : 0,25 par heure au-delà de 48
+                            hComplJour = (totalHSaisie - 48) * 0.25;
+                        } else {
+                            // Au-delà de 56
+                            hComplJour = (56 - 48) * 0.25;           // heures 49–56
+                            hComplJour += (totalHSaisie - 56) * 0.5; // heures >56
+                        }
+
                         document.getElementById(jour + "HCompl").value = hComplJour.toFixed(2);
                         totalHCompl += hComplJour;
                     }
