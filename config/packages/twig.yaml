@@ -1,5 +1,7 @@
 twig:
     file_name_pattern: '*.twig'
+    globals:
+        maintenance: '@App\Service\MaintenanceService'
 
 when@test:
     twig:

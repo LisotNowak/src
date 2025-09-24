@@ -1,0 +1,69 @@
+{# filepath: c:\Users\lisot.n\appSymfony\src\templates\routes_list.html.twig #}
+{% extends 'base.html.twig' %}
+
+{% block title %}Liste des Routes et Maintenance{% endblock %}
+
+{% block body %}
+<div class="container mt-4">
+    <h1>Gestion des Routes et de la Maintenance</h1>
+    <p>Activez ou désactivez le mode maintenance pour des sections entières du site.</p>
+
+    {% for category, routes in categorizedRoutes %}
+        <div class="card my-4">
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap">
+                <h3 class="h5 mb-0 mr-3">Catégorie : <span class="badge badge-secondary">{{ category }}</span></h3>
+                
+                {% if maintenance.isCategoryActive(category) %}
+                    {% set categoryConfig = maintenance.getCategoryConfig(category) %}
+                    <div class="d-flex align-items-center flex-grow-1 mt-2 mt-md-0">
+                        {# Formulaire pour METTRE À JOUR le message #}
+                        <form action="{{ path('dev_maintenance_activate', {category: category}) }}" method="post" class="d-flex align-items-center flex-grow-1">
+                            <input type="text" name="message" class="form-control form-control-sm" value="{{ categoryConfig.message|default('') }}">
+                            <button type="submit" class="btn btn-sm btn-info text-nowrap ml-2">Mettre à jour</button>
+                        </form>
+                        {# Formulaire pour DÉSACTIVER #}
+                        <form action="{{ path('dev_maintenance_deactivate', {category: category}) }}" method="post" class="ml-2">
+                            <button type="submit" class="btn btn-sm btn-success text-nowrap">Désactiver</button>
+                        </form>
+                    </div>
+                {% else %}
+                    {# Formulaire pour ACTIVER #}
+                    <form action="{{ path('dev_maintenance_activate', {category: category}) }}" method="post" class="d-flex align-items-center flex-grow-1 mt-2 mt-md-0">
+                        <input type="text" name="message" class="form-control form-control-sm mr-2" placeholder="Message personnalisé (optionnel)">
+                        <button type="submit" class="btn btn-sm btn-danger text-nowrap">Activer</button>
+                    </form>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <table class="table table-striped table-hover table-sm mb-0">
+                    <thead class="thead-dark">
+                        <tr>
+                            <th style="width: 25%;">Nom de la Route</th>
+                            <th style="width: 40%;">Chemin (Path)</th>
+                            <th style="width: 35%;">Contrôleur</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for route in routes %}
+                            <tr>
+                                <td>{{ route.name }}</td>
+                                <td>
+                                    {% if route.has_required_parameters %}
+                                        {{ route.path }}
+                                        <small class="text-muted">(requiert des paramètres)</small>
+                                    {% else %}
+                                        <a href="{{ path(route.name) }}" target="_blank">{{ route.path }}</a>
+                                    {% endif %}
+                                </td>
+                                <td>{{ route.controller }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {% else %}
+        <div class="alert alert-info">Aucune route correspondante trouvée.</div>
+    {% endfor %}
+</div>
+{% endblock %}
