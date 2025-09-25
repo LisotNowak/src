@@ -88,13 +88,28 @@ function calcul() {
 
     // ---- Correction : HNorm doit être au moins 35 si totalHSaisie >= 35 ----
     if (totalHSaisie >= 35 && totalHNorm < 35) {
-        const manque = 35 - totalHNorm;
-        if (lastRowWithHSaisie) {
-            const lastHNormEl = lastRowWithHSaisie.querySelector(".HNorm");
-            if (lastHNormEl) {
-                lastHNormEl.value = (parseNumber(lastHNormEl.value) + manque).toFixed(2);
+        let manque = 35 - totalHNorm;
+
+        for (let InputHSaisie of allHSaisieInputs) {
+            if (manque <= 0) break;
+
+            const jour = InputHSaisie.id.split('H')[0];
+            const elHNorm = document.getElementById(jour + "HNorm");
+
+            if (!elHNorm) continue;
+
+            let hNormVal = parseNumber(elHNorm.value);
+            let hSaisieVal = parseNumber(InputHSaisie.value);
+
+            // combien on peut rajouter sur ce jour
+            const dispo = hSaisieVal - hNormVal;
+            if (dispo > 0) {
+                const ajout = Math.min(dispo, manque);
+                elHNorm.value = (hNormVal + ajout).toFixed(2);
+                manque -= ajout;
             }
         }
+
         totalHNorm = 35;
     }
 
@@ -137,3 +152,4 @@ function calcul() {
     const totalEl = document.getElementById("totalHsaisie");
     if (totalEl) totalEl.value = totalHSaisie;
 }
+
