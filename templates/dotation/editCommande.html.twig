@@ -1,0 +1,210 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Modifier la commande #{{ commande.id }}{% endblock %}
+
+{% block sidebar %}
+    {% include 'dotation/sidebar.html.twig' with {'active_link': 'gestion_commandes'} %}
+{% endblock %}
+
+{% block body %}
+<div class="container mt-4">
+    <h1>Modifier la commande #{{ commande.id }}</h1>
+    <p>Utilisateur : <strong>{{ commande.userMail }}</strong></p>
+    <p>Date : {{ commande.date }}</p>
+
+    <form method="post" id="edit-commande-form" action="{{ path('app_commande_edit', {'id': commande.id}) }}">
+        <input type="hidden" name="_token" value="{{ csrf_token('edit_commande_' ~ commande.id) }}">
+
+        <table class="table table-bordered">
+            <thead class="thead-light">
+                <tr>
+                    <th>Article</th>
+                    <th style="width: 120px;">Quantité</th>
+                    <th style="width: 150px;">Taille</th>
+                    <th style="width: 150px;">Couleur</th>
+                    <th style="width: 100px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in itemsDetails %}
+                    {% set assocId = item.assoc.id %}
+                    <tr>
+                        <td>
+                            {% if item.article %}
+                                {{ item.article.nom }}
+                                <div class="small text-muted">Réf: {{ item.article.reference }}</div>
+                            {% else %}
+                                <span class="text-danger">Article supprimé</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <input type="number" name="items[{{ assocId }}][quantite]" class="form-control" value="{{ item.assoc.nb }}" min="0">
+                        </td>
+                        <td>
+                            <select name="items[{{ assocId }}][taille]" class="form-select">
+                                {% for taille in item.taillesDisponibles %}
+                                    <option value="{{ taille }}" {{ item.assoc.nomTaille == taille ? 'selected' : '' }}>
+                                        {{ taille }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <select name="items[{{ assocId }}][couleur]" class="form-select">
+                                {% for couleur in item.couleursDisponibles %}
+                                    <option value="{{ couleur }}" {{ item.assoc.nomCouleur == couleur ? 'selected' : '' }}>
+                                        {{ couleur }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td>
+                            <button type="submit" name="delete_item" value="{{ assocId }}" class="btn btn-danger btn-sm" onclick="return confirm('Voulez-vous vraiment supprimer cet article de la commande ?');">
+                                Supprimer
+                            </button>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center">Cette commande est vide.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="mt-3">
+            <button type="submit" class="btn btn-success">Enregistrer les modifications</button>
+            <a href="{{ path('app_gestion_commandes_dota') }}" class="btn btn-secondary">Annuler</a>
+        </div>
+    </form>
+
+    <hr>
+
+    {# Section pour ajouter un nouvel article #}
+    <div class="card mt-4">
+        <div class="card-header">
+            Ajouter un article à la commande
+        </div>
+        <div class="card-body">
+            <div id="add-item-container">
+                <div class="row g-3 align-items-end new-item-row">
+                    <div class="col-md-4">
+                        <label class="form-label">Article</label>
+                        <select class="form-select new-article-select">
+                            <option selected disabled>Choisir un article...</option>
+                            {% for article in allArticles %}
+                                <option value="{{ article.id }}">{{ article.nom }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Taille</label>
+                        <select class="form-select new-taille-select" disabled>
+                            <option>Choisir taille</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Couleur</label>
+                        <select class="form-select new-couleur-select" disabled>
+                            <option>Choisir couleur</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Quantité</label>
+                        <input type="number" class="form-control new-quantite-input" value="1" min="1" disabled>
+                    </div>
+                    <div class="col-md-2">
+                        <button class="btn btn-primary w-100" id="add-new-item-btn" type="button">Ajouter</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const container = document.getElementById('add-item-container');
+            const articleSelect = container.querySelector('.new-article-select');
+            const tailleSelect = container.querySelector('.new-taille-select');
+            const couleurSelect = container.querySelector('.new-couleur-select');
+            const quantiteInput = container.querySelector('.new-quantite-input');
+
+            articleSelect.addEventListener('change', function() {
+                const articleId = this.value;
+                tailleSelect.innerHTML = '<option>Chargement...</option>';
+                couleurSelect.innerHTML = '<option>Chargement...</option>';
+                tailleSelect.disabled = true;
+                couleurSelect.disabled = true;
+                quantiteInput.disabled = true;
+
+                if (!articleId) return;
+
+                fetch("{{ path('get_article') }}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: 'id=' + articleId
+                })
+                .then(response => response.json())
+                .then(data => {
+                    tailleSelect.innerHTML = '<option selected disabled>Choisir taille</option>';
+                    data.tailles.forEach(tailleNom => {
+                        tailleSelect.innerHTML += `<option value="${tailleNom}">${tailleNom}</option>`;
+                    });
+                    couleurSelect.innerHTML = '<option selected disabled>Choisir couleur</option>';
+                    data.couleurs.forEach(couleurNom => {
+                        couleurSelect.innerHTML += `<option value="${couleurNom}">${couleurNom}</option>`;
+                    });
+                    tailleSelect.disabled = false;
+                    couleurSelect.disabled = false;
+                    quantiteInput.disabled = false;
+                });
+            });
+
+            document.getElementById('add-new-item-btn').addEventListener('click', function() {
+                const articleId = articleSelect.value;
+                const taille = tailleSelect.value;
+                const couleur = couleurSelect.value;
+                const quantite = quantiteInput.value;
+
+                if (!articleId || !taille || !couleur || quantite < 1) {
+                    alert('Veuillez sélectionner un article, une taille, une couleur et une quantité valide.');
+                    return;
+                }
+
+                const form = document.getElementById('edit-commande-form');
+                const index = form.querySelectorAll('[name^="new_items"]').length / 4; // 4 fields per item
+
+                const articleInput = document.createElement('input');
+                articleInput.type = 'hidden';
+                articleInput.name = `new_items[${index}][article]`;
+                articleInput.value = articleId;
+                form.appendChild(articleInput);
+
+                const tailleInput = document.createElement('input');
+                tailleInput.type = 'hidden';
+                tailleInput.name = `new_items[${index}][taille]`;
+                tailleInput.value = taille;
+                form.appendChild(tailleInput);
+
+                const couleurInput = document.createElement('input');
+                couleurInput.type = 'hidden';
+                couleurInput.name = `new_items[${index}][couleur]`;
+                couleurInput.value = couleur;
+                form.appendChild(couleurInput);
+
+                const quantiteField = document.createElement('input');
+                quantiteField.type = 'hidden';
+                quantiteField.name = `new_items[${index}][quantite]`;
+                quantiteField.value = quantite;
+                form.appendChild(quantiteField);
+
+                // Submit the main form
+                form.submit();
+            });
+        });
+    </script>
+{% endblock %}

@@ -41,31 +41,25 @@ class DotationController extends AbstractController
         $article = $entityManager->getRepository(Article::class)->find($id);
 
         if (!$article) {
-            return $this->json(['error' => 'Article non trouvé'], Response::HTTP_NOT_FOUND);
+            return new JsonResponse(['error' => 'Article not found'], 404);
         }
 
-        // Récupérer les tailles et couleurs associées
-        $tailles = $entityManager->getRepository(AssociationTaillesArticle::class)->findBy(['idArticle' => $id]);
-        $couleurs = $entityManager->getRepository(AssociationCouleursArticle::class)->findBy(['idArticle' => $id]);
+        // Récupérer les noms des tailles associées
+        $taillesAssoc = $entityManager->getRepository(AssociationTaillesArticle::class)->findBy(['idArticle' => $id]);
+        $taillesNoms = array_map(function($assoc) {
+            return $assoc->getNomTaille();
+        }, $taillesAssoc);
 
-        
+        // Récupérer les noms des couleurs associées
+        $couleursAssoc = $entityManager->getRepository(AssociationCouleursArticle::class)->findBy(['idArticle' => $id]);
+        $couleursNoms = array_map(function($assoc) {
+            return $assoc->getNomCouleur();
+        }, $couleursAssoc);
 
-        $tableauTailles = array_map(fn($t) => $entityManager->getRepository(Taille::class)->findOneByNom($t->getNomTaille())->getId(), $tailles);
-        $tableauCouleurs = array_map(fn($c) => $entityManager->getRepository(Couleur::class)->findOneByNom($c->getNomCouleur())->getId(), $couleurs);
-
-
-        $data = [
-            'reference' => $article->getReference(),
-            'nom' => $article->getNom(),
-            'prix' => $article->getPrix(),
-            'point' => $article->getPoint(),
-            'descriptions' => $article->getDescription(),
-            'type' => $entityManager->getRepository(Type::class)->findOneByNom($article->getNomType())->getId(),
-            'tableauTailles' => $tableauTailles,
-            'tableauCouleurs' => $tableauCouleurs,
-        ];
-
-        return $this->json($data);
+        return new JsonResponse([
+            'tailles' => $taillesNoms,
+            'couleurs' => $couleursNoms,
+        ]);
     }
 
     #[Route('/dota/article/delete/{id}', name: 'delete_article', methods: ['GET', 'DELETE'])]
@@ -1005,6 +999,109 @@ public function validerPanier(SessionInterface $session, EntityManagerInterface 
         $entityManager->flush();
 
         return new JsonResponse(['success' => true, 'points' => $user->getPointDotation()]);
+    }
+
+    #[Route('/dota/commande/{id}/edit', name: 'app_commande_edit', methods: ['GET', 'POST'])]
+    public function editCommande(int $id, Request $request, EntityManagerInterface $entityManager): Response
+    {
+        if (!$this->isGranted('ROLE_ADMIN')) {
+            $this->addFlash('error', 'Accès non autorisé.');
+            return $this->redirectToRoute('app_gestion_commandes_dota');
+        }
+
+        $commande = $entityManager->getRepository(Commande::class)->find($id);
+        if (!$commande) {
+            $this->addFlash('error', 'Commande introuvable.');
+            return $this->redirectToRoute('app_gestion_commandes_dota');
+        }
+
+        if ($request->isMethod('POST')) {
+            if (!$this->isCsrfTokenValid('edit_commande_'.$commande->getId(), $request->request->get('_token'))) {
+                $this->addFlash('error', 'Token CSRF invalide.');
+            } else {
+                // Gérer la suppression d'un article
+                if ($request->request->has('delete_item')) {
+                    $assocIdToDelete = $request->request->get('delete_item');
+                    $assocToDelete = $entityManager->getRepository(AssociationCommandeArticle::class)->find($assocIdToDelete);
+                    if ($assocToDelete && $assocToDelete->getIdCommande() === $commande->getId()) {
+                        $entityManager->remove($assocToDelete);
+                        $entityManager->flush();
+                        $this->addFlash('success', 'L\'article a été supprimé de la commande.');
+                        return $this->redirectToRoute('app_commande_edit', ['id' => $id]);
+                    }
+                }
+
+                // Gérer la mise à jour des articles existants
+                $itemsData = $request->request->all('items');
+                $assocs = $entityManager->getRepository(AssociationCommandeArticle::class)->findBy(['idCommande' => $commande->getId()]);
+
+                foreach ($assocs as $assoc) {
+                    $assocId = $assoc->getId();
+                    if (isset($itemsData[$assocId])) {
+                        $data = $itemsData[$assocId];
+                        $newQuantity = (int)($data['quantite'] ?? 0);
+
+                        if ($newQuantity > 0) {
+                            $assoc->setNb($newQuantity);
+                            $assoc->setNomTaille($data['taille'] ?? $assoc->getNomTaille());
+                            $assoc->setNomCouleur($data['couleur'] ?? $assoc->getNomCouleur());
+                            $entityManager->persist($assoc);
+                        } else {
+                            // Si la quantité est 0, on supprime aussi
+                            $entityManager->remove($assoc);
+                        }
+                    }
+                }
+
+                // Gérer l'ajout de nouveaux articles
+                $newItems = $request->request->all('new_items');
+                foreach ($newItems as $newItemData) {
+                    $articleId = $newItemData['article'] ?? null;
+                    $quantity = (int)($newItemData['quantite'] ?? 0);
+                    $taille = $newItemData['taille'] ?? null;
+                    $couleur = $newItemData['couleur'] ?? null;
+
+                    if ($articleId && $quantity > 0 && $taille && $couleur) {
+                        $newAssoc = new AssociationCommandeArticle();
+                        $newAssoc->setIdCommande($commande->getId());
+                        $newAssoc->setIdArticle($articleId);
+                        $newAssoc->setNb($quantity);
+                        $newAssoc->setNomTaille($taille);
+                        $newAssoc->setNomCouleur($couleur);
+                        $entityManager->persist($newAssoc);
+                    }
+                }
+
+                $entityManager->flush();
+                $this->addFlash('success', 'La commande a été mise à jour.');
+            }
+            return $this->redirectToRoute('app_gestion_commandes_dota');
+        }
+
+        // Préparation des données pour le template
+        $assocs = $entityManager->getRepository(AssociationCommandeArticle::class)->findBy(['idCommande' => $commande->getId()]);
+        $itemsDetails = [];
+        foreach ($assocs as $assoc) {
+            $article = $entityManager->getRepository(Article::class)->find($assoc->getIdArticle());
+            $taillesDispo = $entityManager->getRepository(AssociationTaillesArticle::class)->findBy(['idArticle' => $assoc->getIdArticle()]);
+            $couleursDispo = $entityManager->getRepository(AssociationCouleursArticle::class)->findBy(['idArticle' => $assoc->getIdArticle()]);
+
+            $itemsDetails[] = [
+                'assoc' => $assoc,
+                'article' => $article,
+                'taillesDisponibles' => array_map(fn($t) => $t->getNomTaille(), $taillesDispo),
+                'couleursDisponibles' => array_map(fn($c) => $c->getNomCouleur(), $couleursDispo),
+            ];
+        }
+
+        // Récupérer tous les articles pour le formulaire d'ajout
+        $allArticles = $entityManager->getRepository(Article::class)->findBy([], ['nom' => 'ASC']);
+
+        return $this->render('dotation/editCommande.html.twig', [
+            'commande' => $commande,
+            'itemsDetails' => $itemsDetails,
+            'allArticles' => $allArticles,
+        ]);
     }
 
 
