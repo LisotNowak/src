@@ -41,9 +41,10 @@
         <div class="col-md-3">
           <select id="typeFilter" class="form-control">
             <option value="">-- Tous les types --</option>
-            {% for type in listeTypes|map(a => a.nom) %}
-              <option value="{{ type|lower }}">{{ type }}</option>
-            {% endfor %}
+              {% for type in listeTypes %}
+                <option value="{{ type.nom|lower }}">{{ type.nom }}</option>
+              {% endfor %}
+
           </select>
         </div>
 
@@ -163,21 +164,28 @@
                 <small class="text-muted">Taille :</small>
                 <div class="mt-1">
                   {% set hasTaille = false %}
-                  {% for assoc in listeAssociationTaillesArticle %}
-                    {% if assoc.idArticle == product.id %}
-                      {% set hasTaille = true %}
-                      <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="radio"
-                               name="size_{{ product.id }}"
-                               id="size_{{ product.id }}_{{ loop.index }}"
-                               value="{{ assoc.nomTaille }}">
-                        <label class="form-check-label" for="size_{{ product.id }}_{{ loop.index }}">{{ assoc.nomTaille }}</label>
+                    {% for assoc in listeAssociationTaillesArticle %}
+                        {% if assoc.idArticle == product.id %}
+                            {% set hasTaille = true %}
+                        {% endif %}
+                    {% endfor %}
+                    {% if hasTaille %}
+                      <div class="form-group mb-2">
+                        {# <label for="size_{{ product.id }}" class="form-label">Taille</label> #}
+                        <select name="size_{{ product.id }}" id="size_{{ product.id }}"
+                                class="form-select form-select-sm w-auto d-inline-block">
+                          <option value="">Taille...</option>
+                          {% for assoc in listeAssociationTaillesArticle %}
+                            {% if assoc.idArticle == product.id %}
+                              <option value="{{ assoc.nomTaille }}">{{ assoc.nomTaille }}</option>
+                            {% endif %}
+                          {% endfor %}
+                        </select>
                       </div>
+                    {% else %}
+                      <input type="hidden" name="size_{{ product.id }}" value="">
                     {% endif %}
-                  {% endfor %}
-                  {% if not hasTaille %}
-                    <input type="hidden" name="size_{{ product.id }}" value="">
-                  {% endif %}
+
                 </div>
               </div>
 
@@ -394,19 +402,18 @@ document.addEventListener('DOMContentLoaded', function () {
       const card = this.closest('.card');
       if (!card) return;
 
-      const sizeInput = card.querySelector('input[name="size_' + productId + '"]:checked');
+      const sizeSelect = card.querySelector('select[name="size_' + productId + '"]');
       const colorInput = card.querySelector('input[name="color_' + productId + '"]:checked');
       const quantityInput = card.querySelector('input[name="quantity_' + productId + '"]');
 
-      const size = sizeInput ? sizeInput.value : '';
+      const size = sizeSelect ? sizeSelect.value : '';
       const color = colorInput ? colorInput.value : '';
       const quantity = quantityInput ? quantityInput.value : '1';
 
       // Validation obligatoire : taille puis couleur
       if (!size) {
         showAjaxAlert('Veuillez sélectionner une taille.');
-        const tailleZone = card.querySelector('input[name="size_' + productId + '"]');
-        if (tailleZone) tailleZone.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (sizeSelect) sizeSelect.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
       }
       if (!color) {
