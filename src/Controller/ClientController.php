@@ -10,6 +10,7 @@ use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\JsonResponse; // <-- Ajoutez cette ligne
 use Symfony\Component\Routing\Annotation\Route;
 
 class ClientController extends AbstractController
@@ -128,5 +129,51 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
         $em->flush();
 
         return $this->json(['success' => true]);
+    }
+
+    #[Route('/client/{id}/update-address', name: 'app_client_update_address', methods: ['POST'])]
+    public function updateAddress(Request $request, ManagerRegistry $doctrine, Client $client): Response
+    {
+        if (!$request->isXmlHttpRequest()) {
+            return new JsonResponse(['success' => false, 'error' => 'Requête non autorisée'], 400);
+        }
+
+        $data = json_decode($request->getContent(), true);
+
+        // Mettre à jour les champs de l'adresse
+        if (isset($data['adresse1'])) {
+            $client->setAdresse1($data['adresse1']);
+        }
+        if (isset($data['adresse2'])) {
+            $client->setAdresse2($data['adresse2']);
+        }
+        if (isset($data['codePostal'])) {
+            $client->setCodePostal($data['codePostal']);
+        }
+        if (isset($data['ville'])) {
+            $client->setVille($data['ville']);
+        }
+        if (isset($data['pays'])) {
+            $client->setPays($data['pays']);
+        }
+
+        $em = $doctrine->getManager();
+        $em->persist($client);
+        $em->flush();
+
+        // Retourner les données mises à jour pour rafraîchir la vue
+        $responseData = [
+            'success' => true,
+            'client' => [
+                'id' => $client->getId(),
+                'adresse1' => $client->getAdresse1(),
+                'adresse2' => $client->getAdresse2(),
+                'codePostal' => $client->getCodePostal(),
+                'ville' => $client->getVille(),
+                'pays' => $client->getPays(),
+            ]
+        ];
+
+        return new JsonResponse($responseData);
     }
 }
