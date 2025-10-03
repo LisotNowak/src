@@ -6,6 +6,7 @@ use App\Entity\client\Client;
 use App\Entity\client\AssociationSignataire;
 use App\Entity\client\Signataire;
 use App\Entity\client\Categorie;
+use App\Form\ClientType; // <-- Ajoutez cette ligne
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -78,6 +79,30 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
         // 'pageSize' => $pageSize,
     ]);
 }
+
+    #[Route('/client/new', name: 'app_client_new', methods: ['GET', 'POST'])]
+    public function new(Request $request, ManagerRegistry $doctrine): Response
+    {
+        $client = new Client();
+        $form = $this->createForm(ClientType::class, $client);
+        $form->handleRequest($request);
+
+        if ($form->isSubmitted() && $form->isValid()) {
+            $entityManager = $doctrine->getManager();
+            $entityManager->persist($client);
+            $entityManager->flush();
+
+            $this->addFlash('success', 'Le client a été ajouté avec succès.');
+
+            // Redirige vers la liste des clients, en sélectionnant le signataire si possible
+            return $this->redirectToRoute('app_clients_list');
+        }
+
+        return $this->render('client/new.html.twig', [
+            'client' => $client,
+            'form' => $form,
+        ]);
+    }
 
 
     #[Route('/clients/update-field', name: 'app_clients_update_field', methods: ['POST'])]

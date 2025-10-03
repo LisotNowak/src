@@ -1,0 +1,69 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Ajouter un client{% endblock %}
+
+{% block body %}
+    <div class="container mt-5">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h3 class="mb-0">
+                    <i class="bi bi-person-plus"></i> Ajouter un nouveau client
+                </h3>
+            </div>
+            <div class="card-body p-4">
+                {{ form_start(form) }}
+                    <div class="row g-3">
+                        <!-- Informations générales -->
+                        <h5 class="text-primary border-bottom pb-2">
+                            <i class="bi bi-building"></i> Informations générales
+                        </h5>
+                        <div class="col-12">
+                            {{ form_row(form.societeNom) }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form_row(form.triNom) }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form_row(form.triPrenom) }}
+                        </div>
+
+                        <!-- Adresse -->
+                        <h5 class="text-primary mt-4 border-bottom pb-2">
+                            <i class="bi bi-geo-alt"></i> Adresse
+                        </h5>
+                        <div class="col-12">
+                            {{ form_row(form.adresse1) }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form_row(form.codePostal) }}
+                        </div>
+                        <div class="col-md-5">
+                            {{ form_row(form.ville) }}
+                        </div>
+                        <div class="col-md-3">
+                            {{ form_row(form.pays) }}
+                        </div>
+
+                        <!-- Catégorie -->
+                        <h5 class="text-primary mt-4 border-bottom pb-2">
+                            <i class="bi bi-tags"></i> Catégorie
+                        </h5>
+                        <div class="col-12">
+                            {{ form_row(form.categorieEntity) }}
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="col-12 text-end mt-4">
+                            <button class="btn btn-success">
+                                <i class="bi bi-save"></i> Enregistrer
+                            </button>
+                            <a href="{{ path('app_clients_list') }}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left"></i> Retour à la liste
+                            </a>
+                        </div>
+                    </div>
+                {{ form_end(form) }}
+            </div>
+        </div>
+    </div>
+{% endblock %}
