@@ -1,0 +1,70 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Associer des Clients à un Signataire{% endblock %}
+
+{% block body %}
+<div class="container mt-5">
+    <div class="card shadow-sm">
+        <div class="card-header bg-info text-white">
+            <h3 class="mb-0">
+                <i class="bi bi-link-45deg"></i> Associer des Clients à un Signataire
+            </h3>
+        </div>
+        <div class="card-body p-4">
+            <form method="post">
+                <div class="mb-4">
+                    <label for="signataire" class="form-label fs-5">1. Choisir le signataire</label>
+                    <select id="signataire" name="signataire" class="form-select" required>
+                        <option value="" selected disabled>-- Sélectionnez un signataire --</option>
+                        {% for signataire in signataires %}
+                            <option value="{{ signataire.id }}">{{ signataire.nom }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-4">
+                    <label for="client-search" class="form-label fs-5">2. Rechercher et choisir les clients</label>
+                    <input type="text" id="client-search" class="form-control mb-2" placeholder="Rechercher un client par nom, prénom ou société...">
+
+                    <select id="clients" name="clients[]" class="form-select" multiple required size="15">
+                        {% for client in clients %}
+                            <option value="{{ client.id }}">{{ client.triNom }} {{ client.triPrenom }} ({{ client.societeNom }})</option>
+                        {% else %}
+                            <option disabled>Aucun client trouvé.</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-12 text-end mt-4">
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-check-circle"></i> Associer la sélection
+                    </button>
+                    <a href="{{ path('app_clients_list') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Annuler et retourner à la liste
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('client-search');
+    const clientSelect = document.getElementById('clients');
+    const options = Array.from(clientSelect.options);
+
+    searchInput.addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase().trim();
+
+        options.forEach(option => {
+            const optionText = option.textContent.toLowerCase();
+            option.style.display = optionText.includes(searchTerm) ? '' : 'none';
+        });
+    });
+});
+</script>
+{% endblock %}

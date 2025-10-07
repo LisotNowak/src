@@ -39,10 +39,12 @@
                     </select>
                 </div>
             </form>
-            <div>
+            
+        </div>
+        <div class="mb-4">
+                <a href="{{ path('app_client_associate') }}" class="btn btn-info me-2">Associer des clients</a>
                 <a href="{{ path('app_client_new') }}" class="btn btn-primary">Ajouter un client</a>
             </div>
-        </div>
     </div>
 
     <div class="table-responsive">
@@ -63,7 +65,7 @@
             </thead>
             <tbody>
                 {% if signataire_selected %}
-                    {% for client in clients %}
+                    {% for client in clients %} {# Mettre à jour ici #}
                         {% set clientAssocs = associations[client.id] ?? [] %}
                         {% set assoc = clientAssocs|filter(a => a.signataire.id == signataire_selected)|first %}
                         <tr class="{% if assoc and assoc.conserver %}row-conserver-oui{% endif %}" 
@@ -137,7 +139,9 @@
                     {% endfor %}
                 {% else %}
                     <tr>
-                        <td colspan="10" class="text-center text-muted">Veuillez sélectionner un signataire pour afficher les clients.</td>
+                        <td colspan="10" class="text-center p-4">
+                            Veuillez sélectionner un signataire pour afficher les clients associés.
+                        </td>
                     </tr>
                 {% endif %}
             </tbody>

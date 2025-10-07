@@ -33,6 +33,7 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
     $categories = $categorieRepo->findAll();
 
     $clients = [];
+    $associations = [];
 
     // Si un signataire est sélectionné, récupérer uniquement ses clients associés
     if ($signataireId) {
@@ -51,33 +52,32 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
         //    ->setMaxResults($pageSize);
 
         $clients = $qb->getQuery()->getResult();
-    }
 
-    // Charger les associations uniquement pour les clients récupérés
-    $associations = [];
-    if ($clients) {
-        $clientIds = array_map(fn($c) => $c->getId(), $clients);
-        $assocList = $associationRepo->createQueryBuilder('a')
-            ->andWhere('a.client IN (:clients)')
-            ->setParameter('clients', $clientIds)
-            ->getQuery()
-            ->getResult();
+        // Charger les associations uniquement pour les clients récupérés
+        if ($clients) {
+            $clientIds = array_map(fn($c) => $c->getId(), $clients);
+            $assocList = $associationRepo->createQueryBuilder('a')
+                ->andWhere('a.client IN (:clients)')
+                ->setParameter('clients', $clientIds)
+                ->getQuery()
+                ->getResult();
 
-        foreach ($assocList as $assoc) {
-            $associations[$assoc->getClient()->getId()][] = $assoc;
+            foreach ($assocList as $assoc) {
+                $associations[$assoc->getClient()->getId()][] = $assoc;
+            }
         }
     }
 
-    return $this->render('client/list.html.twig', [
-        'clients' => $clients,
-        'associations' => $associations,
-        'signataires' => $signataires,
-        'categories' => $categories,
-        'signataire_selected' => $signataireId,
-        'categorie_selected' => $categorieId,
-        'page' => $page,
-        // 'pageSize' => $pageSize,
-    ]);
+        return $this->render('client/list.html.twig', [
+            'clients' => $clients,
+            'signataires' => $signataires,
+            'signataire_selected' => $signataireId ? (int) $signataireId : null,
+            'categories' => $categories,
+            'categorie_selected' => $categorieId ? (int) $categorieId : null,
+            'associations' => $associations,
+        ]);
+
+
 }
 
     #[Route('/client/new', name: 'app_client_new', methods: ['GET', 'POST'])]
@@ -101,6 +101,66 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
         return $this->render('client/new.html.twig', [
             'client' => $client,
             'form' => $form,
+        ]);
+    }
+
+    #[Route('/clients/associate', name: 'app_client_associate', methods: ['GET', 'POST'])]
+    public function associate(Request $request, ManagerRegistry $doctrine): Response
+    {
+        $entityManager = $doctrine->getManager();
+        $signataireRepo = $entityManager->getRepository(Signataire::class);
+        $clientRepo = $entityManager->getRepository(Client::class);
+
+        if ($request->isMethod('POST')) {
+            $signataireId = $request->request->get('signataire');
+            $clientIds = $request->request->all('clients');
+            dump($clientIds);
+
+
+            dump($signataireId, $clientIds); // 🔍 vérification (à retirer après debug)
+
+            if (!$signataireId || empty($clientIds)) {
+                $this->addFlash('error', 'Veuillez sélectionner un signataire et au moins un client.');
+                return $this->redirectToRoute('app_client_associate');
+            }
+
+            $signataire = $signataireRepo->find($signataireId);
+            if (!$signataire) {
+                throw $this->createNotFoundException('Signataire non trouvé.');
+            }
+
+            $clientsToAssociate = $clientRepo->findBy(['id' => $clientIds]);
+
+            foreach ($clientsToAssociate as $client) {
+                $existingAssociation = $entityManager->getRepository(AssociationSignataire::class)->findOneBy([
+                    'client' => $client,
+                    'signataire' => $signataire
+                ]);
+
+                if (!$existingAssociation) {
+                    $association = new AssociationSignataire();
+                    $association->setClient($client);
+                    $association->setSignataire($signataire);
+                    $association->setConserver(false);
+                    $association->setSignature(false);
+                    $association->setEnvoiMail(false);
+                    $entityManager->persist($association);
+                }
+            }
+
+            $entityManager->flush();
+            $this->addFlash('success', count($clientsToAssociate) . ' client(s) ont été associés avec succès à ' . $signataire->getNom());
+
+            return $this->redirectToRoute('app_clients_list', ['signataire' => $signataireId]);
+        }
+
+
+        // Pour le GET, on charge tous les clients pour permettre la recherche
+        $clients = $clientRepo->findBy([], ['triNom' => 'ASC', 'triPrenom' => 'ASC']);
+
+        return $this->render('client/associate.html.twig', [
+            'signataires' => $signataireRepo->findAll(),
+            'clients' => $clients,
         ]);
     }
 
