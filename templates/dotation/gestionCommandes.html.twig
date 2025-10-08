@@ -20,11 +20,16 @@
 
     <h1>Gestion des commandes</h1>
 
-    {# Onglets pour les deux vues #}
+    {# Onglets pour les trois vues #}
     <ul class="nav nav-tabs" id="gestionTabs" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="valides-tab" data-bs-toggle="tab" data-bs-target="#valides" type="button" role="tab" aria-controls="valides" aria-selected="true">
-                Commandes validé ({{ commandes_valide|length }})
+                Commandes validées ({{ commandes_valide|length }})
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="attente-tab" data-bs-toggle="tab" data-bs-target="#attente" type="button" role="tab" aria-controls="attente" aria-selected="false">
+                En attente ({{ commandes_attente|length }})
             </button>
         </li>
         <li class="nav-item" role="presentation">
@@ -35,6 +40,8 @@
     </ul>
 
     <div class="tab-content mt-3" id="gestionTabsContent">
+
+        {# === VALIDÉES === #}
         <div class="tab-pane fade show active" id="valides" role="tabpanel" aria-labelledby="valides-tab">
             {% if commandes_valide is empty %}
                 <div class="alert alert-info">Aucune commande validée.</div>
@@ -62,9 +69,21 @@
                                     </button>
                                 </form>
 
+                                {# Bouton pour mettre en attente #}
+                                {% if commande.nomEtat == 'Validée' %}
+                                    <form method="post" action="{{ path('app_commande_mettre_en_attente', {'id': commande.id}) }}" style="display:inline-block;margin-left:8px;">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('gestion_commande_' ~ commande.id) }}">
+                                        <button type="submit" class="btn btn-sm btn-secondary" onclick="return confirm('Mettre cette commande en attente ?');">
+                                            Mettre en attente
+                                        </button>
+                                    </form>
+                                {% endif %}
+
+
                                 <a href="{{ path('app_commande_edit', {'id': commande.id}) }}" class="btn btn-sm btn-primary" style="margin-left:8px;">Modifier</a>
                             </div>
                         </div>
+
                         <div class="card-body">
                             <table class="table table-sm">
                                 <thead>
@@ -96,6 +115,63 @@
             {% endif %}
         </div>
 
+        {# === EN ATTENTE === #}
+        <div class="tab-pane fade" id="attente" role="tabpanel" aria-labelledby="attente-tab">
+            {% if commandes_attente is empty %}
+                <div class="alert alert-info">Aucune commande en attente.</div>
+            {% else %}
+                {% for entry in commandes_attente %}
+                    {% set commande = entry.commande %}
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <strong>Commande #{{ commande.id }} || {{ commande.userMail }}</strong>
+                            <span class="float-right">{{ commande.date }}</span>
+                            <div class="small text-muted">État : {{ commande.nomEtat }}</div>
+
+                            <div class="mt-2">
+                                <form method="post" action="{{ path('app_commande_reactiver', {'id': commande.id}) }}" style="display:inline-block;">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('gestion_commande_' ~ commande.id) }}">
+                                    <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Remettre cette commande à l’état \"Validée\" ?');">
+                                        Réactiver
+                                    </button>
+                                </form>
+
+                                <a href="{{ path('app_commande_edit', {'id': commande.id}) }}" class="btn btn-sm btn-primary" style="margin-left:8px;">Modifier</a>
+                            </div>
+                        </div>
+
+                        <div class="card-body">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Réf</th>
+                                        <th>Nom</th>
+                                        <th>Taille</th>
+                                        <th>Couleur</th>
+                                        <th>Quantité</th>
+                                        <th>Dispo</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for it in entry.items %}
+                                        <tr>
+                                            <td>{{ it.article ? it.article.reference : '—' }}</td>
+                                            <td>{{ it.article ? it.article.nom : 'Article supprimé' }}</td>
+                                            <td>{{ it.taille }}</td>
+                                            <td>{{ it.couleur }}</td>
+                                            <td>{{ it.quantite }}</td>
+                                            <td>{{ it.stockDisponible }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+
+        {# === SUR COMMANDE === #}
         <div class="tab-pane fade" id="surcommande" role="tabpanel" aria-labelledby="surcommande-tab">
             {% if commandes_sur_commande is empty %}
                 <div class="alert alert-info">Aucune commande "Sur commande".</div>
@@ -109,7 +185,6 @@
                             <div class="small text-muted">État : {{ commande.nomEtat }}</div>
 
                             <div class="mt-2">
-                                {# Pour les commandes déjà "Sur commande" on peut par exemple proposer de repasser en "Sur stock" si souhaité #}
                                 <form method="post" action="{{ path('app_commande_mettre_en_stock', {'id': commande.id}) }}" style="display:inline-block;">
                                     <input type="hidden" name="_token" value="{{ csrf_token('gestion_commande_' ~ commande.id) }}">
                                     <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Décrémenter le stock pour cette commande et passer en \"Sur stock\" ?');">
@@ -151,6 +226,5 @@
             {% endif %}
         </div>
     </div>
-
 </div>
 {% endblock %}

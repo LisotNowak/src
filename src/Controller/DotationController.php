@@ -905,11 +905,14 @@ public function validerPanier(SessionInterface $session, EntityManagerInterface 
 
         $commandes_valide = $buildList('Validée');
         $commandes_sur_commande = $buildList('Sur commande');
+        $commandes_attente = $buildList('En attente');
 
         return $this->render('dotation/gestionCommandes.html.twig', [
             'commandes_valide' => $commandes_valide,
             'commandes_sur_commande' => $commandes_sur_commande,
+            'commandes_attente' => $commandes_attente,
         ]);
+
     }
 
     #[Route('/dota/commande/{id}/mettre-en-stock', name: 'app_commande_mettre_en_stock', methods: ['POST'])]
@@ -1346,5 +1349,34 @@ public function validerPanier(SessionInterface $session, EntityManagerInterface 
 
         return new JsonResponse(['success' => true]);
     }
+
+    #[Route('/commande/{id}/attente', name: 'app_commande_mettre_en_attente', methods: ['POST'])]
+    public function mettreEnAttente(Commande $commande, EntityManagerInterface $em, Request $request): Response
+    {
+        if (!$this->isCsrfTokenValid('gestion_commande_' . $commande->getId(), $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException('Token invalide');
+        }
+
+        $commande->setNomEtat('En attente');
+        $em->flush();
+
+        $this->addFlash('success', 'Commande mise en attente.');
+        return $this->redirectToRoute('app_gestion_commandes_dota');
+    }
+
+    #[Route('/commande/{id}/reactiver', name: 'app_commande_reactiver', methods: ['POST'])]
+    public function reactiver(Commande $commande, EntityManagerInterface $em, Request $request): Response
+    {
+        if (!$this->isCsrfTokenValid('gestion_commande_' . $commande->getId(), $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException('Token invalide');
+        }
+
+        $commande->setNomEtat('Validée');
+        $em->flush();
+
+        $this->addFlash('success', 'Commande réactivée et repassée à l’état Validée.');
+        return $this->redirectToRoute('app_gestion_commandes_dota');
+    }
+
 
 }
