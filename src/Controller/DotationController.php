@@ -13,6 +13,8 @@ use App\Entity\dotation\AssociationCommandeArticle;
 use App\Entity\dotation\AssociationCouleursArticle;
 use App\Entity\dotation\AssociationTaillesArticle;
 use App\Entity\User;
+use App\Repository\UserRepository; 
+use App\Entity\dotation\DemandeEchange;
 
 // use App\Entity\Article;
 use Doctrine\ORM\EntityManagerInterface;
@@ -236,15 +238,133 @@ class DotationController extends AbstractController
             $listeCouleurs = $entityManager->getRepository(Couleur::class)->findAll();
 
             return $this->render('dotation/admin.html.twig', [
-                'listeArticles' => $listeArticles,
-                'listeTypes' => $listeTypes,
-                'listeTailles' => $listeTailles,
-                'listeCouleurs' => $listeCouleurs,
+                'types' => $types,
+                'tailles' => $tailles,
+                'couleurs' => $couleurs,
+                'articles' => $articles,
+                'active_link' => 'admin'
             ]);
         }
 
         return $this->redirectToRoute('app_accueil');
         
+    }
+
+    #[Route('/dota/admin/exchanges', name: 'app_admin_manage_exchanges', methods: ['GET'])]
+    public function manageExchanges(EntityManagerInterface $entityManager): Response
+    {
+        if (!$this->isGranted('ROLE_ADMIN')) {
+            $this->addFlash('danger', 'Accès refusé.');
+            return $this->redirectToRoute('app_index_dota');
+        }
+
+        $demandes = $entityManager->getRepository(DemandeEchange::class)->findBy([], ['dateDemande' => 'DESC']);
+
+        // On prépare les données pour le template
+        $demandesDetails = [];
+        foreach ($demandes as $demande) {
+            $oldAssociation = $demande->getOldAssociationCommandeArticle();
+            $oldArticle = null;
+            if ($oldAssociation) {
+                $oldArticle = $entityManager->getRepository(Article::class)->find($oldAssociation->getIdArticle());
+            }
+
+            $demandesDetails[] = [
+                'demande' => $demande,
+                'oldArticle' => $oldArticle,
+            ];
+        }
+
+        return $this->render('dotation/manage_exchanges.html.twig', [
+            'demandesDetails' => $demandesDetails,
+            'active_link' => 'gestion_echanges'
+        ]);
+    }
+
+    #[Route('/dota/admin/exchange/{id}/update', name: 'app_admin_update_exchange', methods: ['POST'])]
+    public function updateExchangeStatus(int $id, Request $request, EntityManagerInterface $entityManager): Response
+    {
+        if (!$this->isGranted('ROLE_ADMIN')) {
+            $this->addFlash('danger', 'Accès refusé.');
+            return $this->redirectToRoute('app_admin_manage_exchanges');
+        }
+
+        $demande = $entityManager->getRepository(DemandeEchange::class)->find($id);
+        $status = $request->request->get('status');
+
+        if (!$demande || !in_array($status, ['Approuvée', 'Refusée'])) {
+            $this->addFlash('danger', 'Demande ou statut invalide.');
+            return $this->redirectToRoute('app_admin_manage_exchanges');
+        }
+
+        // Si la demande est approuvée, on gère la logique de stock et de commande
+        if ($status === 'Approuvée') {
+            $newArticle = $demande->getNewArticle();
+            $newTaille = $demande->getNewTaille();
+            $newCouleur = $demande->getNewCouleur();
+
+            // 1. Vérifier et décrémenter le stock du nouvel article
+            $stockNewItem = $entityManager->getRepository(Stock::class)->findOneBy([
+                'referenceArticle' => $newArticle->getReference(),
+                'nomTaille' => $newTaille,
+                'nomCouleur' => $newCouleur,
+            ]);
+
+            if (!$stockNewItem || $stockNewItem->getStock() <= 0) {
+                $this->addFlash('danger', 'Stock insuffisant pour l\'article ' . $newArticle->getNom() . ' (Taille: ' . $newTaille . ', Couleur: ' . $newCouleur . '). L\'échange ne peut pas être approuvé.');
+                return $this->redirectToRoute('app_admin_manage_exchanges');
+            }
+            $stockNewItem->setStock($stockNewItem->getStock() - 1);
+            $entityManager->persist($stockNewItem);
+
+            // 2. Incrémenter le stock de l'article retourné
+            $oldAssoc = $demande->getOldAssociationCommandeArticle();
+            $oldArticle = $entityManager->getRepository(Article::class)->find($oldAssoc->getIdArticle());
+            
+            if ($oldArticle) {
+                $stockOldItem = $entityManager->getRepository(Stock::class)->findOneBy([
+                    'referenceArticle' => $oldArticle->getReference(),
+                    'nomTaille' => $oldAssoc->getNomTaille(),
+                    'nomCouleur' => $oldAssoc->getNomCouleur(),
+                ]);
+    
+                if ($stockOldItem) {
+                    $stockOldItem->setStock($stockOldItem->getStock() + 1);
+                    $entityManager->persist($stockOldItem);
+                }
+            }
+            // Optionnel: Gérer le cas où l'article retourné n'a plus de ligne de stock
+
+            // 3. Créer une nouvelle commande pour l'échange
+            $commandeEchange = new Commande();
+            $commandeEchange->setUserMail($demande->getUser()->getEmail());
+            $commandeEchange->setDate((new \DateTime())->format('Y-m-d H:i:s'));
+            $commandeEchange->setNomEtat('Echange Approuvé');
+            $entityManager->persist($commandeEchange);
+
+            // Flush ici pour obtenir l'ID de la nouvelle commande
+            $entityManager->flush();
+
+            // 4. Créer l'association pour la nouvelle commande
+            $assocEchange = new AssociationCommandeArticle();
+            $assocEchange->setIdCommande($commandeEchange->getId());
+            $assocEchange->setIdArticle($newArticle->getId());
+            $assocEchange->setNb(1);
+            $assocEchange->setNomTaille($newTaille);
+            $assocEchange->setNomCouleur($newCouleur);
+            $entityManager->persist($assocEchange);
+
+            $this->addFlash('success', 'L\'échange a été approuvé. Le stock a été mis à jour et une commande a été créée.');
+
+        } else { // Si la demande est refusée
+            $this->addFlash('info', 'La demande d\'échange a été refusée.');
+        }
+
+        // Mettre à jour le statut de la demande dans tous les cas
+        $demande->setStatus($status);
+        $entityManager->flush();
+
+        return $this->redirectToRoute('app_admin_manage_exchanges');
     }
 
     #[Route('/dota/point', name: 'app_point_dota')]
@@ -1104,5 +1224,127 @@ public function validerPanier(SessionInterface $session, EntityManagerInterface 
         ]);
     }
 
+    #[Route('/dota/exchange', name: 'app_exchange_dota', methods: ['GET'])]
+    public function exchange_dota(EntityManagerInterface $entityManager): Response
+    {
+        if (!$this->getUser()) {
+            return $this->redirectToRoute('app_accueil');
+        }
+
+        // Récupérer les articles des commandes passées de l'utilisateur pour le formulaire
+        $commandesEntities = $entityManager->getRepository(Commande::class)
+            ->findBy(['userMail' => $this->getUser()->getEmail()], ['date' => 'DESC']);
+
+        $commandes = [];
+        foreach ($commandesEntities as $commande) {
+            $assocs = $entityManager->getRepository(AssociationCommandeArticle::class)
+                ->findBy(['idCommande' => $commande->getId()]);
+
+            $items = [];
+            foreach ($assocs as $assoc) {
+                $article = $entityManager->getRepository(Article::class)->find($assoc->getIdArticle());
+                if (!$article) continue;
+
+                $items[] = [
+                    'assoc' => $assoc, // Pour avoir l'ID de la ligne de commande
+                    'article' => $article,
+                    'taille' => $assoc->getNomTaille(),
+                    'couleur' => $assoc->getNomCouleur(),
+                ];
+            }
+
+            if (!empty($items)) {
+                $commandes[] = [
+                    'commande' => $commande,
+                    'items' => $items,
+                ];
+            }
+        }
+
+        // Récupérer tous les articles pour la sélection du nouvel article
+        $allArticles = $entityManager->getRepository(Article::class)->findBy([], ['nom' => 'ASC']);
+
+        return $this->render('dotation/exchange.html.twig', [
+            'commandes' => $commandes,
+            'allArticles' => $allArticles,
+        ]);
+    }
+
+    #[Route('/dota/exchange/request', name: 'app_exchange_request', methods: ['POST'])]
+    public function handleExchangeRequest(Request $request, EntityManagerInterface $entityManager): Response
+    {
+        $user = $this->getUser();
+        if (!$user) {
+            return $this->redirectToRoute('app_login');
+        }
+
+        $oldAssocId = $request->request->get('old_item_assoc_id');
+        $newArticleId = $request->request->get('new_article_id');
+        $newSize = $request->request->get('new_size');
+        $newColor = $request->request->get('new_color');
+        $reason = $request->request->get('reason');
+
+        // Validation simple
+        if (!$oldAssocId || !$newArticleId || !$newSize || !$newColor || !$reason) {
+            $this->addFlash('danger', 'Tous les champs sont obligatoires.');
+            return $this->redirectToRoute('app_exchange_dota');
+        }
+
+        $oldAssociation = $entityManager->getRepository(AssociationCommandeArticle::class)->find($oldAssocId);
+        $newArticle = $entityManager->getRepository(Article::class)->find($newArticleId);
+
+        if (!$oldAssociation || !$newArticle) {
+            $this->addFlash('danger', 'Article invalide sélectionné.');
+            return $this->redirectToRoute('app_exchange_dota');
+        }
+
+        // Créer la demande d'échange
+        $demande = new DemandeEchange();
+        $demande->setUser($user);
+        $demande->setOldAssociationCommandeArticle($oldAssociation);
+        $demande->setNewArticle($newArticle);
+        $demande->setNewTaille($newSize);
+        $demande->setNewCouleur($newColor);
+        $demande->setReason($reason);
+        $demande->setStatus('En attente'); // Statut initial
+
+        $entityManager->persist($demande);
+        $entityManager->flush();
+
+        $this->addFlash('success', 'Votre demande d\'échange a bien été envoyée. Elle sera examinée par un administrateur.');
+
+        return $this->redirectToRoute('app_exchange_dota');
+    }
+
+    #[Route('/admin/update-points', name: 'admin_update_points', methods: ['POST'])]
+    public function updatePoints(Request $request, EntityManagerInterface $em, UserRepository $userRepository): JsonResponse
+    {
+        $data = json_decode($request->getContent(), true);
+        $user = $userRepository->find($data['user_id'] ?? 0);
+
+        if (!$user) {
+            return new JsonResponse(['success' => false, 'message' => 'Utilisateur non trouvé']);
+        }
+
+        if (isset($data['points'])) {
+            $user->setPointDotation((int)$data['points']);
+        }
+
+        if (!empty($data['date_debut'])) {
+            $user->setDateDebutContrat(new \DateTime($data['date_debut']));
+        } else {
+            $user->setDateDebutContrat(null);
+        }
+
+        if (!empty($data['date_fin'])) {
+            $user->setDateFinContrat(new \DateTime($data['date_fin']));
+        } else {
+            $user->setDateFinContrat(null);
+        }
+
+        $em->flush();
+
+        return new JsonResponse(['success' => true]);
+    }
 
 }

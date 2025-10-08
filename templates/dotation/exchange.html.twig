@@ -1,0 +1,158 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Demande d'échange{% endblock %}
+
+{% block sidebar %}
+    {# Pensez à ajouter 'exchange' comme lien actif possible dans votre sidebar si besoin #}
+    {% include 'dotation/sidebar.html.twig' with {'active_link': 'echange'} %}
+{% endblock %}
+
+{% block body %}
+<div class="container mt-4">
+    {% for label, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="alert alert-{{ label }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+        {% endfor %}
+    {% endfor %}
+
+    <h1>Demande d'échange d'article</h1>
+    <p>Sélectionnez l'article que vous souhaitez retourner et choisissez un nouvel article en remplacement.</p>
+    <hr>
+
+    {# La route 'app_exchange_request' devra être créée pour traiter la soumission du formulaire #}
+    <form method="POST" action="{{ path('app_exchange_request') }}"> 
+        <div class="row">
+            
+            <div class="col-md-6">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-light">
+                        <strong class="text-primary">1. Article à retourner</strong>
+                    </div>
+                    <div class="card-body">
+                        
+                        <div class="form-group">
+                            <label for="old_item">Article de vos commandes précédentes :</label>
+                            <select class="form-control" id="old_item" name="old_item_assoc_id" required>
+                                <option value="" disabled selected>-- Sélectionnez un article --</option>
+                                {% for commande in commandes %}
+                                    <optgroup label="Commande du {{ commande.commande.date|date('d/m/Y') }}">
+                                        {% for item in commande.items %}
+                                            <option value="{{ item.assoc.id }}">
+                                                {{ item.article.nom }} (Taille: {{ item.taille }}, Couleur: {{ item.couleur }})
+                                            </option>
+                                        {% endfor %}
+                                    </optgroup>
+                                {% endfor %}
+                                {% if commandes is empty %}
+                                    <option disabled>Aucun article dans votre historique</option>
+                                {% endif %}
+                            </select>
+                        </div>
+
+                        <div class="form-group mt-3">
+                            <label for="reason">Motif de l'échange :</label>
+                            <textarea class="form-control" id="reason" name="reason" rows="3" required placeholder="Ex: Taille trop petite, article défectueux..."></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-light">
+                        <strong class="text-primary">2. Nouvel article souhaité</strong>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label for="new_article">Nouvel article :</label>
+                            <select class="form-control" id="new_article" name="new_article_id" required>
+                                <option value="" disabled selected>-- Sélectionnez un article --</option>
+                                {% for article in allArticles %}
+                                    <option value="{{ article.id }}">{{ article.nom }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="form-group mt-3">
+                            <label for="new_size">Taille :</label>
+                            <select class="form-control" id="new_size" name="new_size" required disabled>
+                                <option>Veuillez d'abord choisir un article</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group mt-3">
+                            <label for="new_color">Couleur :</label>
+                            <select class="form-control" id="new_color" name="new_color" required disabled>
+                                <option>Veuillez d'abord choisir un article</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center mt-4">
+            <button type="submit" class="btn btn-primary btn-lg">
+                <i class="fas fa-exchange-alt"></i> Envoyer la demande d'échange
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const articleSelect = document.getElementById('new_article');
+    const tailleSelect = document.getElementById('new_size');
+    const couleurSelect = document.getElementById('new_color');
+
+    articleSelect.addEventListener('change', function() {
+        // Réinitialiser et désactiver les selects de taille/couleur
+        tailleSelect.innerHTML = '<option value="">-- Choisissez une taille --</option>';
+        tailleSelect.disabled = true;
+        couleurSelect.innerHTML = '<option value="">-- Choisissez une couleur --</option>';
+        couleurSelect.disabled = true;
+
+        const selectedOption = this.options[this.selectedIndex];
+        if (!selectedOption.value) return;
+
+        // Récupérer les tailles et couleurs depuis les attributs data-*
+        // Note: Cela nécessite que vous passiez les tailles/couleurs dans le contrôleur
+        // et que vous les ajoutiez aux options, ce que le code ci-dessus ne fait pas encore.
+        // Il faudra adapter le contrôleur pour cela.
+        
+        // Pour la démo, on simule avec des données statiques.
+        // Idéalement, vous feriez un appel fetch vers une route qui retourne les tailles/couleurs pour l'article ID.
+        fetch(`/dota/article`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: 'id=' + this.value
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.tailles && data.tailles.length > 0) {
+                data.tailles.forEach(function(taille) {
+                    tailleSelect.add(new Option(taille, taille));
+                });
+                tailleSelect.disabled = false;
+            }
+
+            if (data.couleurs && data.couleurs.length > 0) {
+                data.couleurs.forEach(function(couleur) {
+                    couleurSelect.add(new Option(couleur, couleur));
+                });
+                couleurSelect.disabled = false;
+            }
+        });
+    });
+});
+</script>
+
+{% endblock %}

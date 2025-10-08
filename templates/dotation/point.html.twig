@@ -15,6 +15,9 @@
                 <tr>
                     <th scope="col">Email</th>
                     <th scope="col">Points</th>
+                    <th scope="col">Contrat</th>
+                    <th scope="col">Date début contrat</th>
+                    <th scope="col">Date fin contrat</th>
                     <th scope="col">Action</th>
                 </tr>
             </thead>
@@ -22,22 +25,57 @@
                 {% for user in listeUsers %}
                     <tr>
                         <td>{{ user.email }}</td>
-                        <td style="width: 150px;">
+
+                        <td style="width: 120px;">
                             <input type="number" 
                                    value="{{ user.pointDotation }}" 
                                    id="points-{{ user.id }}" 
                                    class="form-control text-center">
                         </td>
+
+                        <td style="width: 180px;">
+                            {% if user.dateDebutContrat and not user.dateFinContrat %}
+                                CDI
+                            {% elseif user.dateDebutContrat and user.dateFinContrat %}
+                                {# Calcul de la durée du contrat #}
+                                {% set start = user.dateDebutContrat %}
+                                {% set end = user.dateFinContrat %}
+                                {% set years = end|date('Y') - start|date('Y') %}
+                                {% set months = end|date('m') - start|date('m') %}
+                                {% if months < 0 %}
+                                    {% set years = years - 1 %}
+                                    {% set months = months + 12 %}
+                                {% endif %}
+                                {{ years }} ans {% if months > 0 %}{{ months }} mois{% endif %}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+
+                        <td style="width: 180px;">
+                            <input type="date"
+                                   value="{{ user.dateDebutContrat ? user.dateDebutContrat|date('Y-m-d') : '' }}"
+                                   id="dateDebut-{{ user.id }}"
+                                   class="form-control text-center">
+                        </td>
+
+                        <td style="width: 180px;">
+                            <input type="date"
+                                   value="{{ user.dateFinContrat ? user.dateFinContrat|date('Y-m-d') : '' }}"
+                                   id="dateFin-{{ user.id }}"
+                                   class="form-control text-center">
+                        </td>
+
                         <td>
                             <button class="btn btn-success btn-sm" 
-                                    onclick="updatePoints({{ user.id }})">
+                                    onclick="updateUserData({{ user.id }})">
                                 <i class="bi bi-save"></i> Sauvegarder
                             </button>
                         </td>
                     </tr>
                 {% else %}
                     <tr>
-                        <td colspan="3" class="text-muted">Aucun utilisateur trouvé.</td>
+                        <td colspan="6" class="text-muted">Aucun utilisateur trouvé.</td>
                     </tr>
                 {% endfor %}
             </tbody>
@@ -46,23 +84,30 @@
 </div>
 
 <script>
-function updatePoints(userId) {
+function updateUserData(userId) {
     const points = document.getElementById('points-' + userId).value;
+    const dateDebut = document.getElementById('dateDebut-' + userId).value;
+    const dateFin = document.getElementById('dateFin-' + userId).value;
 
     fetch('{{ path("admin_update_points") }}', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: userId, points: points })
+        body: JSON.stringify({
+            user_id: userId,
+            points: points,
+            date_debut: dateDebut,
+            date_fin: dateFin
+        })
     })
     .then(res => res.json())
     .then(data => {
         if (data.success) {
-            // Bootstrap toast ou simple alert
-            alert("✅ Points mis à jour : " + data.points);
+            alert("✅ Données mises à jour !");
         } else {
             alert("❌ Erreur : " + data.message);
         }
-    });
+    })
+    .catch(() => alert("⚠️ Erreur de communication avec le serveur."));
 }
 </script>
 {% endblock %}

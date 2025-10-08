@@ -1,0 +1,137 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Gestion des demandes d'échange{% endblock %}
+
+{% block sidebar %}
+    {% include 'dotation/sidebar.html.twig' with {'active_link': 'gestion_echanges'} %}
+{% endblock %}
+
+{% block body %}
+<div class="container-fluid mt-4">
+    {% for label, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="alert alert-{{ label }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+        {% endfor %}
+    {% endfor %}
+
+    <h1>Gestion des demandes d'échange</h1>
+    <p>Examinez, approuvez ou refusez les demandes d'échange des utilisateurs.</p>
+
+    <!-- Boutons de filtrage -->
+    <div class="mb-3 d-flex justify-content-end">
+        <button id="show-all" class="btn btn-success btn-sm mr-2">Afficher tout</button>
+        <button id="hide-approved" class="btn btn-secondary btn-sm">Cacher les échanges approuvés</button>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Utilisateur</th>
+                            <th>Date</th>
+                            <th>Article retourné</th>
+                            <th>Article souhaité</th>
+                            <th>Motif</th>
+                            <th class="text-center">Statut</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for details in demandesDetails %}
+                            {% set demande = details.demande %}
+                            {% set oldArticle = details.oldArticle %}
+                            <tr>
+                                <td>{{ demande.user.email }}</td>
+                                <td>{{ demande.dateDemande|date('d/m/Y H:i') }}</td>
+                                <td>
+                                    {% if oldArticle %}
+                                        {{ oldArticle.nom }}<br>
+                                        <small class="text-muted">Taille: {{ demande.oldAssociationCommandeArticle.nomTaille }}, Couleur: {{ demande.oldAssociationCommandeArticle.nomCouleur }}</small>
+                                    {% else %}
+                                        Article non trouvé
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {{ demande.newArticle.nom }}<br>
+                                    <small class="text-muted">Taille: {{ demande.newTaille }}, Couleur: {{ demande.newCouleur }}</small>
+                                </td>
+                                <td>{{ demande.reason }}</td>
+                                <td class="text-center">
+                                    <span class="badge 
+                                        {% if demande.status == 'Approuvée' %}badge-success
+                                        {% elseif demande.status == 'Refusée' %}badge-danger
+                                        {% else %}badge-warning{% endif %}">
+                                        {{ demande.status }}
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    {% if demande.status == 'En attente' %}
+                                        <form action="{{ path('app_admin_update_exchange', {id: demande.id}) }}" method="POST" class="d-inline">
+                                            <input type="hidden" name="status" value="Approuvée">
+                                            <button type="submit" class="btn btn-success btn-sm" title="Approuver">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                        </form>
+                                        <form action="{{ path('app_admin_update_exchange', {id: demande.id}) }}" method="POST" class="d-inline">
+                                            <input type="hidden" name="status" value="Refusée">
+                                            <button type="submit" class="btn btn-danger btn-sm" title="Refuser">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </form>
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center">Aucune demande d'échange pour le moment.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Script de filtrage -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const showAllBtn = document.getElementById('show-all');
+    const hideApprovedBtn = document.getElementById('hide-approved');
+    const rows = document.querySelectorAll('table tbody tr');
+
+    // Fonction pour cacher les échanges approuvés
+    function hideApproved() {
+        rows.forEach(row => {
+            const status = row.querySelector('td span.badge');
+            if (status && status.textContent.trim() === 'Approuvée') {
+                row.style.display = 'none';
+            } else {
+                row.style.display = '';
+            }
+        });
+    }
+
+    // Fonction pour afficher toutes les lignes
+    function showAll() {
+        rows.forEach(row => row.style.display = '');
+    }
+
+    // Par défaut, cacher les approuvées au chargement
+    hideApproved();
+
+    // Boutons
+    showAllBtn.addEventListener('click', showAll);
+    hideApprovedBtn.addEventListener('click', hideApproved);
+});
+</script>
+{% endblock %}
