@@ -226,6 +226,14 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
 
         $data = json_decode($request->getContent(), true);
 
+        // Mettre à jour Nom et Prénom
+        if (isset($data['nom'])) {
+            $client->setTriNom($data['nom']);
+        }
+        if (isset($data['prenom'])) {
+            $client->setTriPrenom($data['prenom']);
+        }
+
         // Mettre à jour les champs de l'adresse
         if (isset($data['adresse1'])) {
             $client->setAdresse1($data['adresse1']);
@@ -252,6 +260,8 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
             'success' => true,
             'client' => [
                 'id' => $client->getId(),
+                'nom' => $client->getTriNom(),
+                'prenom' => $client->getTriPrenom(),
                 'adresse1' => $client->getAdresse1(),
                 'adresse2' => $client->getAdresse2(),
                 'codePostal' => $client->getCodePostal(),
@@ -262,6 +272,7 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
 
         return new JsonResponse($responseData);
     }
+
 
     #[Route('/clients/delete', name: 'app_client_delete_list')]
     public function deleteList(ManagerRegistry $doctrine): Response
