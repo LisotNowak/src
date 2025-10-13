@@ -41,7 +41,7 @@
             </form>
             
         </div>
-        
+
         <div class="mb-4">
             <a href="{{ path('app_client_associate') }}" class="btn btn-info me-2">Associer des clients</a>
             <a href="{{ path('app_client_new') }}" class="btn btn-primary me-2">Ajouter un client</a>
@@ -263,10 +263,10 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentRow = null; // Pour garder une référence à la ligne cliquée
 
     addressModal.addEventListener('show.bs.modal', function (event) {
-        const row = event.relatedTarget;
-        currentRow = row; // Stocke la ligne
-        
-        // Récupérer les données de la ligne
+        const td = event.relatedTarget; // c'est le <td>
+        const row = td.closest('tr');  // remonte jusqu'au <tr>
+        currentRow = row;
+
         const clientId = row.dataset.clientId;
         const adresse1 = row.dataset.clientAdresse1;
         const adresse2 = row.dataset.clientAdresse2;
@@ -274,7 +274,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const ville = row.dataset.clientVille;
         const pays = row.dataset.clientPays;
 
-        // Remplir le formulaire de la modale
         document.getElementById('modalClientId').value = clientId;
         document.getElementById('modalAdresse1').value = adresse1;
         document.getElementById('modalAdresse2').value = adresse2;
@@ -282,6 +281,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('modalVille').value = ville;
         document.getElementById('modalPays').value = pays;
     });
+
 
     document.getElementById('saveAddressBtn').addEventListener('click', function() {
         const clientId = document.getElementById('modalClientId').value;
