@@ -69,8 +69,6 @@
                         {% set clientAssocs = associations[client.id] ?? [] %}
                         {% set assoc = clientAssocs|filter(a => a.signataire.id == signataire_selected)|first %}
                         <tr class="{% if assoc and assoc.conserver %}row-conserver-oui{% endif %}" 
-                            data-bs-toggle="modal" 
-                            data-bs-target="#addressModal"
                             data-client-id="{{ client.id }}"
                             data-client-adresse1="{{ client.adresse1|default('') }}"
                             data-client-adresse2="{{ client.adresse2|default('') }}"
@@ -78,14 +76,14 @@
                             data-client-ville="{{ client.ville|default('') }}"
                             data-client-pays="{{ client.pays|default('') }}"
                             style="cursor: pointer;">
-                        
-                            <td>{{ loop.index }}</td>
-                            <td>{{ client.triNom }}</td>
-                            <td>{{ client.triPrenom }}</td>
-                            <td>{{ client.ville }}</td>
-                            <td>{{ client.pays }}</td>
-                            <td>{{ client.societeNom }}</td>
-                            <td>{{ client.categorieEntity ? client.categorieEntity.nomCategorie : 'Aucune' }}</td>
+                            
+                            <td data-bs-toggle="modal" data-bs-target="#addressModal">{{ loop.index }}</td>
+                            <td data-bs-toggle="modal" data-bs-target="#addressModal">{{ client.triNom }}</td>
+                            <td data-bs-toggle="modal" data-bs-target="#addressModal">{{ client.triPrenom }}</td>
+                            <td data-bs-toggle="modal" data-bs-target="#addressModal">{{ client.ville }}</td>
+                            <td data-bs-toggle="modal" data-bs-target="#addressModal">{{ client.pays }}</td>
+                            <td data-bs-toggle="modal" data-bs-target="#addressModal">{{ client.societeNom }}</td>
+                            <td data-bs-toggle="modal" data-bs-target="#addressModal">{{ client.categorieEntity ? client.categorieEntity.nomCategorie : 'Aucune' }}</td>
                             
                             <td>
                                 <div class="btn-group" role="group">
