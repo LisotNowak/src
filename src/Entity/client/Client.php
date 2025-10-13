@@ -68,7 +68,7 @@ class Client
     #[ORM\JoinColumn(name: "catégorie_id", referencedColumnName: "id", nullable: true)]
     private ?Categorie $categorieEntity = null;
 
-    #[ORM\OneToMany(mappedBy: "client", targetEntity: AssociationSignataire::class)]
+    #[ORM\OneToMany(mappedBy: "client", targetEntity: AssociationSignataire::class, orphanRemoval: true)]
     private Collection $associations;
 
     public function __construct()
@@ -76,7 +76,9 @@ class Client
         $this->associations = new ArrayCollection();
     }
 
-    // ... tous les getters et setters
+    // --------------------
+    // Getters / Setters
+    // --------------------
 
     public function getId(): ?int
     {
@@ -162,12 +164,12 @@ class Client
 
     public function getPrenomNom(): ?string
     {
-        return $this->prenomNom;
+        return $this->prenomNomEnveloppe;
     }
 
-    public function setPrenomNom(?string $prenomNom): self
+    public function setPrenomNom(?string $prenomNomEnveloppe): self
     {
-        $this->prenomNom = $prenomNom;
+        $this->prenomNomEnveloppe = $prenomNomEnveloppe;
         return $this;
     }
 
@@ -259,17 +261,6 @@ class Client
         return $this;
     }
 
-    public function getSignataire(): ?Signataire
-    {
-        return $this->signataire;
-    }
-
-    public function setSignataire(?Signataire $signataire): self
-    {
-        $this->signataire = $signataire;
-        return $this;
-    }
-
     public function getCategorieEntity(): ?Categorie
     {
         return $this->categorieEntity;
@@ -281,4 +272,34 @@ class Client
         return $this;
     }
 
+    // --------------------
+    // Associations methods
+    // --------------------
+
+    /**
+     * @return Collection<int, AssociationSignataire>
+     */
+    public function getAssociations(): Collection
+    {
+        return $this->associations;
+    }
+
+    public function addAssociation(AssociationSignataire $association): self
+    {
+        if (!$this->associations->contains($association)) {
+            $this->associations->add($association);
+            $association->setClient($this);
+        }
+        return $this;
+    }
+
+    public function removeAssociation(AssociationSignataire $association): self
+    {
+        if ($this->associations->removeElement($association)) {
+            if ($association->getClient() === $this) {
+                $association->setClient(null);
+            }
+        }
+        return $this;
+    }
 }

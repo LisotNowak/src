@@ -9,6 +9,7 @@ use App\Entity\client\Categorie;
 use App\Form\ClientType; // <-- Ajoutez cette ligne
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\JsonResponse; // <-- Ajoutez cette ligne
@@ -261,4 +262,33 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
 
         return new JsonResponse($responseData);
     }
+
+    #[Route('/clients/delete', name: 'app_client_delete_list')]
+    public function deleteList(ManagerRegistry $doctrine): Response
+    {
+        $clients = $doctrine->getRepository(Client::class)->findAll();
+
+        return $this->render('client/delete.html.twig', [
+            'clients' => $clients,
+        ]);
+    }
+
+
+    #[Route('/client/{id}/delete', name: 'app_client_delete', methods: ['POST'])]
+    public function delete(Client $client, ManagerRegistry $doctrine, Request $request): RedirectResponse
+    {
+        $submittedToken = $request->request->get('_token');
+
+        if ($this->isCsrfTokenValid('delete_client_' . $client->getId(), $submittedToken)) {
+            $em = $doctrine->getManager();
+            foreach ($client->getAssociations() as $assoc) {
+                $em->remove($assoc);
+            }
+            $em->remove($client);
+            $em->flush();
+        }
+
+        return $this->redirectToRoute('app_client_delete_list');
+    }
+
 }

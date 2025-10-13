@@ -41,10 +41,13 @@
             </form>
             
         </div>
+        
         <div class="mb-4">
-                <a href="{{ path('app_client_associate') }}" class="btn btn-info me-2">Associer des clients</a>
-                <a href="{{ path('app_client_new') }}" class="btn btn-primary">Ajouter un client</a>
-            </div>
+            <a href="{{ path('app_client_associate') }}" class="btn btn-info me-2">Associer des clients</a>
+            <a href="{{ path('app_client_new') }}" class="btn btn-primary me-2">Ajouter un client</a>
+            <a href="{{ path('app_client_delete_list') }}" class="btn btn-danger">Supprimer un client</a>
+        </div>
+
     </div>
 
     <div class="table-responsive">
