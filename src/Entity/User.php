@@ -47,6 +47,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: Types::DATE_MUTABLE, nullable: true)]
     private ?\DateTimeInterface $dateFinContrat = null;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $nom = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $prenom = null;
+
+    // --- Getters et setters existants ---
+    
     public function getId(): ?int
     {
         return $this->id;
@@ -94,8 +102,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function eraseCredentials(): void
     {
-        // Si tu stockes des données sensibles temporaires, nettoie-les ici
-        // $this->plainPassword = null;
+        // Nettoyer les données sensibles temporaires si nécessaire
     }
 
     public function isVerified(): bool
@@ -139,6 +146,30 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setDateFinContrat(?\DateTimeInterface $dateFinContrat): static
     {
         $this->dateFinContrat = $dateFinContrat;
+        return $this;
+    }
+
+    // --- Nouveaux getters et setters pour nom et prenom ---
+
+    public function getNom(): ?string
+    {
+        return $this->nom;
+    }
+
+    public function setNom(?string $nom): static
+    {
+        $this->nom = $nom;
+        return $this;
+    }
+
+    public function getPrenom(): ?string
+    {
+        return $this->prenom;
+    }
+
+    public function setPrenom(?string $prenom): static
+    {
+        $this->prenom = $prenom;
         return $this;
     }
 }
