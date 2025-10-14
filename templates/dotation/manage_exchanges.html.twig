@@ -12,9 +12,7 @@
         {% for message in messages %}
             <div class="alert alert-{{ label }} alert-dismissible fade show" role="alert">
                 {{ message }}
-                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
         {% endfor %}
     {% endfor %}
@@ -24,7 +22,7 @@
 
     <!-- Boutons de filtrage -->
     <div class="mb-3 d-flex justify-content-end">
-        <button id="show-all" class="btn btn-success btn-sm mr-2">Afficher tout</button>
+        <button id="show-all" class="btn btn-success btn-sm me-2">Afficher tout</button>
         <button id="hide-approved" class="btn btn-secondary btn-sm">Cacher les échanges approuvés</button>
     </div>
 
@@ -32,7 +30,7 @@
         <div class="card-body">
             <div class="table-responsive">
                 <table class="table table-hover">
-                    <thead class="thead-light">
+                    <thead class="table-light">
                         <tr>
                             <th>Utilisateur</th>
                             <th>Date</th>
@@ -65,9 +63,9 @@
                                 <td>{{ demande.reason }}</td>
                                 <td class="text-center">
                                     <span class="badge 
-                                        {% if demande.status == 'Approuvée' %}badge-success
-                                        {% elseif demande.status == 'Refusée' %}badge-danger
-                                        {% else %}badge-warning{% endif %}">
+                                        {% if demande.status == 'Approuvée' %}bg-success
+                                        {% elseif demande.status == 'Refusée' %}bg-danger
+                                        {% else %}bg-warning text-dark{% endif %}">
                                         {{ demande.status }}
                                     </span>
                                 </td>
@@ -102,14 +100,13 @@
     </div>
 </div>
 
-<!-- Script de filtrage -->
+<!-- Script de filtrage (reste inchangé) -->
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const showAllBtn = document.getElementById('show-all');
     const hideApprovedBtn = document.getElementById('hide-approved');
     const rows = document.querySelectorAll('table tbody tr');
 
-    // Fonction pour cacher les échanges approuvés
     function hideApproved() {
         rows.forEach(row => {
             const status = row.querySelector('td span.badge');
@@ -121,15 +118,11 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Fonction pour afficher toutes les lignes
     function showAll() {
         rows.forEach(row => row.style.display = '');
     }
 
-    // Par défaut, cacher les approuvées au chargement
     hideApproved();
-
-    // Boutons
     showAllBtn.addEventListener('click', showAll);
     hideApprovedBtn.addEventListener('click', hideApproved);
 });

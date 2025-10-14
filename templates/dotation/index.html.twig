@@ -32,11 +32,12 @@
         <div class="col-md-5" id="searchbar">
           <div class="input-group">
             <input type="text" class="form-control" placeholder="Search" id="searchInput">
-            <div class="input-group-append">
-              <button class="btn btn-primary" type="button" disabled><i class="fas fa-search"></i></button>
-            </div>
+            <button class="btn btn-primary" type="button" disabled>
+              <i class="fas fa-search"></i>
+            </button>
           </div>
         </div>
+
 
         <div class="col-md-3">
           <select id="typeFilter" class="form-control">
@@ -49,40 +50,45 @@
         </div>
 
         <div class="col-md-1 d-flex justify-content-end align-items-center" id="icons">          
-            <a href="/dota/panier" class="d-inline-block">
-                <div class="circle mr-2"><i class="fas fa-shopping-cart text-primary"></i>
-                    <sup><span id="cartBadge" class="badge badge-danger" style="width: 23px;">{% if nombreArticles is defined %}{{nombreArticles}}{% else %}0{% endif %}</span></sup>
-                </div>
-            </a>
+          <a href="/dota/panier" class="d-inline-block">
+            <div class="circle me-2">
+              <i class="fas fa-shopping-cart text-primary"></i>
+              <sup>
+                <span id="cartBadge" class="badge bg-danger" style="width: 23px;">
+                  {% if nombreArticles is defined %}{{ nombreArticles }}{% else %}0{% endif %}
+                </span>
+              </sup>
+            </div>
+          </a>
         </div>
-
         
 
     </div>
 </div>
 
 {# Zone d'alerte AJAX (remplaçant l'alerte JS basique) #}
-<div id="ajaxAlert" class="alert alert-danger alert-dismissible fade" role="alert" style="display:none; position: fixed; top: 80px; right: 20px; z-index: 2000; min-width: 260px;">
-    <span id="ajaxAlertMessage"></span>
-    <button type="button" class="close" data-dismiss="alert" aria-label="Fermer">
-        <span aria-hidden="true">&times;</span>
-    </button>
+<div id="ajaxAlert" class="alert alert-danger alert-dismissible fade" role="alert"
+     style="display:none; position: fixed; top: 80px; right: 20px; z-index: 2000; min-width: 260px;">
+  <span id="ajaxAlertMessage"></span>
+  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fermer"></button>
 </div>
 
+
 {# Modal après ajout au panier #}
-<div class="modal fade" id="cartModal" tabindex="-1" role="dialog" aria-hidden="true">
-  <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+<div class="modal fade" id="cartModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-body text-center">
         <p class="mb-3"><strong>Article ajouté au panier</strong></p>
         <div class="d-flex justify-content-center">
-          <button type="button" id="goToCartBtn" class="btn btn-primary mr-2">Aller au panier</button>
-          <button type="button" id="continueBtn" class="btn btn-secondary" data-dismiss="modal">Continuer mes achats</button>
+          <button type="button" id="goToCartBtn" class="btn btn-primary me-2">Aller au panier</button>
+          <button type="button" id="continueBtn" class="btn btn-secondary" data-bs-dismiss="modal">Continuer mes achats</button>
         </div>
       </div>
     </div>
   </div>
 </div>
+
 
 {# --- Styles pour les pastilles couleur --- #}
 <style>
@@ -203,10 +209,10 @@
                           {% set colorCode = c.codeCouleur %}
                         {% endif %}
                       {% endfor %}
-                      <label class="mr-2 color-option" title="{{ assoc.nomCouleur }}" role="button" aria-label="Couleur {{ assoc.nomCouleur }}">
+                      <label class="me-2 color-option" title="{{ assoc.nomCouleur }}" role="button" aria-label="Couleur {{ assoc.nomCouleur }}">
                         <input type="radio" name="color_{{ product.id }}" value="{{ assoc.nomCouleur }}">
                         <span class="color-swatch" style="background:{{ colorCode ?: '#ffffff' }};"></span>
-                        <span class="color-label sr-only">{{ assoc.nomCouleur }}</span>
+                        <span class="color-label visually-hidden">{{ assoc.nomCouleur }}</span>
                       </label>
                     {% endif %}
                   {% endfor %}

@@ -36,33 +36,39 @@ class DotationController extends AbstractController
 {
 
     #[Route('/dota/article', name: 'get_article', methods: ['POST'])]
-    public function getArticle(Request $request, EntityManagerInterface $entityManager): Response
+    public function getArticle(Request $request, EntityManagerInterface $entityManager): JsonResponse
     {
         $id = $request->request->get('id');
-
         $article = $entityManager->getRepository(Article::class)->find($id);
 
         if (!$article) {
             return new JsonResponse(['error' => 'Article not found'], 404);
         }
 
-        // Récupérer les noms des tailles associées
-        $taillesAssoc = $entityManager->getRepository(AssociationTaillesArticle::class)->findBy(['idArticle' => $id]);
-        $taillesNoms = array_map(function($assoc) {
-            return $assoc->getNomTaille();
-        }, $taillesAssoc);
+        // Récupération des tailles associées
+        $taillesAssoc = $entityManager->getRepository(AssociationTaillesArticle::class)
+            ->findBy(['idArticle' => $id]);
+        $taillesNoms = array_map(fn($assoc) => $assoc->getNomTaille(), $taillesAssoc);
 
-        // Récupérer les noms des couleurs associées
-        $couleursAssoc = $entityManager->getRepository(AssociationCouleursArticle::class)->findBy(['idArticle' => $id]);
-        $couleursNoms = array_map(function($assoc) {
-            return $assoc->getNomCouleur();
-        }, $couleursAssoc);
+        // Récupération des couleurs associées
+        $couleursAssoc = $entityManager->getRepository(AssociationCouleursArticle::class)
+            ->findBy(['idArticle' => $id]);
+        $couleursNoms = array_map(fn($assoc) => $assoc->getNomCouleur(), $couleursAssoc);
 
+        // Retour JSON adapté à ton JS
         return new JsonResponse([
-            'tailles' => $taillesNoms,
-            'couleurs' => $couleursNoms,
+            'id' => $article->getId(),
+            'reference' => $article->getReference(),
+            'nom' => $article->getNom(),
+            'prix' => $article->getPrix(),
+            'point' => $article->getPoint(),
+            'descriptions' => $article->getDescription(),
+            'nomType' => $article->getNomType(), // ✅ on renvoie le nom du type, pas un id
+            'tableauTailles' => $taillesNoms,
+            'tableauCouleurs' => $couleursNoms,
         ]);
     }
+
 
     #[Route('/dota/article/delete/{id}', name: 'delete_article', methods: ['GET', 'DELETE'])]
     public function deleteArticle(int $id, EntityManagerInterface $entityManager): Response
@@ -102,10 +108,11 @@ class DotationController extends AbstractController
         $prix = $request->request->get('prix');
         $point = $request->request->get('point');
         $description = $request->request->get('description');
-        $typeId = $request->request->get('produit-type');
-        $tailleIds = $request->request->all('produit-taille');
-        $couleurIds = $request->request->all('produit-couleur');
+        $typeNom = $request->request->get('produit-type');
+        $tailleNoms = $request->request->all('produit-taille'); // noms des tailles
+        $couleurNoms = $request->request->all('produit-couleur'); // noms des couleurs
 
+        // Récupération ou création de l'article
         if ($id) {
             $article = $entityManager->getRepository(Article::class)->find($id);
             if (!$article) {
@@ -115,31 +122,26 @@ class DotationController extends AbstractController
             $article = new Article();
         }
 
+        // Mise à jour des champs
         $article->setReference($reference);
         $article->setNom($nom);
         $article->setPrix($prix);
         $article->setPoint($point);
         $article->setDescription($description);
-
-        // Type
-        if ($typeId) {
-            $type = $entityManager->getRepository(Type::class)->find($typeId);
-            if ($type) {
-                $article->setNomType($type->getNom());
-            }
+        if ($typeNom) {
+            $article->setNomType($typeNom);
         }
 
-        // ✅ Gestion de l'image uploadée
+        // Gestion de l'image uploadée
         $imageFile = $request->files->get('image');
         if ($imageFile) {
             $originalFilename = pathinfo($imageFile->getClientOriginalName(), PATHINFO_FILENAME);
             $safeFilename = preg_replace('/[^a-zA-Z0-9-_]/', '_', strtolower($originalFilename));
             $newFilename = $safeFilename.'-'.uniqid().'.'.$imageFile->guessExtension();
-            
 
             try {
                 $imageFile->move(
-                    $this->getParameter('images_directory'), // à définir dans services.yaml
+                    $this->getParameter('images_directory'),
                     $newFilename
                 );
                 $article->setImage($newFilename);
@@ -151,9 +153,9 @@ class DotationController extends AbstractController
         $entityManager->persist($article);
         $entityManager->flush();
 
-        // Assoc Tailles
-        foreach ($tailleIds as $tailleId) {
-            $taille = $entityManager->getRepository(Taille::class)->find($tailleId);
+        // Association Tailles (par nom)
+        foreach ($tailleNoms as $tailleNom) {
+            $taille = $entityManager->getRepository(Taille::class)->findOneBy(['nom' => $tailleNom]);
             if ($taille) {
                 $assocTaille = new AssociationTaillesArticle();
                 $assocTaille->setIdArticle($article->getId());
@@ -162,9 +164,9 @@ class DotationController extends AbstractController
             }
         }
 
-        // Assoc Couleurs
-        foreach ($couleurIds as $couleurId) {
-            $couleur = $entityManager->getRepository(Couleur::class)->find($couleurId);
+        // Association Couleurs (par nom)
+        foreach ($couleurNoms as $couleurNom) {
+            $couleur = $entityManager->getRepository(Couleur::class)->findOneBy(['nom' => $couleurNom]);
             if ($couleur) {
                 $assocCouleur = new AssociationCouleursArticle();
                 $assocCouleur->setIdArticle($article->getId());
@@ -177,6 +179,7 @@ class DotationController extends AbstractController
 
         return $this->redirectToRoute('app_admin_dota');
     }
+
 
 
     #[Route('/dota', name: 'app_index_dota')]
@@ -238,10 +241,10 @@ class DotationController extends AbstractController
             $listeCouleurs = $entityManager->getRepository(Couleur::class)->findAll();
 
             return $this->render('dotation/admin.html.twig', [
-                'types' => $types,
-                'tailles' => $tailles,
-                'couleurs' => $couleurs,
-                'articles' => $articles,
+                'listeTypes' => $listeTypes,
+                'listeTailles' => $listeTailles,
+                'listeCouleurs' => $listeCouleurs,
+                'listeArticles' => $listeArticles,
                 'active_link' => 'admin'
             ]);
         }

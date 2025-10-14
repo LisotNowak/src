@@ -1,4 +1,4 @@
-{% extends 'base.html.twig' %}  
+{% extends 'base.html.twig' %}
 {% block title %}Administration{% endblock %}
 
 {% block sidebar %}
@@ -13,8 +13,8 @@
     <!-- Table des produits -->
     <div class="mt-4">
         <h2>Liste des produits</h2>
-        <table class="table table-striped">
-            <thead class="thead-dark">
+        <table class="table table-striped align-middle">
+            <thead class="table-dark">
                 <tr>
                     <th scope="col">#</th>
                     <th scope="col">Ref</th>
@@ -27,20 +27,24 @@
             <tbody>
                 {% for produit in listeArticles %}
                 <tr>
-                    <th scope="row">
-                    <img class="card-img-top img-fluid"
-                        style="width: 100px; height: auto; object-fit: cover;"
-                        src="{{ produit.image is not empty ? asset('uploads/images/' ~ produit.image) : 'img/defaultimage.png?v=1648567836&width=1080' }}"
-                        alt="{{ produit.id }}">
-                    </th>
+                    <td>
+                        <img class="img-fluid rounded shadow-sm"
+                             style="width: 100px; height: auto; object-fit: cover;"
+                             src="{{ produit.image is not empty ? asset('uploads/images/' ~ produit.image) : asset('img/defaultimage.png?v=1648567836&width=1080') }}"
+                             alt="{{ produit.id }}">
+                    </td>
                     <td>{{ produit.reference }}</td>
                     <td>{{ produit.nom }}</td>
                     <td>{{ produit.point }} P</td>
                     <td>{{ produit.nomType }}</td>
                     <td>
-                        <button class="btn btn-primary btn-sm" onclick="editProduit({{ produit.id }})">Modifier</button>
+                        <button class="btn btn-primary btn-sm me-1" onclick="editProduit({{ produit.id }})">Modifier</button>
                         <button class="btn btn-danger btn-sm" onclick="deleteProduit({{ produit.id }})">Supprimer</button>
                     </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted">Aucun produit trouvé</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -48,67 +52,76 @@
     </div>
 
     <!-- Formulaire d'ajout / modification -->
-    {% set produit = produit ?? { id: '', reference: '', nom: '', prix: '', point: '', description: '', type: null, tailles: [], couleurs: [] } %}
-    <div class="d-flex justify-content-center vh-100">
-        <div class="">
-            <h2 id="form-title">{{ produit.id ? 'Modifier un produit' : 'Ajouter un produit' }}</h2>
+    {% set produit = produit ?? { id: '', reference: '', nom: '', prix: '', point: '', description: '', nomType: '', tailles: [], couleurs: [] } %}
+    <div class="d-flex justify-content-center align-items-start mt-5 mb-5">
+        <div class="w-100" style="max-width: 600px;">
+            <h2 id="form-title" class="mb-4">{{ produit.id ? 'Modifier un produit' : 'Ajouter un produit' }}</h2>
+            
             <form id="produit-form" method="POST" enctype="multipart/form-data" action="{{ path('save_article') }}">
                 <input type="hidden" name="id" id="produit-id" value="{{ produit.id }}">
-                <div class="form-group">
-                    <label for="produit-reference">Référence</label>
+
+                <div class="mb-3">
+                    <label for="produit-reference" class="form-label">Référence</label>
                     <input type="text" class="form-control" id="produit-reference" name="reference" placeholder="Référence du produit" value="{{ produit.reference }}" required>
                 </div>
-                <div class="form-group">
-                    <label for="produit-nom">Nom</label>
+
+                <div class="mb-3">
+                    <label for="produit-nom" class="form-label">Nom</label>
                     <input type="text" class="form-control" id="produit-nom" name="nom" placeholder="Nom du produit" value="{{ produit.nom }}" required>
                 </div>
-                <div class="form-group">
-                    <label for="produit-prix">Prix</label>
+
+                <div class="mb-3">
+                    <label for="produit-prix" class="form-label">Prix</label>
                     <input type="number" class="form-control" id="produit-prix" name="prix" placeholder="Prix" value="{{ produit.prix }}" required>
                 </div>
-                <div class="form-group">
-                    <label for="produit-point">Point</label>
+
+                <div class="mb-3">
+                    <label for="produit-point" class="form-label">Point</label>
                     <input type="number" class="form-control" id="produit-point" name="point" placeholder="Point" value="{{ produit.point }}" required>
                 </div>
-                <div class="form-group">
-                    <label for="produit-description">Description</label>
-                    <textarea id="produit-description" class="form-control" name="description" rows="5" cols="33">{{ produit.description }}</textarea>
+
+                <div class="mb-3">
+                    <label for="produit-description" class="form-label">Description</label>
+                    <textarea id="produit-description" class="form-control" name="description" rows="5">{{ produit.description }}</textarea>
                 </div>
-                <div class="form-group">
-                    <label for="produit-type">Type</label>
-                    <select class="form-control" name="produit-type" id="produit-type" required>
-                        <option value="">--- Type ---</option>
-                        {% for type in listeTypes %}
-                            <option value="{{ type.id }}" {% if produit.type and produit.type.id == type.id %}selected{% endif %}>{{ type.nom }}</option>
-                        {% endfor %}
-                    </select>
+
+                <div class="mb-3">
+                    <label for="produit-type" class="form-label">Type</label>
+                        <select class="form-select" name="produit-type" id="produit-type" required>
+                            <option value="">--- Type ---</option>
+                            {% for type in listeTypes %}
+                                <option value="{{ type.nom }}" {% if produit.nomType == type.nom %}selected{% endif %}>{{ type.nom }}</option>
+                            {% endfor %}
+                        </select>
                 </div>
-                <div class="form-group">
-                    <label for="produit-image">Image</label>
+
+                <div class="mb-3">
+                    <label for="produit-image" class="form-label">Image</label>
                     <input type="file" class="form-control" id="produit-image" name="image" accept="image/*">
                 </div>
-                <div class="form-group">
-                    <label for="produit-taille">Tailles :</label>
+
+                <div class="mb-3">
+                    <label class="form-label">Tailles :</label>
                     <div id="taille">
                         {% for taille in listeTailles %}
                             <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="checkbox" name="produit-taille[]" id="taille-{{ taille.id }}" value="{{ taille.id }}" 
+                                <input class="form-check-input" type="checkbox" name="produit-taille[]" id="taille-{{ taille.id }}" value="{{ taille.nom }}"
                                     {% if produit.tailles is not empty and taille in produit.tailles %}checked{% endif %}>
-                                <label class="form-check-label" for="taille-{{ taille.id }}">
-                                    {{ taille.nom }}
-                                </label>
+                                <label class="form-check-label" for="taille-{{ taille.id }}">{{ taille.nom }}</label>
                             </div>
                         {% endfor %}
                     </div>
                 </div>
-                <div class="form-group">
-                    <label for="produit-couleur">Couleur :</label>
+
+                <div class="mb-3">
+                    <label class="form-label">Couleurs :</label>
                     <div id="couleur">
                         {% for couleur in listeCouleurs %}
                             <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="checkbox" name="produit-couleur[]" id="couleur-{{ couleur.id }}" value="{{ couleur.id }}"
+                                <input class="form-check-input" type="checkbox" name="produit-couleur[]" id="couleur-{{ couleur.id }}" value="{{ couleur.nom }}"
                                     {% if produit.couleurs is not empty and couleur in produit.couleurs %}checked{% endif %}>
-                                <label class="form-check-label" for="couleur-{{ couleur.id }}" style="background-color: {{couleur.codeCouleur}}; color: white; padding: 4px 8px; border-radius: 5px;">
+                                <label class="form-check-label" for="couleur-{{ couleur.id }}"
+                                       style="background-color: {{ couleur.codeCouleur }}; color: #fff; padding: 4px 8px; border-radius: 5px;">
                                     {{ couleur.nom }}
                                 </label>
                             </div>
@@ -116,74 +129,61 @@
                     </div>
                 </div>
 
-                <button type="submit" class="btn btn-success mt-3">Enregistrer</button>
+                <button type="submit" class="btn btn-success w-100 mt-3">Enregistrer</button>
             </form>
         </div>
     </div>
-
 </div>
 
 <script>
-   let produit = {}; // Déclaration globale
+async function editProduit(id) {
+    try {
+        const response = await $.ajax({
+            url: "/dota/article",
+            method: "POST",
+            data: { id: id },
+            dataType: "json"
+        });
 
-    async function editProduit(id) {
-        try {
-            let response = await $.post("/dota/article", { id: id });
+        // Remplissage du formulaire
+        document.getElementById('produit-id').value = id;
+        document.getElementById('produit-reference').value = response.reference || '';
+        document.getElementById('produit-nom').value = response.nom || '';
+        document.getElementById('produit-prix').value = response.prix || '';
+        document.getElementById('produit-point').value = response.point || '';
+        document.getElementById('produit-description').value = response.descriptions || '';
+        document.getElementById('produit-type').value = response.nomType || '';
 
+        // Check Tailles (par nom)
+        document.querySelectorAll('input[name="produit-taille[]"]').forEach(cb => {
+            cb.checked = response.tableauTailles.includes(cb.value);
+        });
 
-            // Mettre à jour le formulaire
-            document.getElementById('produit-id').value = id;
-            document.getElementById('produit-reference').value = response["reference"];
-            document.getElementById('produit-nom').value = response["nom"];
-            document.getElementById('produit-prix').value = response["prix"];
-            document.getElementById('produit-point').value = response["point"];
-            document.getElementById('produit-description').value = response["descriptions"];
-            document.getElementById('produit-type').value = response["type"];
+        // Check Couleurs (par nom)
+        document.querySelectorAll('input[name="produit-couleur[]"]').forEach(cb => {
+            cb.checked = response.tableauCouleurs.includes(cb.value);
+        });
 
-            // Mettre à jour les checkboxes des tailles
-            let checkboxesTailles = document.querySelectorAll('input[name="produit-taille[]"]');
-            checkboxesTailles.forEach(checkbox => {
-                
-                console.log(response["tableauTailles"]);
-                checkbox.checked = response["tableauTailles"].includes(parseInt(checkbox.value));
-            });
-
-            // Mettre à jour les checkboxes des couleurs
-            let checkboxesCouleurs = document.querySelectorAll('input[name="produit-couleur[]"]');
-            checkboxesCouleurs.forEach(checkbox => {
-                checkbox.checked = response["tableauCouleurs"].includes(parseInt(checkbox.value));
-            });
-
-            // Modifier le titre du formulaire
-            document.getElementById('form-title').textContent = 'Modifier un produit';
-
-        } catch (error) {
-            console.error("Erreur lors de la récupération du produit:", error);
-        }
+        document.getElementById('form-title').textContent = 'Modifier un produit';
+    } catch (error) {
+        console.error("Erreur lors de la récupération du produit :", error);
     }
+}
 
-    function deleteProduit(id) {
-        if (confirm('Es-tu sûr de vouloir supprimer cet article ?')) {
-            fetch(`/dota/article/delete/${id}`, {
-                method: 'DELETE',
-            })
-            .then(response => {
-                if (response.ok) {
-                    alert('Article supprimé avec succès.');
-                    location.reload(); // Recharge la page pour mettre à jour la liste
-                } else {
-                    response.text().then(text => {
-                        alert('Erreur : ' + text);
-                    });
-                }
-            })
-            .catch(error => {
-                alert('Erreur réseau : ' + error);
-            });
-        }
+function deleteProduit(id) {
+    if (confirm('Es-tu sûr de vouloir supprimer cet article ?')) {
+        fetch(`/dota/article/delete/${id}`, { method: 'DELETE' })
+        .then(response => {
+            if (response.ok) {
+                alert('Article supprimé avec succès.');
+                location.reload();
+            } else {
+                response.text().then(text => alert('Erreur : ' + text));
+            }
+        })
+        .catch(error => alert('Erreur réseau : ' + error));
     }
-
-
+}
 </script>
 
 {% endblock %}
