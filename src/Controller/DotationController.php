@@ -776,6 +776,44 @@ public function validerPanier(SessionInterface $session, EntityManagerInterface 
     return $this->redirectToRoute('app_panier_dota');
 }
 
+
+    #[Route('/dota/mes-demandes-echange', name: 'app_mes_demandes_echange')]
+        public function mesDemandesEchange(EntityManagerInterface $entityManager): Response
+        {
+            $user = $this->getUser();
+            if (!$user) {
+                return $this->redirectToRoute('app_accueil');
+            }
+
+            // Récupérer toutes les demandes de l'utilisateur
+            $demandesEntities = $entityManager->getRepository(DemandeEchange::class)
+                ->findBy(['user' => $user], ['dateDemande' => 'DESC']);
+
+            $demandes = [];
+
+            foreach ($demandesEntities as $demande) {
+                $oldAssoc = $demande->getOldAssociationCommandeArticle();
+                $oldArticle = $oldAssoc 
+                    ? $entityManager->getRepository(Article::class)->find($oldAssoc->getIdArticle()) 
+                    : null;
+
+                $newArticle = $demande->getNewArticle();
+
+                $demandes[] = [
+                    'demande' => $demande,
+                    'oldAssoc' => $oldAssoc,
+                    'oldArticle' => $oldArticle,
+                    'newArticle' => $newArticle,
+                ];
+            }
+
+            return $this->render('dotation/mesDemandesEchange.html.twig', [
+                'demandes' => $demandes,
+            ]);
+        }
+
+
+
     #[Route('/dota/mes-commandes', name: 'app_mes_commandes_dota')]
     public function mesCommandes(Request $request, EntityManagerInterface $entityManager): Response
     {

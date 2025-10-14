@@ -1,0 +1,74 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Mes demandes d'échange{% endblock %}
+
+{% block sidebar %}
+    {% include 'dotation/sidebar.html.twig' with {'active_link': 'mes_demandes_echange'} %}
+{% endblock %}
+
+{% block body %}
+<div class="container mt-4">
+    <h1>Mes demandes d'échange</h1>
+
+    {% if demandes is empty %}
+        <div class="alert alert-info">Vous n'avez aucune demande d'échange.</div>
+    {% else %}
+        {% for entry in demandes %}
+            {% set demande = entry.demande %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    <strong>Demande #{{ demande.id }}</strong>
+                    <span class="float-end">{{ demande.dateDemande|date('d/m/Y H:i') }}</span>
+                    <div class="small text-muted">
+                        Statut : 
+                        {% if demande.status == 'En attente' %}
+                            <span class="badge bg-warning text-dark">{{ demande.status }}</span>
+                        {% elseif demande.status == 'Approuvée' %}
+                            <span class="badge bg-success">{{ demande.status }}</span>
+                        {% elseif demande.status == 'Refusée' %}
+                            <span class="badge bg-danger">{{ demande.status }}</span>
+                        {% else %}
+                            <span class="badge bg-secondary">{{ demande.status }}</span>
+                        {% endif %}
+                    </div>
+
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Ancien article</th>
+                                <th>Nouvel article</th>
+                                <th>Raison</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>
+                                    {% if entry.oldArticle %}
+                                        {{ entry.oldArticle.nom }}<br>
+                                        Taille : {{ entry.oldAssoc.nomTaille }}<br>
+                                        Couleur : {{ entry.oldAssoc.nomCouleur }}
+                                    {% else %}
+                                        Article supprimé
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if entry.newArticle %}
+                                        {{ entry.newArticle.nom }}<br>
+                                        Taille : {{ demande.newTaille }}<br>
+                                        Couleur : {{ demande.newCouleur }}
+                                    {% else %}
+                                        Article supprimé
+                                    {% endif %}
+                                </td>
+                                <td>{{ demande.reason }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% endfor %}
+    {% endif %}
+</div>
+{% endblock %}
