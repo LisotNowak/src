@@ -1,70 +1,113 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Associer des Clients à un Signataire{% endblock %}
+{% block title %}Association Clients / Signataires{% endblock %}
 
 {% block body %}
-<div class="container mt-5">
-    <div class="card shadow-sm">
-        <div class="card-header bg-info text-white">
-            <h3 class="mb-0">
-                <i class="bi bi-link-45deg"></i> Associer des Clients à un Signataire
-            </h3>
+<div class="container mt-4">
+    <a href="{{ path('app_clients_list') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Retour à la liste
+    </a>
+    <h2 class="mb-4 text-center">🔗 Associer des clients à un ou plusieurs signataires</h2>
+
+    {# Flash messages #}
+    {% for message in app.flashes('success') %}
+        <div class="alert alert-success">{{ message }}</div>
+    {% endfor %}
+    {% for message in app.flashes('error') %}
+        <div class="alert alert-danger">{{ message }}</div>
+    {% endfor %}
+
+    <form method="POST" action="{{ path('app_client_associate') }}">
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <label class="form-label fw-bold">Sélectionnez un ou plusieurs signataires :</label>
+                <select name="signataires[]" class="form-select" multiple required>
+                    {% for signataire in signataires %}
+                        <option value="{{ signataire.id }}">{{ signataire.nom }}</option>
+                    {% endfor %}
+                </select>
+                <small class="text-muted">Maintenez Ctrl (ou Cmd sur Mac) pour une sélection multiple.</small>
+            </div>
         </div>
-        <div class="card-body p-4">
-            <form method="post">
-                <div class="mb-4">
-                    <label for="signataire" class="form-label fs-5">1. Choisir le signataire</label>
-                    <select id="signataire" name="signataire" class="form-select" required>
-                        <option value="" selected disabled>-- Sélectionnez un signataire --</option>
-                        {% for signataire in signataires %}
-                            <option value="{{ signataire.id }}">{{ signataire.nom }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
 
-                <div class="mb-4">
-                    <label for="client-search" class="form-label fs-5">2. Rechercher et choisir les clients</label>
-                    <input type="text" id="client-search" class="form-control mb-2" placeholder="Rechercher un client par nom, prénom ou société...">
+        <hr>
 
-                    <select id="clients" name="clients[]" class="form-select" multiple required size="15">
-                        {% for client in clients %}
-                            <option value="{{ client.id }}">{{ client.triNom }} {{ client.triPrenom }} ({{ client.societeNom }})</option>
-                        {% else %}
-                            <option disabled>Aucun client trouvé.</option>
-                        {% endfor %}
-                    </select>
-                </div>
+        <div class="row">
+            <div class="col-md-7">
+                <h5>📋 Liste des clients disponibles</h5>
+                <input type="text" id="searchClient" class="form-control mb-2" placeholder="Rechercher un client...">
 
-                <div class="col-12 text-end mt-4">
-                    <button type="submit" class="btn btn-success">
-                        <i class="bi bi-check-circle"></i> Associer la sélection
-                    </button>
-                    <a href="{{ path('app_clients_list') }}" class="btn btn-outline-secondary">
-                        <i class="bi bi-arrow-left"></i> Annuler et retourner à la liste
-                    </a>
+                <div id="clientsList" class="border rounded p-3" style="max-height: 400px; overflow-y: auto;">
+                    {% for client in clients %}
+                        <div class="form-check mb-1">
+                            <input 
+                                class="form-check-input client-checkbox" 
+                                type="checkbox" 
+                                name="clients[]" 
+                                id="client_{{ client.id }}" 
+                                value="{{ client.id }}"
+                            >
+                            <label class="form-check-label" for="client_{{ client.id }}">
+                                {{ client.triNom|upper }} {{ client.triPrenom }}
+                                <span class="text-muted small">
+                                    - {{ client.ville ?? '' }} ({{ client.codePostal ?? '' }})
+                                </span>
+                            </label>
+                        </div>
+                    {% else %}
+                        <p class="text-muted fst-italic">Aucun client trouvé.</p>
+                    {% endfor %}
                 </div>
-            </form>
+            </div>
+
+            <div class="col-md-5">
+                <h5>✅ Clients sélectionnés</h5>
+                <ul id="selectedClients" class="list-group small">
+                    <li class="list-group-item text-muted">Aucun client sélectionné pour le moment.</li>
+                </ul>
+            </div>
         </div>
-    </div>
+
+        <div class="text-center mt-4">
+            <button type="submit" class="btn btn-primary px-5 py-2">
+                Associer les clients sélectionnés
+            </button>
+        </div>
+    </form>
 </div>
-{% endblock %}
 
-{% block javascripts %}
-{{ parent() }}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const searchInput = document.getElementById('client-search');
-    const clientSelect = document.getElementById('clients');
-    const options = Array.from(clientSelect.options);
-
-    searchInput.addEventListener('input', function() {
-        const searchTerm = this.value.toLowerCase().trim();
-
-        options.forEach(option => {
-            const optionText = option.textContent.toLowerCase();
-            option.style.display = optionText.includes(searchTerm) ? '' : 'none';
-        });
+// 🔍 Filtrer la liste des clients en direct
+document.getElementById('searchClient').addEventListener('input', function() {
+    const filter = this.value.toLowerCase();
+    document.querySelectorAll('#clientsList .form-check').forEach(div => {
+        const label = div.textContent.toLowerCase();
+        div.style.display = label.includes(filter) ? '' : 'none';
     });
 });
+
+// ✅ Mettre à jour la liste des clients sélectionnés
+const clientCheckboxes = document.querySelectorAll('.client-checkbox');
+const selectedList = document.getElementById('selectedClients');
+
+function refreshSelectedList() {
+    selectedList.innerHTML = '';
+    const selected = Array.from(clientCheckboxes).filter(cb => cb.checked);
+
+    if (selected.length === 0) {
+        selectedList.innerHTML = '<li class="list-group-item text-muted">Aucun client sélectionné pour le moment.</li>';
+        return;
+    }
+
+    selected.forEach(cb => {
+        const label = document.querySelector(`label[for="${cb.id}"]`).innerText;
+        const li = document.createElement('li');
+        li.className = 'list-group-item';
+        li.textContent = label;
+        selectedList.appendChild(li);
+    });
+}
+
+clientCheckboxes.forEach(cb => cb.addEventListener('change', refreshSelectedList));
 </script>
 {% endblock %}

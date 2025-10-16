@@ -113,50 +113,55 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
         $clientRepo = $entityManager->getRepository(Client::class);
 
         if ($request->isMethod('POST')) {
-            $signataireId = $request->request->get('signataire');
+            // ✅ Récupération de plusieurs signataires et clients
+            $signataireIds = $request->request->all('signataires');
             $clientIds = $request->request->all('clients');
-            dump($clientIds);
 
-
-            dump($signataireId, $clientIds); // 🔍 vérification (à retirer après debug)
-
-            if (!$signataireId || empty($clientIds)) {
-                $this->addFlash('error', 'Veuillez sélectionner un signataire et au moins un client.');
+            if (empty($signataireIds) || empty($clientIds)) {
+                $this->addFlash('error', 'Veuillez sélectionner au moins un signataire et un client.');
                 return $this->redirectToRoute('app_client_associate');
             }
 
-            $signataire = $signataireRepo->find($signataireId);
-            if (!$signataire) {
-                throw $this->createNotFoundException('Signataire non trouvé.');
-            }
-
+            // Récupérer les entités
+            $signataires = $signataireRepo->findBy(['id' => $signataireIds]);
             $clientsToAssociate = $clientRepo->findBy(['id' => $clientIds]);
 
-            foreach ($clientsToAssociate as $client) {
-                $existingAssociation = $entityManager->getRepository(AssociationSignataire::class)->findOneBy([
-                    'client' => $client,
-                    'signataire' => $signataire
-                ]);
+            // ✅ Boucles imbriquées : chaque client ↔ chaque signataire
+            foreach ($signataires as $signataire) {
+                foreach ($clientsToAssociate as $client) {
+                    $existingAssociation = $entityManager->getRepository(AssociationSignataire::class)->findOneBy([
+                        'client' => $client,
+                        'signataire' => $signataire
+                    ]);
 
-                if (!$existingAssociation) {
-                    $association = new AssociationSignataire();
-                    $association->setClient($client);
-                    $association->setSignataire($signataire);
-                    $association->setConserver(false);
-                    $association->setSignature(false);
-                    $association->setEnvoiMail(false);
-                    $entityManager->persist($association);
+                    if (!$existingAssociation) {
+                        $association = new AssociationSignataire();
+                        $association->setClient($client);
+                        $association->setSignataire($signataire);
+                        $association->setConserver(false);
+                        $association->setSignature(false);
+                        $association->setEnvoiMail(false);
+                        $entityManager->persist($association);
+                    }
                 }
             }
 
             $entityManager->flush();
-            $this->addFlash('success', count($clientsToAssociate) . ' client(s) ont été associés avec succès à ' . $signataire->getNom());
 
-            return $this->redirectToRoute('app_clients_list', ['signataire' => $signataireId]);
+            // ✅ Message de confirmation
+            $this->addFlash(
+                'success',
+                sprintf(
+                    '%d client(s) ont été associés à %d signataire(s) avec succès.',
+                    count($clientsToAssociate),
+                    count($signataires)
+                )
+            );
+
+            return $this->redirectToRoute('app_client_associate');
         }
 
-
-        // Pour le GET, on charge tous les clients pour permettre la recherche
+        // Pour le GET : charger tous les signataires et clients
         $clients = $clientRepo->findBy([], ['triNom' => 'ASC', 'triPrenom' => 'ASC']);
 
         return $this->render('client/associate.html.twig', [
@@ -164,6 +169,7 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
             'clients' => $clients,
         ]);
     }
+
 
 
     #[Route('/clients/update-field', name: 'app_clients_update_field', methods: ['POST'])]
