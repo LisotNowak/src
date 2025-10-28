@@ -8,6 +8,15 @@
 {% block body %}
 
 <div class="container mt-5">
+    {% for label, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="alert alert-success alert-dismissible fade show mt-3" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endfor %}
+
     <h1 class="text-center">Gestion des Produits</h1>
 
     <!-- Table des produits -->
@@ -117,11 +126,24 @@
                     <label class="form-label">Couleurs :</label>
                     <div id="couleur">
                         {% for couleur in listeCouleurs %}
+                            {% set code = couleur.codeCouleur|lower %}
+                            {% set texteNoir = code == 'beige' or code == 'white' or code == '#ffffff' or code == '#fff' %}
                             <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="checkbox" name="produit-couleur[]" id="couleur-{{ couleur.id }}" value="{{ couleur.nom }}"
+                                <input class="form-check-input"
+                                    type="checkbox"
+                                    name="produit-couleur[]"
+                                    id="couleur-{{ couleur.id }}"
+                                    value="{{ couleur.nom }}"
                                     {% if produit.couleurs is not empty and couleur in produit.couleurs %}checked{% endif %}>
-                                <label class="form-check-label" for="couleur-{{ couleur.id }}"
-                                       style="background-color: {{ couleur.codeCouleur }}; color: #fff; padding: 4px 8px; border-radius: 5px;">
+                                <label class="form-check-label"
+                                    for="couleur-{{ couleur.id }}"
+                                    style="
+                                        background-color: {{ couleur.codeCouleur }};
+                                        color: {{ texteNoir ? '#000' : '#fff' }};
+                                        padding: 4px 8px;
+                                        border-radius: 5px;
+                                        border: 2px solid #000;
+                                    ">
                                     {{ couleur.nom }}
                                 </label>
                             </div>

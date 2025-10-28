@@ -109,10 +109,11 @@ class DotationController extends AbstractController
         $point = $request->request->get('point');
         $description = $request->request->get('description');
         $typeNom = $request->request->get('produit-type');
-        $tailleNoms = $request->request->all('produit-taille'); // noms des tailles
-        $couleurNoms = $request->request->all('produit-couleur'); // noms des couleurs
+        $tailleNoms = $request->request->all('produit-taille');
+        $couleurNoms = $request->request->all('produit-couleur');
 
-        // Récupération ou création de l'article
+        // ✅ Création ou modification
+        $isNew = !$id;
         if ($id) {
             $article = $entityManager->getRepository(Article::class)->find($id);
             if (!$article) {
@@ -122,7 +123,7 @@ class DotationController extends AbstractController
             $article = new Article();
         }
 
-        // Mise à jour des champs
+        // ✅ Mise à jour des champs
         $article->setReference($reference);
         $article->setNom($nom);
         $article->setPrix($prix);
@@ -132,28 +133,35 @@ class DotationController extends AbstractController
             $article->setNomType($typeNom);
         }
 
-        // Gestion de l'image uploadée
+        // ✅ Gestion de l'image
         $imageFile = $request->files->get('image');
         if ($imageFile) {
             $originalFilename = pathinfo($imageFile->getClientOriginalName(), PATHINFO_FILENAME);
             $safeFilename = preg_replace('/[^a-zA-Z0-9-_]/', '_', strtolower($originalFilename));
-            $newFilename = $safeFilename.'-'.uniqid().'.'.$imageFile->guessExtension();
+            $newFilename = $safeFilename . '-' . uniqid() . '.' . $imageFile->guessExtension();
 
             try {
-                $imageFile->move(
-                    $this->getParameter('images_directory'),
-                    $newFilename
-                );
+                $imageFile->move($this->getParameter('images_directory'), $newFilename);
                 $article->setImage($newFilename);
             } catch (FileException $e) {
                 return new Response('Erreur lors de l’upload de l’image.', Response::HTTP_INTERNAL_SERVER_ERROR);
             }
         }
 
+        // ✅ Sauvegarde de base de l’article
         $entityManager->persist($article);
         $entityManager->flush();
 
-        // Association Tailles (par nom)
+        // ✅ Suppression des anciennes associations
+        $entityManager->createQuery('DELETE FROM ' . AssociationTaillesArticle::class . ' a WHERE a.idArticle = :id')
+            ->setParameter('id', $article->getId())
+            ->execute();
+
+        $entityManager->createQuery('DELETE FROM ' . AssociationCouleursArticle::class . ' c WHERE c.idArticle = :id')
+            ->setParameter('id', $article->getId())
+            ->execute();
+
+        // ✅ Réassociation des tailles
         foreach ($tailleNoms as $tailleNom) {
             $taille = $entityManager->getRepository(Taille::class)->findOneBy(['nom' => $tailleNom]);
             if ($taille) {
@@ -164,7 +172,7 @@ class DotationController extends AbstractController
             }
         }
 
-        // Association Couleurs (par nom)
+        // ✅ Réassociation des couleurs
         foreach ($couleurNoms as $couleurNom) {
             $couleur = $entityManager->getRepository(Couleur::class)->findOneBy(['nom' => $couleurNom]);
             if ($couleur) {
@@ -177,9 +185,14 @@ class DotationController extends AbstractController
 
         $entityManager->flush();
 
+        // ✅ Message flash de confirmation
+        $this->addFlash(
+            'success',
+            $isNew ? '✅ Article ajouté avec succès.' : '✏️ Article modifié avec succès.'
+        );
+
         return $this->redirectToRoute('app_admin_dota');
     }
-
 
 
     #[Route('/dota', name: 'app_index_dota')]
