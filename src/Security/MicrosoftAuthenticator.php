@@ -40,38 +40,38 @@ class MicrosoftAuthenticator extends OAuth2Authenticator
     {
         /** @var MicrosoftClient $client */
         $client = $this->clientRegistry->getClient('microsoft');
+
         $accessToken = $this->fetchAccessToken($client);
-        $microsoftUser = $client->fetchUserFromToken($accessToken);
 
-        $email = $microsoftUser->getEmail();
+        return new SelfValidatingPassport(new UserBadge($accessToken->getToken(), function ($token) use ($client) {
+            $microsoftUser = $client->fetchUserFromToken($token);
+            $email = $microsoftUser->getEmail();
 
-        return new SelfValidatingPassport(
-            new UserBadge($email, function (string $userIdentifier) use ($microsoftUser) {
-                $user = $this->userRepository->findOneBy(['email' => $userIdentifier]);
+            // Cherche l'utilisateur local par email
+            $user = $this->userRepository->findOneBy(['email' => $email]);
 
-                if (!$user) {
-                    // Crée un nouvel utilisateur si inexistant (optionnel)
-                    $user = new User();
-                    $user->setEmail($userIdentifier);
-                    $user->setUsername($microsoftUser->getName() ?? $userIdentifier);
-                    $this->entityManager->persist($user);
-                    $this->entityManager->flush();
-                }
+            if (!$user) {
+                // Optionnel : créer un nouvel utilisateur
+                $user = new User();
+                $user->setEmail($email);
+                $user->setUsername($microsoftUser->getName() ?? $email);
+                $this->entityManager->persist($user);
+                $this->entityManager->flush();
+            }
 
-                return $user;
-            })
-        );
+            return $user;
+        }));
     }
 
     public function onAuthenticationSuccess(Request $request, $token, string $firewallName): ?RedirectResponse
     {
-        // Redirection après succès
-        return new RedirectResponse('/');
+        // Redirection après connexion réussie
+        return new RedirectResponse('/'); // ou app_home
     }
 
     public function onAuthenticationFailure(Request $request, AuthenticationException $exception): ?RedirectResponse
     {
-        // Redirection après échec
+        // Redirection en cas d’échec
         return new RedirectResponse('/login');
     }
 }
