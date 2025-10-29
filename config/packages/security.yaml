@@ -31,10 +31,10 @@ security:
                 path: app_logout
                 # target: app_home
 
-    access_control:
-        # Routes publiques / anonymes
-        - { path: ^/connect/microsoft, roles: PUBLIC_ACCESS }
-        - { path: ^/login, roles: PUBLIC_ACCESS }
+access_control:
+        - { path: ^/connect/microsoft, roles: IS_AUTHENTICATED_ANONYMOUSLY }
+        - { path: ^/login, roles: IS_AUTHENTICATED_ANONYMOUSLY }
+
 
         # Routes protégées
         - { path: ^/calculette, roles: ROLE_MANAGER }
