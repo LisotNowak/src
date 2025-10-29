@@ -11,9 +11,9 @@ use KnpU\OAuth2ClientBundle\Security\Authenticator\OAuth2Authenticator;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
-use Symfony\Component\Security\Core\User\UserInterface;
-use Symfony\Component\Security\Http\Authenticator\Passport\Badge\UserBadge;
+use Symfony\Component\Security\Http\Authenticator\Passport\Passport;
 use Symfony\Component\Security\Http\Authenticator\Passport\SelfValidatingPassport;
+use Symfony\Component\Security\Http\Authenticator\Passport\Badge\UserBadge;
 
 class MicrosoftAuthenticator extends OAuth2Authenticator
 {
@@ -36,47 +36,42 @@ class MicrosoftAuthenticator extends OAuth2Authenticator
         return $request->attributes->get('_route') === 'connect_microsoft_check';
     }
 
-    public function authenticate(Request $request): SelfValidatingPassport
+    public function authenticate(Request $request): Passport
     {
         /** @var MicrosoftClient $client */
         $client = $this->clientRegistry->getClient('microsoft');
         $accessToken = $this->fetchAccessToken($client);
         $microsoftUser = $client->fetchUserFromToken($accessToken);
 
-        $email = $microsoftUser->getEmail() ?? $microsoftUser->toArray()['userPrincipalName'] ?? null;
+        $email = $microsoftUser->getEmail();
 
-        if (!$email) {
-            throw new AuthenticationException('Impossible de récupérer l’adresse e-mail Microsoft.');
-        }
+        return new SelfValidatingPassport(
+            new UserBadge($email, function (string $userIdentifier) use ($microsoftUser) {
+                $user = $this->userRepository->findOneBy(['email' => $userIdentifier]);
 
-        return new SelfValidatingPassport(new UserBadge($email, function (string $userIdentifier): ?UserInterface {
-            // Chercher l'utilisateur local correspondant
-            $user = $this->userRepository->findOneBy(['email' => $userIdentifier]);
+                if (!$user) {
+                    // Crée un nouvel utilisateur si inexistant (optionnel)
+                    $user = new User();
+                    $user->setEmail($userIdentifier);
+                    $user->setUsername($microsoftUser->getName() ?? $userIdentifier);
+                    $this->entityManager->persist($user);
+                    $this->entityManager->flush();
+                }
 
-            if (!$user) {
-                // Facultatif : création automatique de l'utilisateur
-                $user = new User();
-                $user->setEmail($userIdentifier);
-                $user->setUsername($userIdentifier);
-                $user->setRoles(['ROLE_USER']);
-
-                $this->entityManager->persist($user);
-                $this->entityManager->flush();
-            }
-
-            return $user;
-        }));
+                return $user;
+            })
+        );
     }
 
     public function onAuthenticationSuccess(Request $request, $token, string $firewallName): ?RedirectResponse
     {
-        // Redirige vers la page d'accueil après connexion
+        // Redirection après succès
         return new RedirectResponse('/');
     }
 
     public function onAuthenticationFailure(Request $request, AuthenticationException $exception): ?RedirectResponse
     {
-        // Redirige vers /login en cas d’échec
+        // Redirection après échec
         return new RedirectResponse('/login');
     }
 }
