@@ -13,28 +13,25 @@ security:
             pattern: ^/
             lazy: true
             provider: app_user_provider
-            security: true  # le firewall est actif
-            stateless: false  # garde la session active
+            security: true
+            stateless: false
 
-            # Authentification via formulaire classique
             form_login:
                 login_path: app_login
                 check_path: app_login
                 enable_csrf: true
                 default_target_path: app_accueil
 
-            # Authentification Microsoft OAuth2
             custom_authenticators:
                 - App\Security\MicrosoftAuthenticator
 
             logout:
                 path: app_logout
-                # target: app_home
 
-access_control:
+    access_control:
+        # Routes publiques / anonymes
         - { path: ^/connect/microsoft, roles: IS_AUTHENTICATED_ANONYMOUSLY }
         - { path: ^/login, roles: IS_AUTHENTICATED_ANONYMOUSLY }
-
 
         # Routes protégées
         - { path: ^/calculette, roles: ROLE_MANAGER }
