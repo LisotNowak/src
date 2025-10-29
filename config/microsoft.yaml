@@ -1,0 +1,6 @@
+connect_microsoft_start:
+    path: /connect/microsoft
+    controller: App\Controller\SecurityController::connectMicrosoftAction
+
+connect_microsoft_check:
+    path: /connect/microsoft/check

@@ -1,0 +1,14 @@
+knpu_oauth2_client:
+    clients:
+        microsoft:
+            type: generic
+            provider_class: League\OAuth2\Client\Provider\GenericProvider
+            client_id: '%env(OAUTH_MICROSOFT_CLIENT_ID)%'
+            client_secret: '%env(OAUTH_MICROSOFT_CLIENT_SECRET)%'
+            redirect_route: connect_microsoft_check
+            use_state: true
+            provider_options:
+                urlAuthorize: 'https://login.microsoftonline.com/21e09f94-0720-43ef-a83f-df85d94e366e/oauth2/v2.0/authorize'
+                urlAccessToken: 'https://login.microsoftonline.com/21e09f94-0720-43ef-a83f-df85d94e366e/oauth2/v2.0/token'
+                urlResourceOwnerDetails: 'https://graph.microsoft.com/v1.0/me'
+                scopes: 'openid profile offline_access https://graph.microsoft.com/User.Read'
