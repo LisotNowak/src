@@ -9,14 +9,10 @@ security:
                 property: email
 
     firewalls:
-        dev:
-            pattern: ^/(_(profiler|wdt)|css|images|js)/
-            security: false
-
         main:
             pattern: ^/
-            provider: app_user_provider
             lazy: true
+            provider: app_user_provider
             security: true
             stateless: false
 
@@ -34,14 +30,14 @@ security:
                 target: /
 
     access_control:
-        # --- Routes publiques ---
+        # Routes publiques
         - { path: ^/connect/microsoft, roles: PUBLIC_ACCESS }
         - { path: ^/connect/microsoft/check, roles: PUBLIC_ACCESS }
         - { path: ^/login, roles: PUBLIC_ACCESS }
         - { path: ^/logout, roles: PUBLIC_ACCESS }
         - { path: ^/$, roles: PUBLIC_ACCESS }
 
-        # --- Routes protégées ---
+        # Routes protégées
         - { path: ^/calculette, roles: ROLE_MANAGER }
         - { path: ^/admin/users, roles: ROLE_ADMIN }
         - { path: ^/profil, roles: ROLE_USER }
