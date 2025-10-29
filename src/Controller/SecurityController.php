@@ -53,12 +53,17 @@ class SecurityController extends AbstractController
 
 
     #[Route('/connect/microsoft', name: 'connect_microsoft_start')]
-    public function connectMicrosoft(ClientRegistry $clientRegistry)
+    public function connectMicrosoft(ClientRegistry $clientRegistry): RedirectResponse
     {
-        // Ne PAS passer de scopes ici, ils sont déjà définis dans provider_options
         return $clientRegistry
             ->getClient('microsoft')
-            ->redirect();
+            ->redirect([
+                'openid',
+                'profile', 
+                'email',
+                'offline_access',
+                'User.Read'
+            ]);
     }
 
 
@@ -66,7 +71,8 @@ class SecurityController extends AbstractController
     #[Route('/connect/microsoft/check', name: 'connect_microsoft_check')]
     public function connectMicrosoftCheck(): Response
     {
-        // Ce point est géré automatiquement par le guard authenticator
-        return $this->redirectToRoute('app_home');
+        // Cette méthode ne sera jamais appelée directement,
+        // elle est gérée par le MicrosoftAuthenticator
+        throw new \LogicException('Cette méthode peut être vide - elle sera interceptée par le middleware OAuth2.');
     }
 }
