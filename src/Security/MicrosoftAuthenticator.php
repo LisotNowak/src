@@ -55,15 +55,17 @@ class MicrosoftAuthenticator extends OAuth2Authenticator
 
         return new SelfValidatingPassport(
             new UserBadge($email, function ($userIdentifier) use ($microsoftUser) {
+                // Recherche l'utilisateur dans la base de données locale
                 $user = $this->userRepository->findOneBy(['email' => $userIdentifier]);
 
                 if (!$user) {
-                    // 👇 Crée un compte local automatiquement si inexistant
-                    $user = new User();
-                    $user->setEmail($userIdentifier);
-                    $user->setUsername($microsoftUser->getName() ?? $userIdentifier);
-                    $user->setRoles(['ROLE_USER']);
+                    // Si l'utilisateur n'existe pas localement, on refuse l'accès
+                    throw new AuthenticationException('Votre compte n\'existe pas dans notre système.');
+                }
 
+                // Met à jour le nom d'utilisateur si nécessaire
+                if ($microsoftUser->getName() && $user->getUsername() !== $microsoftUser->getName()) {
+                    $user->setUsername($microsoftUser->getName());
                     $this->entityManager->persist($user);
                     $this->entityManager->flush();
                 }
