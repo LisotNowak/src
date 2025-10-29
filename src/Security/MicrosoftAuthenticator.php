@@ -10,29 +10,25 @@ use KnpU\OAuth2ClientBundle\Client\Provider\MicrosoftClient;
 use KnpU\OAuth2ClientBundle\Security\Authenticator\OAuth2Authenticator;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
-use Symfony\Component\Security\Http\Authenticator\Passport\Passport;
-use Symfony\Component\Security\Http\Authenticator\Passport\SelfValidatingPassport;
+use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Http\Authenticator\Passport\Badge\UserBadge;
+use Symfony\Component\Security\Http\Authenticator\Passport\SelfValidatingPassport;
 
 class MicrosoftAuthenticator extends OAuth2Authenticator
 {
     private ClientRegistry $clientRegistry;
     private UserRepository $userRepository;
     private EntityManagerInterface $entityManager;
-    private UrlGeneratorInterface $urlGenerator;
 
     public function __construct(
         ClientRegistry $clientRegistry,
         UserRepository $userRepository,
-        EntityManagerInterface $entityManager,
-        UrlGeneratorInterface $urlGenerator
+        EntityManagerInterface $entityManager
     ) {
         $this->clientRegistry = $clientRegistry;
         $this->userRepository = $userRepository;
         $this->entityManager = $entityManager;
-        $this->urlGenerator = $urlGenerator;
     }
 
     public function supports(Request $request): ?bool
@@ -40,46 +36,47 @@ class MicrosoftAuthenticator extends OAuth2Authenticator
         return $request->attributes->get('_route') === 'connect_microsoft_check';
     }
 
-    public function authenticate(Request $request): Passport
+    public function authenticate(Request $request): SelfValidatingPassport
     {
         /** @var MicrosoftClient $client */
         $client = $this->clientRegistry->getClient('microsoft');
         $accessToken = $this->fetchAccessToken($client);
-
         $microsoftUser = $client->fetchUserFromToken($accessToken);
-        $email = $microsoftUser->getEmail();
+
+        $email = $microsoftUser->getEmail() ?? $microsoftUser->toArray()['userPrincipalName'] ?? null;
 
         if (!$email) {
-            throw new AuthenticationException('Impossible de récupérer votre email Microsoft.');
+            throw new AuthenticationException('Impossible de récupérer l’adresse e-mail Microsoft.');
         }
 
-        return new SelfValidatingPassport(
-            new UserBadge($email, function ($userIdentifier) use ($microsoftUser) {
-                $user = $this->userRepository->findOneBy(['email' => $userIdentifier]);
+        return new SelfValidatingPassport(new UserBadge($email, function (string $userIdentifier): ?UserInterface {
+            // Chercher l'utilisateur local correspondant
+            $user = $this->userRepository->findOneBy(['email' => $userIdentifier]);
 
-                if (!$user) {
-                    // 👇 Crée un compte local automatiquement si inexistant
-                    $user = new User();
-                    $user->setEmail($userIdentifier);
-                    $user->setUsername($microsoftUser->getName() ?? $userIdentifier);
-                    $user->setRoles(['ROLE_USER']);
+            if (!$user) {
+                // Facultatif : création automatique de l'utilisateur
+                $user = new User();
+                $user->setEmail($userIdentifier);
+                $user->setUsername($userIdentifier);
+                $user->setRoles(['ROLE_USER']);
 
-                    $this->entityManager->persist($user);
-                    $this->entityManager->flush();
-                }
+                $this->entityManager->persist($user);
+                $this->entityManager->flush();
+            }
 
-                return $user;
-            })
-        );
+            return $user;
+        }));
     }
 
     public function onAuthenticationSuccess(Request $request, $token, string $firewallName): ?RedirectResponse
     {
-        return new RedirectResponse($this->urlGenerator->generate('app_accueil'));
+        // Redirige vers la page d'accueil après connexion
+        return new RedirectResponse('/');
     }
 
     public function onAuthenticationFailure(Request $request, AuthenticationException $exception): ?RedirectResponse
     {
-        return new RedirectResponse($this->urlGenerator->generate('app_login'));
+        // Redirige vers /login en cas d’échec
+        return new RedirectResponse('/login');
     }
 }
