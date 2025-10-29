@@ -16,7 +16,6 @@ security:
             security: true
             stateless: false
             
-            # Add entry_point configuration
             entry_point: App\Security\MicrosoftAuthenticator
 
             form_login:
@@ -27,10 +26,6 @@ security:
                 
             custom_authenticators:
                 - App\Security\MicrosoftAuthenticator
-            
-            oauth:
-                success_handler: App\Security\MicrosoftAuthenticator
-                failure_handler: App\Security\MicrosoftAuthenticator
                 
             logout:
                 path: app_logout
@@ -38,11 +33,10 @@ security:
 
             remember_me:
                 secret: '%kernel.secret%'
-                lifetime: 604800 # 1 week
+                lifetime: 604800
                 always_remember_me: true
 
     access_control:
-        # Make sure these are at the top of your access_control list
         - { path: ^/connect/microsoft, roles: PUBLIC_ACCESS }
         - { path: ^/connect/microsoft/check, roles: PUBLIC_ACCESS }
         - { path: ^/login, roles: PUBLIC_ACCESS }
