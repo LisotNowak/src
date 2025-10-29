@@ -42,46 +42,80 @@ class MicrosoftAuthenticator extends OAuth2Authenticator
 
     public function authenticate(Request $request): Passport
     {
-        /** @var MicrosoftClient $client */
-        $client = $this->clientRegistry->getClient('microsoft');
-        $accessToken = $this->fetchAccessToken($client);
+        try {
+            if (!$this->supports($request)) {
+                throw new AuthenticationException('Méthode d\'authentification non prise en charge');
+            }
 
-        $microsoftUser = $client->fetchUserFromToken($accessToken);
-        $email = $microsoftUser->getEmail();
+            /** @var MicrosoftClient $client */
+            $client = $this->clientRegistry->getClient('microsoft');
+            
+            try {
+                $accessToken = $this->fetchAccessToken($client);
+            } catch (\League\OAuth2\Client\Provider\Exception\IdentityProviderException $e) {
+                throw new AuthenticationException('Échec de l\'obtention du jeton d\'accès : ' . $e->getMessage());
+            }
 
-        if (!$email) {
-            throw new AuthenticationException('Impossible de récupérer votre email Microsoft.');
+            try {
+                $microsoftUser = $client->fetchUserFromToken($accessToken);
+                $email = $microsoftUser->getEmail();
+            } catch (\Exception $e) {
+                throw new AuthenticationException('Échec de la récupération des détails de l\'utilisateur : ' . $e->getMessage());
+            }
+
+            if (!$email) {
+                throw new AuthenticationException('Email non fourni par Microsoft');
+            }
+
+            return new SelfValidatingPassport(
+                new UserBadge($email, function ($userIdentifier) use ($microsoftUser) {
+                    $user = $this->userRepository->findOneBy(['email' => $userIdentifier]);
+
+                    if (!$user) {
+                        throw new AuthenticationException(sprintf(
+                            'Utilisateur avec l\'email "%s" non trouvé dans la base de données locale',
+                            $userIdentifier
+                        ));
+                    }
+
+                    try {
+                        if ($microsoftUser->getName() && $user->getUsername() !== $microsoftUser->getName()) {
+                            $user->setUsername($microsoftUser->getName());
+                            $this->entityManager->persist($user);
+                            $this->entityManager->flush();
+                        }
+                    } catch (\Exception $e) {
+                        // Enregistrer l'erreur mais ne pas échouer l'authentification
+                        error_log('Échec de la mise à jour du nom d\'utilisateur : ' . $e->getMessage());
+                    }
+
+                    return $user;
+                })
+            );
+        } catch (\Exception $e) {
+            throw new AuthenticationException($e->getMessage(), 0, $e);
         }
-
-        return new SelfValidatingPassport(
-            new UserBadge($email, function ($userIdentifier) use ($microsoftUser) {
-                // Recherche l'utilisateur dans la base de données locale
-                $user = $this->userRepository->findOneBy(['email' => $userIdentifier]);
-
-                if (!$user) {
-                    // Si l'utilisateur n'existe pas localement, on refuse l'accès
-                    throw new AuthenticationException('Votre compte n\'existe pas dans notre système.');
-                }
-
-                // Met à jour le nom d'utilisateur si nécessaire
-                if ($microsoftUser->getName() && $user->getUsername() !== $microsoftUser->getName()) {
-                    $user->setUsername($microsoftUser->getName());
-                    $this->entityManager->persist($user);
-                    $this->entityManager->flush();
-                }
-
-                return $user;
-            })
-        );
-    }
-
-    public function onAuthenticationSuccess(Request $request, $token, string $firewallName): ?RedirectResponse
-    {
-        return new RedirectResponse($this->urlGenerator->generate('app_accueil'));
     }
 
     public function onAuthenticationFailure(Request $request, AuthenticationException $exception): ?RedirectResponse
     {
-        return new RedirectResponse($this->urlGenerator->generate('app_login'));
+        if ($request->hasSession()) {
+            $request->getSession()->getFlashBag()->add('error', $exception->getMessage());
+        }
+        
+        return new RedirectResponse(
+            $this->urlGenerator->generate('app_login')
+        );
+    }
+
+    public function onAuthenticationSuccess(Request $request, TokenInterface $token, string $firewallName): ?RedirectResponse
+    {
+        if ($request->hasSession()) {
+            $request->getSession()->getFlashBag()->add('success', 'Connecté avec succès via Microsoft');
+        }
+        
+        return new RedirectResponse(
+            $this->urlGenerator->generate('app_accueil')
+        );
     }
 }
