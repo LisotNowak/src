@@ -38,13 +38,23 @@ class MicrosoftAuthenticator extends OAuth2Authenticator
 
     public function supports(Request $request): ?bool
     {
-        return $request->attributes->get('_route') === 'connect_microsoft_check';
+        $supports = $request->attributes->get('_route') === 'connect_microsoft_check';
+        
+        // Add debug logging
+        if ($supports) {
+            error_log('MicrosoftAuthenticator: Supporting authentication request');
+        } else {
+            error_log('MicrosoftAuthenticator: Not supporting request for route: ' . $request->attributes->get('_route'));
+        }
+        
+        return $supports;
     }
 
     public function authenticate(Request $request): Passport
     {
         try {
             if (!$this->supports($request)) {
+                error_log('MicrosoftAuthenticator: Authentication attempted on unsupported route');
                 throw new AuthenticationException('Méthode d\'authentification non prise en charge');
             }
 
@@ -52,48 +62,48 @@ class MicrosoftAuthenticator extends OAuth2Authenticator
             $client = $this->clientRegistry->getClient('microsoft');
             
             try {
+                error_log('MicrosoftAuthenticator: Attempting to fetch access token');
                 $accessToken = $this->fetchAccessToken($client);
+                error_log('MicrosoftAuthenticator: Access token obtained successfully');
             } catch (\League\OAuth2\Client\Provider\Exception\IdentityProviderException $e) {
+                error_log('MicrosoftAuthenticator: Failed to get access token - ' . $e->getMessage());
                 throw new AuthenticationException('Échec de l\'obtention du jeton d\'accès : ' . $e->getMessage());
             }
 
             try {
+                error_log('MicrosoftAuthenticator: Fetching user from token');
                 $microsoftUser = $client->fetchUserFromToken($accessToken);
                 $email = $microsoftUser->getEmail();
+                error_log('MicrosoftAuthenticator: Retrieved email: ' . $email);
             } catch (\Exception $e) {
+                error_log('MicrosoftAuthenticator: Failed to fetch user details - ' . $e->getMessage());
                 throw new AuthenticationException('Échec de la récupération des détails de l\'utilisateur : ' . $e->getMessage());
             }
 
             if (!$email) {
+                error_log('MicrosoftAuthenticator: No email provided by Microsoft');
                 throw new AuthenticationException('Email non fourni par Microsoft');
             }
 
             return new SelfValidatingPassport(
                 new UserBadge($email, function ($userIdentifier) use ($microsoftUser) {
+                    error_log('MicrosoftAuthenticator: Looking up user with email: ' . $userIdentifier);
                     $user = $this->userRepository->findOneBy(['email' => $userIdentifier]);
 
                     if (!$user) {
+                        error_log('MicrosoftAuthenticator: User not found in local database');
                         throw new AuthenticationException(sprintf(
                             'Utilisateur avec l\'email "%s" non trouvé dans la base de données locale',
                             $userIdentifier
                         ));
                     }
 
-                    try {
-                        if ($microsoftUser->getName() && $user->getUsername() !== $microsoftUser->getName()) {
-                            $user->setUsername($microsoftUser->getName());
-                            $this->entityManager->persist($user);
-                            $this->entityManager->flush();
-                        }
-                    } catch (\Exception $e) {
-                        // Enregistrer l'erreur mais ne pas échouer l'authentification
-                        error_log('Échec de la mise à jour du nom d\'utilisateur : ' . $e->getMessage());
-                    }
-
+                    error_log('MicrosoftAuthenticator: User found in local database');
                     return $user;
                 })
             );
         } catch (\Exception $e) {
+            error_log('MicrosoftAuthenticator: Authentication failed - ' . $e->getMessage());
             throw new AuthenticationException($e->getMessage(), 0, $e);
         }
     }
@@ -111,6 +121,7 @@ class MicrosoftAuthenticator extends OAuth2Authenticator
 
     public function onAuthenticationSuccess(Request $request, TokenInterface $token, string $firewallName): ?RedirectResponse
     {
+        error_log('MicrosoftAuthenticator: Authentication successful');
         if ($request->hasSession()) {
             $request->getSession()->getFlashBag()->add('success', 'Connecté avec succès via Microsoft');
         }
