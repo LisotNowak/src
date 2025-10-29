@@ -8,8 +8,7 @@ knpu_oauth2_client:
             redirect_params: {}
             tenant: '%env(OAUTH_MICROSOFT_TENANT)%'
             use_state: true
-            graph_api_version: 'v1.0'
-            scopes:
+            scope:
                 - openid
                 - profile
                 - email
