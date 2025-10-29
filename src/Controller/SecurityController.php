@@ -6,7 +6,6 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Authentication\AuthenticationUtils;
-
 use KnpU\OAuth2ClientBundle\Client\ClientRegistry;
 
 class SecurityController extends AbstractController
@@ -14,59 +13,41 @@ class SecurityController extends AbstractController
     #[Route(path: '/login', name: 'app_login')]
     public function login(AuthenticationUtils $authenticationUtils): Response
     {
-        
-        // get the login error if there is one
         $error = $authenticationUtils->getLastAuthenticationError();
-
-        // last username entered by the user
         $lastUsername = $authenticationUtils->getLastUsername();
 
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            
-            if($error != null){
-                return $this->render('accueil.html.twig', [
-                    'last_username' => $lastUsername,
-                    'error' => $error,
-                ]);
-            }else{
-                return $this->render('security/login.html.twig', [
-                    'last_username' => $lastUsername,
-                    'error' => $error,
-                ]);
-            }
-        }else{
-            return $this->render('security/login.html.twig', [
-                'last_username' => $lastUsername,
-                'error' => $error,
-            ]);
-        }
-
-            
-        
+        return $this->render('security/login.html.twig', [
+            'last_username' => $lastUsername,
+            'error' => $error,
+        ]);
     }
 
     #[Route(path: '/logout', name: 'app_logout')]
     public function logout(): void
     {
-        throw new \LogicException('This method can be blank - it will be intercepted by the logout key on your firewall.');
+        // Ce code ne sera jamais exécuté, géré par Symfony
+        throw new \LogicException('Intercepted by the firewall.');
     }
-
 
     #[Route('/connect/microsoft', name: 'connect_microsoft_start')]
     public function connectMicrosoft(ClientRegistry $clientRegistry)
     {
-        // Ne PAS passer de scopes ici, ils sont déjà définis dans provider_options
+        // Redirige l'utilisateur vers Microsoft (la lib KnpU gère les scopes)
         return $clientRegistry
             ->getClient('microsoft')
-            ->redirect();
+            ->redirect([
+                'openid',
+                'profile',
+                'email',
+                'User.Read',
+            ]);
     }
 
-
-
     #[Route('/connect/microsoft/check', name: 'connect_microsoft_check')]
-    public function connectMicrosoftCheck(): Response
+    public function connectMicrosoftCheck(): void
     {
-        // Ce point est géré automatiquement par le guard authenticator
-        return $this->redirectToRoute('app_home');
+        // ⚠️ NE RIEN METTRE ICI
+        // Ce point est intercepté par l’authenticator Microsoft
+        // et ne doit pas renvoyer de réponse.
     }
 }
