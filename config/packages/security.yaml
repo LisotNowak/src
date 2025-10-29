@@ -30,11 +30,12 @@ security:
                 target: /
 
     access_control:
-        # Routes publiques / anonymes
-        - { path: ^/connect/microsoft, roles: IS_AUTHENTICATED_ANONYMOUSLY }
-        - { path: ^/login, roles: IS_AUTHENTICATED_ANONYMOUSLY }
-        - { path: ^/logout, roles: IS_AUTHENTICATED_ANONYMOUSLY }
-        - { path: ^/$, roles: PUBLIC_ACCESS }   # ← rend la page d'accueil accessible
+        # Routes publiques
+        - { path: ^/connect/microsoft, roles: PUBLIC_ACCESS }
+        - { path: ^/connect/microsoft/check, roles: PUBLIC_ACCESS }
+        - { path: ^/login, roles: PUBLIC_ACCESS }
+        - { path: ^/logout, roles: PUBLIC_ACCESS }
+        - { path: ^/$, roles: PUBLIC_ACCESS }
 
         # Routes protégées
         - { path: ^/calculette, roles: ROLE_MANAGER }
