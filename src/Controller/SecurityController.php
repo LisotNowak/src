@@ -2,12 +2,12 @@
 
 namespace App\Controller;
 
+use KnpU\OAuth2ClientBundle\Client\ClientRegistry;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Authentication\AuthenticationUtils;
-
-use KnpU\OAuth2ClientBundle\Client\ClientRegistry;
 
 class SecurityController extends AbstractController
 {
@@ -53,7 +53,7 @@ class SecurityController extends AbstractController
 
 
     #[Route('/connect/microsoft', name: 'connect_microsoft_start')]
-    public function connectMicrosoft(ClientRegistry $clientRegistry): RedirectResponse
+    public function connectMicrosoftStart(ClientRegistry $clientRegistry): RedirectResponse
     {
         return $clientRegistry
             ->getClient('microsoft')
@@ -66,13 +66,10 @@ class SecurityController extends AbstractController
             ]);
     }
 
-
-
     #[Route('/connect/microsoft/check', name: 'connect_microsoft_check')]
     public function connectMicrosoftCheck(): Response
     {
-        // Cette méthode ne sera jamais appelée directement,
-        // elle est gérée par le MicrosoftAuthenticator
-        throw new \LogicException('Cette méthode peut être vide - elle sera interceptée par le middleware OAuth2.');
+        // This method will not be executed - it's handled by the MicrosoftAuthenticator
+        throw new \LogicException('This method should never be called. Check your security configuration.');
     }
 }

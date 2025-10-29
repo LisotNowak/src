@@ -24,10 +24,15 @@ security:
 
             custom_authenticators:
                 - App\Security\MicrosoftAuthenticator
-
+            
             logout:
                 path: app_logout
                 target: /
+
+            remember_me:
+                secret: '%kernel.secret%'
+                lifetime: 604800 # 1 week
+                always_remember_me: true
 
     access_control:
         # Routes publiques
