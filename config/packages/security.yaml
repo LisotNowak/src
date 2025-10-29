@@ -9,6 +9,7 @@ security:
                 property: email
 
     firewalls:
+        # Firewall principal
         main:
             pattern: ^/
             lazy: true
@@ -16,23 +17,29 @@ security:
             security: true
             stateless: false
 
+            # Authentification classique (formulaire)
             form_login:
                 login_path: app_login
                 check_path: app_login
                 enable_csrf: true
                 default_target_path: app_accueil
 
+            # Authentification via Microsoft (OAuth2)
             custom_authenticators:
                 - App\Security\MicrosoftAuthenticator
 
             logout:
                 path: app_logout
+                target: /
 
     access_control:
-        # Routes publiques / anonymes
+        # === ROUTES PUBLIQUES ===
+        - { path: ^/connect/microsoft/check, roles: IS_AUTHENTICATED_ANONYMOUSLY }
         - { path: ^/connect/microsoft, roles: IS_AUTHENTICATED_ANONYMOUSLY }
         - { path: ^/login, roles: IS_AUTHENTICATED_ANONYMOUSLY }
+        - { path: ^/logout, roles: IS_AUTHENTICATED_ANONYMOUSLY }
 
-        # Routes protégées
-        - { path: ^/calculette, roles: ROLE_MANAGER }
+        # === ROUTES PROTÉGÉES ===
         - { path: ^/admin/users, roles: ROLE_ADMIN }
+        - { path: ^/calculette, roles: ROLE_MANAGER }
+        - { path: ^/, roles: ROLE_USER }
