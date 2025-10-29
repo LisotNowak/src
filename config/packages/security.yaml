@@ -15,16 +15,23 @@ security:
             provider: app_user_provider
             security: true
             stateless: false
+            
+            # Add entry_point configuration
+            entry_point: App\Security\MicrosoftAuthenticator
 
             form_login:
                 login_path: app_login
                 check_path: app_login
                 enable_csrf: true
                 default_target_path: app_accueil
-
+                
             custom_authenticators:
                 - App\Security\MicrosoftAuthenticator
             
+            oauth:
+                success_handler: App\Security\MicrosoftAuthenticator
+                failure_handler: App\Security\MicrosoftAuthenticator
+                
             logout:
                 path: app_logout
                 target: /
@@ -35,7 +42,7 @@ security:
                 always_remember_me: true
 
     access_control:
-        # Routes publiques
+        # Make sure these are at the top of your access_control list
         - { path: ^/connect/microsoft, roles: PUBLIC_ACCESS }
         - { path: ^/connect/microsoft/check, roles: PUBLIC_ACCESS }
         - { path: ^/login, roles: PUBLIC_ACCESS }
