@@ -9,15 +9,15 @@ security:
                 property: email
 
     firewalls:
+        dev:
+            pattern: ^/(_(profiler|wdt)|css|images|js)/
+            security: false
+            
         main:
             pattern: ^/
             lazy: true
             provider: app_user_provider
-            security: true
-            stateless: false
             
-            entry_point: App\Security\MicrosoftAuthenticator
-
             form_login:
                 login_path: app_login
                 check_path: app_login
@@ -29,7 +29,7 @@ security:
                 
             logout:
                 path: app_logout
-                target: /
+                target: app_login
 
             remember_me:
                 secret: '%kernel.secret%'
@@ -42,7 +42,6 @@ security:
         - { path: ^/login, roles: PUBLIC_ACCESS }
         - { path: ^/logout, roles: PUBLIC_ACCESS }
         - { path: ^/$, roles: PUBLIC_ACCESS }
-
         # Routes protégées
         - { path: ^/calculette, roles: ROLE_MANAGER }
         - { path: ^/admin/users, roles: ROLE_ADMIN }
