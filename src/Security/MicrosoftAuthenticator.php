@@ -11,21 +11,23 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
-use Symfony\Component\Security\Core\User\UserProviderInterface;
-use Symfony\Component\Security\Http\Authenticator\Passport\SelfValidatingPassport;
 use Symfony\Component\Security\Http\Authenticator\Passport\Badge\UserBadge;
+use Symfony\Component\Security\Http\Authenticator\Passport\SelfValidatingPassport;
+use Psr\Log\LoggerInterface;
 
 class MicrosoftAuthenticator extends OAuth2Authenticator
 {
     private ClientRegistry $clientRegistry;
     private EntityManagerInterface $em;
     private UrlGeneratorInterface $urlGenerator;
+    private LoggerInterface $logger;
 
-    public function __construct(ClientRegistry $clientRegistry, EntityManagerInterface $em, UrlGeneratorInterface $urlGenerator)
+    public function __construct(ClientRegistry $clientRegistry, EntityManagerInterface $em, UrlGeneratorInterface $urlGenerator, LoggerInterface $logger)
     {
         $this->clientRegistry = $clientRegistry;
         $this->em = $em;
         $this->urlGenerator = $urlGenerator;
+        $this->logger = $logger;
     }
 
     public function supports(Request $request): ?bool
@@ -40,17 +42,22 @@ class MicrosoftAuthenticator extends OAuth2Authenticator
 
         /** @var \TheNetworg\OAuth2\Client\Provider\AzureResourceOwner $microsoftUser */
         $microsoftUser = $client->fetchUserFromToken($accessToken);
+        $data = $microsoftUser->toArray();
 
-        // Récupération de l'email
-        $userData = $microsoftUser->toArray();
-        $email = $userData['mail'] ?? $userData['userPrincipalName'] ?? null;
+        // Essayer plusieurs champs possibles
+        $email = $data['mail']
+            ?? $data['userPrincipalName']
+            ?? ($data['otherMails'][0] ?? null);
 
         if (!$email) {
-            throw new \RuntimeException('Impossible de récupérer l\'email de l\'utilisateur Microsoft.');
+            $this->logger->error('Impossible de récupérer l\'email Microsoft', [
+                'data' => $data
+            ]);
+            throw new \RuntimeException('Impossible de récupérer l\'email de l\'utilisateur Microsoft. Consultez var/log/dev.log pour le détail.');
         }
 
         return new SelfValidatingPassport(
-            new UserBadge($email, function($userIdentifier) use ($email) {
+            new UserBadge($email, function ($userIdentifier) use ($email) {
                 $user = $this->em->getRepository(User::class)->findOneBy(['email' => $email]);
                 if (!$user) {
                     $user = new User();
