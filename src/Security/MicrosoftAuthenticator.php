@@ -56,8 +56,9 @@ class MicrosoftAuthenticator extends OAuth2Authenticator
             }
 
             // Optionnel : journalisation dans un fichier spécifique
-            $logFile = dirname(__DIR__, 3) . '/var/log/azure_user.log';
+            $logFile = dirname(__DIR__, 1) . '/var/log/azure_user.log';
             file_put_contents($logFile, json_encode($data, JSON_PRETTY_PRINT));
+
 
             throw new \RuntimeException(
                 'Impossible de récupérer l\'email de l\'utilisateur Microsoft. Consultez le log pour le détail.'
