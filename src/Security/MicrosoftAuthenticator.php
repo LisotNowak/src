@@ -44,10 +44,10 @@ class MicrosoftAuthenticator extends OAuth2Authenticator
         $microsoftUser = $client->fetchUserFromToken($accessToken);
         $data = $microsoftUser->toArray();
 
-        // Essayons de trouver un email fiable
-        $email = $data['mail'] 
-            ?? $data['userPrincipalName'] 
-            ?? ($data['otherMails'][0] ?? null);
+        // Essayons de trouver un email fiable : mail, upn ou unique_name
+        $email = $data['mail']
+            ?? $data['upn']
+            ?? $data['unique_name'];
 
         if (!$email) {
             // Journalise tout pour debug dans Symfony log
@@ -58,7 +58,6 @@ class MicrosoftAuthenticator extends OAuth2Authenticator
             // Optionnel : journalisation dans un fichier spécifique
             $logFile = dirname(__DIR__, 2) . '/var/log/azure_user.log';
             file_put_contents($logFile, json_encode($data, JSON_PRETTY_PRINT));
-
 
             throw new \RuntimeException(
                 'Impossible de récupérer l\'email de l\'utilisateur Microsoft. Consultez le log pour le détail.'
