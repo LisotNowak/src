@@ -18,12 +18,15 @@ security:
             lazy: true
             provider: app_user_provider
             
-            # form_login:
-            #     login_path: app_login
-            #     check_path: app_login
-            #     enable_csrf: true
-            #     default_target_path: app_accueil
+            # 🔹 Formulaire de connexion standard
+            form_login:
+                login_path: app_login
+                check_path: app_login
+                enable_csrf: true
+                default_target_path: app_accueil
                 
+
+            # 🔹 Authenticator Microsoft
             custom_authenticators:
                 - App\Security\MicrosoftAuthenticator
                 
