@@ -45,14 +45,23 @@ class MicrosoftAuthenticator extends OAuth2Authenticator
         $data = $microsoftUser->toArray();
 
         // Essayons de trouver un email fiable
-        $email = $data['mail']
-            ?? $data['userPrincipalName']
+        $email = $data['mail'] 
+            ?? $data['userPrincipalName'] 
             ?? ($data['otherMails'][0] ?? null);
 
         if (!$email) {
-            // Journalise tout pour debug
-            file_put_contents('var/log/azure_user.log', json_encode($data, JSON_PRETTY_PRINT));
-            throw new \RuntimeException('Impossible de récupérer l\'email de l\'utilisateur Microsoft. Consultez var/log/azure_user.log pour le détail.');
+            // Journalise tout pour debug dans Symfony log
+            if ($this->logger) {
+                $this->logger->debug('Impossible de récupérer l\'email Microsoft', $data);
+            }
+
+            // Optionnel : journalisation dans un fichier spécifique
+            $logFile = dirname(__DIR__, 3) . '/var/log/azure_user.log';
+            file_put_contents($logFile, json_encode($data, JSON_PRETTY_PRINT));
+
+            throw new \RuntimeException(
+                'Impossible de récupérer l\'email de l\'utilisateur Microsoft. Consultez le log pour le détail.'
+            );
         }
 
         return new SelfValidatingPassport(
