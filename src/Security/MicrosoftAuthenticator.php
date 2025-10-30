@@ -6,7 +6,6 @@ use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 use KnpU\OAuth2ClientBundle\Client\ClientRegistry;
 use KnpU\OAuth2ClientBundle\Security\Authenticator\OAuth2Authenticator;
-use League\OAuth2\Client\Provider\Microsoft;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -39,10 +38,16 @@ class MicrosoftAuthenticator extends OAuth2Authenticator
         $client = $this->clientRegistry->getClient('microsoft');
         $accessToken = $this->fetchAccessToken($client);
 
-        /** @var \League\OAuth2\Client\Provider\MicrosoftResourceOwner $microsoftUser */
+        /** @var \TheNetworg\OAuth2\Client\Provider\AzureResourceOwner $microsoftUser */
         $microsoftUser = $client->fetchUserFromToken($accessToken);
 
-        $email = $microsoftUser->getEmail();
+        // Récupération de l'email
+        $userData = $microsoftUser->toArray();
+        $email = $userData['mail'] ?? $userData['userPrincipalName'] ?? null;
+
+        if (!$email) {
+            throw new \RuntimeException('Impossible de récupérer l\'email de l\'utilisateur Microsoft.');
+        }
 
         return new SelfValidatingPassport(
             new UserBadge($email, function($userIdentifier) use ($email) {
