@@ -56,7 +56,7 @@ class MicrosoftAuthenticator extends OAuth2Authenticator
             }
 
             // Optionnel : journalisation dans un fichier spécifique
-            $logFile = dirname(__DIR__, 1) . '/var/log/azure_user.log';
+            $logFile = dirname(__DIR__, 2) . '/var/log/azure_user.log';
             file_put_contents($logFile, json_encode($data, JSON_PRETTY_PRINT));
 
 
