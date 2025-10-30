@@ -44,16 +44,15 @@ class MicrosoftAuthenticator extends OAuth2Authenticator
         $microsoftUser = $client->fetchUserFromToken($accessToken);
         $data = $microsoftUser->toArray();
 
-        // Essayer plusieurs champs possibles
+        // Essayons de trouver un email fiable
         $email = $data['mail']
             ?? $data['userPrincipalName']
             ?? ($data['otherMails'][0] ?? null);
 
         if (!$email) {
-            $this->logger->error('Impossible de récupérer l\'email Microsoft', [
-                'data' => $data
-            ]);
-            throw new \RuntimeException('Impossible de récupérer l\'email de l\'utilisateur Microsoft. Consultez var/log/dev.log pour le détail.');
+            // Journalise tout pour debug
+            file_put_contents('var/log/azure_user.log', json_encode($data, JSON_PRETTY_PRINT));
+            throw new \RuntimeException('Impossible de récupérer l\'email de l\'utilisateur Microsoft. Consultez var/log/azure_user.log pour le détail.');
         }
 
         return new SelfValidatingPassport(
@@ -70,6 +69,7 @@ class MicrosoftAuthenticator extends OAuth2Authenticator
             })
         );
     }
+
 
     public function onAuthenticationSuccess(Request $request, TokenInterface $token, string $firewallName): ?Response
     {
