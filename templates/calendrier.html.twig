@@ -205,20 +205,29 @@
         {% set minDate = 'now'|date_modify('-3 months') %}
         {% set maxDate = 'now'|date_modify('+6 months') %}
 
-        {% for i in 0..8 %} <!-- Il y a 9 mois possibles : 3 mois en arrière, 6 mois en avant -->
+        {% for i in 0..8 %}
             {% set optionDate = minDate|date_modify('+' ~ i ~ ' month') %}
             {% set monthValue = optionDate|date('n') %}
             {% set yearValue = optionDate|date('Y') %}
-
-            <option value="{{ monthValue }}" {% if monthValue == mois and yearValue == annee %}selected{% endif %}>
+            <option 
+                value="{{ monthValue }}" 
+                data-year="{{ yearValue }}" 
+                {% if monthValue == mois and yearValue == annee %}selected{% endif %}
+            >
                 {{ mois_francais[monthValue - 1] }} {{ yearValue }}
             </option>
         {% endfor %}
     </select>
-
+    <input type="hidden" name="annee" id="selectedYear" value="{{ annee }}">
     <button type="submit" class="btn btn-primary">Afficher</button>
 </form>
 
+<script>
+document.querySelector('select[name="mois"]').addEventListener('change', function() {
+    const selectedOption = this.options[this.selectedIndex];
+    document.getElementById('selectedYear').value = selectedOption.dataset.year;
+});
+</script>
 
     <!-- Tableau du calendrier -->
 <div class="table-responsive">

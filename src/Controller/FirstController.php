@@ -27,10 +27,29 @@ class FirstController extends AbstractController
 #[Route('/getAllEvents', name: 'app_getAllEvents')]
 public function getAllEvents(Request $request): Response
 {
+    // Récupération du mois et année depuis la requête
     $mois = $request->query->get('mois', date('m'));
     $annee = $request->query->get('annee', date('Y'));
 
+    // Construction de la date de début avec l'année spécifiée
     $dateDebut = new \DateTime("$annee-$mois-01");
+
+    // Si la date est dans le passé (plus de 3 mois en arrière), ajuster à l'année suivante
+    $today = new \DateTime();
+    $minDate = (clone $today)->modify('-3 months');
+    
+    if ($dateDebut < $minDate) {
+        $dateDebut->modify('+1 year');
+        $annee = $dateDebut->format('Y');
+    }
+
+    // Si la date est trop dans le futur (plus de 6 mois), ajuster à l'année précédente
+    $maxDate = (clone $today)->modify('+6 months');
+    if ($dateDebut > $maxDate) {
+        $dateDebut->modify('-1 year');
+        $annee = $dateDebut->format('Y');
+    }
+
     $dateFin = clone $dateDebut;
     $dateFin->modify('first day of next month')->setTime(0, 0, 0);
 
