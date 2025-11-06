@@ -10,6 +10,43 @@
         .text-white {
             color: white; /* Couleur du texte en blanc */
         }
+
+        /* dropdown admin au survol */
+        .nav-admin {
+            position: relative;
+            cursor: pointer;
+        }
+        .admin-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            display: none;
+            z-index: 2000;
+            min-width: 220px;
+            padding: 8px;
+            background: #fff;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .nav-admin:hover .admin-dropdown {
+            display: block;
+        }
+        .admin-dropdown a {
+            display: block;
+            color: #212529;
+            text-decoration: none;
+            padding: 6px 8px;
+            border-radius: 4px;
+            margin-bottom: 4px;
+        }
+        .admin-dropdown a:hover {
+            background: #f1f1f1;
+        }
+        .admin-dropdown .disabled {
+            color: #999;
+            pointer-events: none;
+            background: #f8f9fa;
+        }
     </style>
 </head>
 <body>
@@ -26,23 +63,21 @@
         <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
             <div class="navbar-nav">
                 <a class="nav-item nav-link text-white" href="/" aria-current="page">Accueil</a>
-                {# <a class="nav-item nav-link text-white" href="/getEvents">Formations</a> #}
                 <a class="nav-item nav-link text-white" href="/getAllEvents">Tous les évènements Latour</a>
 
                 {% if app.user %}
                 <!-- Liste déroulante pour les autres liens -->
-                {# <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle text-white" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        Outils
-                    </a>
-                    <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
-                        <li><a class="dropdown-item " href="/signature">Générateur signature</a></li>
-                        <li><a class="dropdown-item " href="/calculette">Calculette heure</a></li>
-                        <li><a class="dropdown-item " href="/dota">Dotation vestimentaire</a></li>
-                        <li><a class="dropdown-item " href="/organigramme">Organigramme</a></li>
-                        <li><a class="dropdown-item " href="/upload">Administer organigramme</a></li>
-                    </ul>
-                </li> #}
+                {% endif %}
+
+                {# Onglet Admin visible seulement pour les utilisateurs ayant le rôle admin #}
+                {% if app.user and is_granted('ROLE_ADMIN') %}
+                    <div class="nav-item nav-link text-white nav-admin" id="nav-admin">
+                        Admin
+                        <div class="admin-dropdown" id="admin-dropdown">
+                            <a href="/admin/users/" title="/admin/users/">Gestion utilisateurs</a>
+                            <a href="/dev/routes" title="/dev/routes">Gestion des routes</a>
+                        </div>
+                    </div>
                 {% endif %}
             </div>
             <div class="ms-auto d-flex align-items-center"> 
