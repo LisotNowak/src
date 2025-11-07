@@ -114,6 +114,96 @@ public function getAllEvents(Request $request): Response
 }
 
 
+#[Route('/getSemaine', name: 'app_getSemaine')]
+public function getSemaine(Request $request): Response
+{
+    // Récupération du mois et année depuis la requête
+    $mois = $request->query->get('mois', date('m'));
+    $annee = $request->query->get('annee', date('Y'));
+
+    // Construction de la date de début avec l'année spécifiée
+    $dateDebut = new \DateTime("$annee-$mois-01");
+
+    // Si la date est dans le passé (plus de 3 mois en arrière), ajuster à l'année suivante
+    $today = new \DateTime();
+    $minDate = (clone $today)->modify('-3 months');
+    
+    if ($dateDebut < $minDate) {
+        $dateDebut->modify('+1 year');
+        $annee = $dateDebut->format('Y');
+    }
+
+    // Si la date est trop dans le futur (plus de 6 mois), ajuster à l'année précédente
+    $maxDate = (clone $today)->modify('+6 months');
+    if ($dateDebut > $maxDate) {
+        $dateDebut->modify('-1 year');
+        $annee = $dateDebut->format('Y');
+    }
+
+    $dateFin = clone $dateDebut;
+    $dateFin->modify('first day of next month')->setTime(0, 0, 0);
+
+    // Récupérer les événements depuis l'API
+    $apiEvents = $this->eventService->fetchEvents($dateDebut, $dateFin);
+
+    $apiEvents = array_filter($apiEvents, function ($event) {
+        $validCategories = [
+            'Visite',
+            'Déjeuner Pavillon',
+            'Dégustation',
+            'Dîner Pavillon',
+            'Dîner Château',
+            'Déjeuner Extérieur',
+            'Dîner Extérieur',
+            'Formation',
+            'Masterclass Extérieur',
+            'Dégustation Technique'               
+        ];
+    
+        if (!isset($event['categorie']['nom'])) {
+            return false;
+        }
+    
+        $nom = $event['categorie']['nom'];
+    
+        return in_array($nom, $validCategories) || strpos($nom, 'Château Latour') === 0;
+    });
+
+
+    // Ajouter 'commentaires' vide et 'personnes' null à chaque événement API
+    $apiEvents = array_map(function ($event) {
+        $event['commentaires'] = [];
+        $event['personnes'] = null;
+        return $event;
+    }, $apiEvents);
+
+    // Récupérer les événements depuis la base de données
+    $dbEvents = $this->entityManager->getRepository(Event::class)->createQueryBuilder('e')
+        ->where('e.du BETWEEN :start AND :end OR e.au BETWEEN :start AND :end')
+        ->setParameter('start', $dateDebut->format('Y-m-d'))
+        ->setParameter('end', $dateFin->format('Y-m-d'))
+        ->getQuery()
+        ->getResult();
+
+    // Ajouter 'commentaires' vide et 'personnes' null à chaque événement DB
+    foreach ($dbEvents as $event) {
+        $event->commentaires = [];
+        $event->personnes = null;
+    }
+
+    // Fusionner les événements
+    $allEvents = array_merge($apiEvents, $dbEvents);
+
+    return $this->render('calendrierSemaine.html.twig', [
+        'allEvents' => $allEvents,
+        'mois' => $mois,
+        'annee' => $annee,
+        'dateDebut' => $dateDebut,
+        'dateFin' => $dateFin,
+    ]);
+}
+
+
 
     #[Route('/calendrierAllEvents', name: 'app_calendrierAllEvents')]
     public function calendrierAllEvents(): Response
