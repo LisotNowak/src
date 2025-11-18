@@ -156,7 +156,7 @@
 
         <div class="col-md-3 col-sm-6 mb-4">
           <div class="card h-100" data-nom="{{ product.nom | lower }}" data-type="{{ product.nomType | lower }}">
-            <p class="pl-2">{{ product.reference }}</p>
+            <p class="pl-2 ms-2">Référence : {{ product.reference }}</p>
             <img class="card-img-top img-fluid"
                  src="{{ product.image is not empty ? asset('uploads/images/' ~ product.image) : asset('img/defaultimage.png') }}"
                  alt="{{ product.nom }}">

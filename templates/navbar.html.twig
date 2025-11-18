@@ -79,6 +79,12 @@
                         </div>
                     </div>
                 {% endif %}
+
+                {# Onglet AdDATAmin visible seulement pour les utilisateurs ayant le rôle ADM DOTA #}
+                {% if app.user and is_granted('ROLE_ADM_DOTA') %}
+                    <a class="nav-item nav-link text-white" href="/getAllEvents">Dotation vestimentaire</a>
+                {% endif %}
+
             </div>
             <div class="ms-auto d-flex align-items-center"> 
                 {% if app.user %}
