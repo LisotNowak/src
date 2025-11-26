@@ -53,6 +53,15 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $prenom = null;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $service = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $section = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $contract = null;
+
     // --- Getters et setters existants ---
     
     public function getId(): ?int
@@ -170,6 +179,38 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setPrenom(?string $prenom): static
     {
         $this->prenom = $prenom;
+        return $this;
+    }
+
+    public function getService(): ?string
+    {
+        return $this->service;
+    }
+
+    public function setService(?string $service): static
+    {
+        $this->service = $service;
+        return $this;
+    }
+
+    public function getSection(): ?string
+    {
+        return $this->section;
+    }
+
+    public function setSection(?string $section): static
+    {
+        $this->section = $section;
+        return $this;
+    }
+
+    public function getContract(): ?string
+    {
+        return $this->contract;
+    }
+    public function setContract(?string $contract): static
+    {
+        $this->contract = $contract;
         return $this;
     }
 }

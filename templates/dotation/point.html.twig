@@ -6,24 +6,57 @@
 {% endblock %}
 
 {% block body %}
-<div class="container mt-4">
+<div class="container-fluid mt-4">
     <h2 class="mb-4">Gestion des points utilisateurs</h2>
+
+    <!-- Filtres -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <label for="filterService" class="form-label">Filtrer par Service</label>
+            <select id="filterService" class="form-select" onchange="onServiceChange()">
+                <option value="">-- Tous les services --</option>
+                {% for service in services %}
+                    {% if service %}
+                        <option value="{{ service }}">{{ service|raw }}</option>
+                    {% endif %}
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label for="filterSection" class="form-label">Filtrer par Section</label>
+            <select id="filterSection" class="form-select" onchange="applyFilters()" disabled>
+                <option value="">-- Toutes les sections --</option>
+            </select>
+        </div>
+        <div class="col-md-4 d-flex align-items-end">
+            <button class="btn btn-secondary" onclick="resetFilters()">
+                <i class="bi bi-arrow-clockwise"></i> Réinitialiser
+            </button>
+        </div>
+    </div>
 
     <div class="table-responsive">
         <table class="table table-striped table-bordered align-middle text-center">
             <thead class="table-dark">
                 <tr>
+                    <th scope="col">Nom</th>
+                    <th scope="col">Prenom</th>
                     <th scope="col">Email</th>
                     <th scope="col">Points</th>
                     <th scope="col">Contrat</th>
+                    <th scope="col">Durée</th>
+                    <th scope="col">Service</th>
+                    <th scope="col">Section</th>
                     <th scope="col">Date début contrat</th>
                     <th scope="col">Date fin contrat</th>
                     <th scope="col">Action</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="userTableBody">
                 {% for user in listeUsers %}
-                    <tr>
+                    <tr class="user-row" data-service="{{ user.service }}" data-section="{{ user.section }}">
+                        <td>{{ user.nom }}</td>
+                        <td>{{ user.prenom }}</td>
                         <td>{{ user.email }}</td>
 
                         <td style="width: 120px;">
@@ -32,8 +65,10 @@
                                    id="points-{{ user.id }}" 
                                    class="form-control text-center">
                         </td>
+                        
+                        <td>{{ user.contract }}</td>
 
-                        <td style="width: 180px;">
+                        <td>
                             {% if user.dateDebutContrat and not user.dateFinContrat %}
                                 CDI
                             {% elseif user.dateDebutContrat and user.dateFinContrat %}
@@ -52,14 +87,17 @@
                             {% endif %}
                         </td>
 
-                        <td style="width: 180px;">
+                        <td>{{ user.service|raw }}</td>
+                        <td>{{ user.section|raw }}</td>
+
+                        <td>
                             <input type="date"
                                    value="{{ user.dateDebutContrat ? user.dateDebutContrat|date('Y-m-d') : '' }}"
                                    id="dateDebut-{{ user.id }}"
                                    class="form-control text-center">
                         </td>
 
-                        <td style="width: 180px;">
+                        <td>
                             <input type="date"
                                    value="{{ user.dateFinContrat ? user.dateFinContrat|date('Y-m-d') : '' }}"
                                    id="dateFin-{{ user.id }}"
@@ -74,8 +112,8 @@
                         </td>
                     </tr>
                 {% else %}
-                    <tr>
-                        <td colspan="6" class="text-muted">Aucun utilisateur trouvé.</td>
+                    <tr id="noResultsRow">
+                        <td colspan="9" class="text-muted">Aucun utilisateur trouvé.</td>
                     </tr>
                 {% endfor %}
             </tbody>
@@ -84,6 +122,74 @@
 </div>
 
 <script>
+// Map des sections par service (généré depuis PHP)
+const sectionsByService = {
+    {% for service, sectionList in servicesSections %}
+        "{{ service|escape('js') }}": [{% for section in sectionList %}"{{ section|escape('js') }}"{{ not loop.last ? ',' : '' }}{% endfor %}],
+    {% endfor %}
+};
+
+function onServiceChange() {
+    const serviceSelect = document.getElementById('filterService');
+    const sectionSelect = document.getElementById('filterSection');
+    const selectedService = serviceSelect.value;
+
+    // Réinitialiser le select section
+    sectionSelect.innerHTML = '<option value="">-- Toutes les sections --</option>';
+
+    if (selectedService === '') {
+        // Aucun service sélectionné
+        sectionSelect.disabled = true;
+    } else {
+        // Remplir les sections du service sélectionné
+        const sections = sectionsByService[selectedService] || [];
+        sections.forEach(section => {
+            const option = document.createElement('option');
+            option.value = section;
+            option.textContent = section;
+            sectionSelect.appendChild(option);
+        });
+        sectionSelect.disabled = false;
+    }
+
+    applyFilters();
+}
+
+function applyFilters() {
+    const service = document.getElementById('filterService').value;
+    const section = document.getElementById('filterSection').value;
+    const rows = document.querySelectorAll('.user-row');
+    let visibleCount = 0;
+
+    rows.forEach(row => {
+        const rowService = row.getAttribute('data-service');
+        const rowSection = row.getAttribute('data-section');
+
+        const matchService = !service || rowService === service;
+        const matchSection = !section || rowSection === section;
+
+        if (matchService && matchSection) {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+
+    const noResultsRow = document.getElementById('noResultsRow');
+    if (noResultsRow) {
+        noResultsRow.style.display = visibleCount === 0 ? '' : 'none';
+    }
+}
+
+function resetFilters() {
+    document.getElementById('filterService').value = '';
+    document.getElementById('filterSection').value = '';
+    document.getElementById('filterSection').disabled = true;
+    document.getElementById('filterSection').innerHTML = '<option value="">-- Toutes les sections --</option>';
+    applyFilters();
+}
+
 function updateUserData(userId) {
     const points = document.getElementById('points-' + userId).value;
     const dateDebut = document.getElementById('dateDebut-' + userId).value;

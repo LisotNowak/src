@@ -391,9 +391,24 @@ class DotationController extends AbstractController
             // Redirigez l'utilisateur s'il est déjà authentifié
 
             $listeUsers = $entityManager->getRepository(User::class)->findAll();
-
+                
+            // Récupérer les services uniques
+            $services = array_unique(array_map(fn($u) => $u->getService(), $listeUsers));
+            sort($services);
+            
+            // Créer un map des sections par service
+            $servicesSections = [];
+            foreach ($services as $service) {
+                $usersInService = array_filter($listeUsers, fn($u) => $u->getService() === $service);
+                $sections = array_unique(array_map(fn($u) => $u->getSection(), $usersInService));
+                sort($sections);
+                $servicesSections[$service] = $sections;
+            }
+            
             return $this->render('dotation/point.html.twig', [
                 'listeUsers' => $listeUsers,
+                'services' => $services,
+                'servicesSections' => $servicesSections,
             ]);
         }
 
