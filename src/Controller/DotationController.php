@@ -38,6 +38,9 @@ class DotationController extends AbstractController
     #[Route('/dota/article', name: 'get_article', methods: ['POST'])]
     public function getArticle(Request $request, EntityManagerInterface $entityManager): JsonResponse
     {
+        // protection ROLE_ADM_DOTA
+        $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
+
         $id = $request->request->get('id');
         $article = $entityManager->getRepository(Article::class)->find($id);
 
@@ -73,6 +76,9 @@ class DotationController extends AbstractController
     #[Route('/dota/article/delete/{id}', name: 'delete_article', methods: ['GET', 'DELETE'])]
     public function deleteArticle(int $id, EntityManagerInterface $entityManager): Response
     {
+        // protection ROLE_ADM_DOTA
+        $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
+
         $article = $entityManager->getRepository(Article::class)->find($id);
     
         if (!$article) {
@@ -102,6 +108,9 @@ class DotationController extends AbstractController
     #[Route('/dota/article/save', name: 'save_article', methods: ['POST'])]
     public function saveArticle(Request $request, EntityManagerInterface $entityManager): Response
     {
+        // protection ROLE_ADM_DOTA
+        $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
+
         $id = $request->request->get('id');
         $reference = $request->request->get('reference');
         $nom = $request->request->get('nom');
@@ -198,6 +207,7 @@ class DotationController extends AbstractController
     #[Route('/dota', name: 'app_index_dota')]
     public function index_dota(EntityManagerInterface $entityManager, SessionInterface $session): Response
     {
+        // NOTE: catalogue page - no ROLE_ADM_DOTA enforced here
         // Vérifiez si l'utilisateur est déjà authentifié
         if ($this->isGranted('IS_AUTHENTICATED_FULLY')) {
             // Redirigez l'utilisateur s'il est déjà authentifié
@@ -244,6 +254,9 @@ class DotationController extends AbstractController
     #[Route('/dota/admin', name: 'app_admin_dota')]
     public function admin_dota(EntityManagerInterface $entityManager): Response
     {
+        // protection ROLE_ADM_DOTA
+        $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
+
         // Vérifiez si l'utilisateur est déjà authentifié
         if ($this->isGranted('IS_AUTHENTICATED_FULLY')) {
             // Redirigez l'utilisateur s'il est déjà authentifié
@@ -269,6 +282,9 @@ class DotationController extends AbstractController
     #[Route('/dota/admin/exchanges', name: 'app_admin_manage_exchanges', methods: ['GET'])]
     public function manageExchanges(EntityManagerInterface $entityManager): Response
     {
+        // protection ROLE_ADM_DOTA
+        $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
+
         if (!$this->isGranted('ROLE_ADMIN')) {
             $this->addFlash('danger', 'Accès refusé.');
             return $this->redirectToRoute('app_index_dota');
@@ -300,6 +316,9 @@ class DotationController extends AbstractController
     #[Route('/dota/admin/exchange/{id}/update', name: 'app_admin_update_exchange', methods: ['POST'])]
     public function updateExchangeStatus(int $id, Request $request, EntityManagerInterface $entityManager): Response
     {
+        // protection ROLE_ADM_DOTA
+        $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
+
         if (!$this->isGranted('ROLE_ADMIN')) {
             $this->addFlash('danger', 'Accès refusé.');
             return $this->redirectToRoute('app_admin_manage_exchanges');
@@ -386,6 +405,9 @@ class DotationController extends AbstractController
     #[Route('/dota/point', name: 'app_point_dota')]
     public function point_dota(EntityManagerInterface $entityManager): Response
     {
+        // protection ROLE_ADM_DOTA
+        $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
+
         // Vérifiez si l'utilisateur est déjà authentifié
         if ($this->isGranted('IS_AUTHENTICATED_FULLY')) {
             // Redirigez l'utilisateur s'il est déjà authentifié
@@ -419,6 +441,9 @@ class DotationController extends AbstractController
     #[Route('/dota/stock', name: 'app_stock_dota')]
     public function stock_dota(EntityManagerInterface $entityManager): Response
     {
+        // protection ROLE_ADM_DOTA
+        $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
+
         if ($this->isGranted('IS_AUTHENTICATED_FULLY')) {
             $listeArticles = $entityManager->getRepository(Article::class)->findAll();
             $listeCouleurs = $entityManager->getRepository(Couleur::class)->findAll();
@@ -465,6 +490,9 @@ class DotationController extends AbstractController
     #[Route('/dota/stock/update', name: 'update_stock', methods: ['POST'])]
     public function updateStock(Request $request, EntityManagerInterface $entityManager): Response
     {
+        // protection ROLE_ADM_DOTA
+        $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
+
         $referenceArticle = $request->request->get('referenceArticle');
         $nomTaille = $request->request->get('nomTaille');
         $nomCouleur = $request->request->get('nomCouleur');
@@ -499,6 +527,9 @@ class DotationController extends AbstractController
     #[Route('/dota/article', name: 'app_article_dota')]
     public function article_dota(Request $request, EntityManagerInterface $entityManager, SessionInterface $session): Response
     {
+        // protection ROLE_ADM_DOTA
+        $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
+
         // Vérifiez si l'utilisateur est déjà authentifié
         if ($this->isGranted('IS_AUTHENTICATED_FULLY')) {
             // Redirigez l'utilisateur s'il est déjà authentifié
@@ -530,6 +561,9 @@ class DotationController extends AbstractController
     #[Route('/dota/set-target-user', name: 'set_target_user', methods: ['POST'])]
     public function setTargetUser(Request $request, SessionInterface $session, EntityManagerInterface $entityManager): Response
     {
+        // protection ROLE_ADM_DOTA
+        $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
+
         if (!$this->isGranted('ROLE_ADMIN')) {
             return $this->json(['success' => false], 403);
         }
@@ -554,6 +588,7 @@ class DotationController extends AbstractController
     #[Route('/dota/addToCart', name: 'add_to_cart', methods: ['POST'])]
     public function addToCart(EntityManagerInterface $entityManager, Request $request, SessionInterface $session): Response
     {
+
         $productId = $request->request->get('product_id');
         $quantity = max(1, (int) $request->request->get('quantity', 1));
         $size = $request->request->get('size');
@@ -654,6 +689,7 @@ class DotationController extends AbstractController
     #[Route('/dota/panier', name: 'app_panier_dota')]
     public function panier_dota(Request $request, EntityManagerInterface $entityManager, SessionInterface $session): Response
     {
+        // NOTE: panier page - no ROLE_ADM_DOTA enforced here
         // Vérifiez si l'utilisateur est déjà authentifié
         if ($this->isGranted('IS_AUTHENTICATED_FULLY')) {
             // Redirigez l'utilisateur s'il est déjà authentifié
@@ -689,6 +725,7 @@ class DotationController extends AbstractController
     #[Route('/dota/updateCart', name: 'update_cart', methods: ['POST'])]
 public function updateCart(Request $request, SessionInterface $session): Response
 {
+
     $productId = $request->request->get('product_id');
     $size = $request->request->get('size');
     $color = $request->request->get('color');
@@ -753,6 +790,7 @@ public function removeFromCart(Request $request, SessionInterface $session): Res
 #[Route('/dota/validerPanier', name: 'valider_panier', methods: ['POST'])]
 public function validerPanier(SessionInterface $session, EntityManagerInterface $entityManager): Response
 {
+
     $user = $this->getUser();
     $panier = $session->get('cart', []);
 
@@ -808,6 +846,9 @@ public function validerPanier(SessionInterface $session, EntityManagerInterface 
     #[Route('/dota/mes-demandes-echange', name: 'app_mes_demandes_echange')]
         public function mesDemandesEchange(EntityManagerInterface $entityManager): Response
         {
+            // protection ROLE_ADM_DOTA
+            $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
+
             $user = $this->getUser();
             if (!$user) {
                 return $this->redirectToRoute('app_accueil');
@@ -923,6 +964,9 @@ public function validerPanier(SessionInterface $session, EntityManagerInterface 
     #[Route('/dota/gestion-commandes', name: 'app_gestion_commandes_dota')]
     public function gestionCommandes(EntityManagerInterface $entityManager): Response
     {
+        // protection ROLE_ADM_DOTA
+        $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
+
         if (!$this->isGranted('IS_AUTHENTICATED_FULLY')) {
             return $this->redirectToRoute('app_accueil');
         }
@@ -987,6 +1031,9 @@ public function validerPanier(SessionInterface $session, EntityManagerInterface 
     #[Route('/dota/commande/{id}/mettre-en-stock', name: 'app_commande_mettre_en_stock', methods: ['POST'])]
     public function mettreEnStock(int $id, Request $request, EntityManagerInterface $entityManager): Response
     {
+        // protection ROLE_ADM_DOTA
+        $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
+
         if (!$this->isCsrfTokenValid('gestion_commande_'.$id, $request->request->get('_token'))) {
             $this->addFlash('error', 'Token CSRF invalide.');
             return $this->redirectToRoute('app_gestion_commandes_dota');
@@ -1062,6 +1109,9 @@ public function validerPanier(SessionInterface $session, EntityManagerInterface 
     #[Route('/dota/commande/{id}/mettre-sur-commande', name: 'app_commande_mettre_sur_commande', methods: ['POST'])]
     public function mettreSurCommande(int $id, Request $request, EntityManagerInterface $entityManager): Response
     {
+        // protection ROLE_ADM_DOTA
+        $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
+
         if (!$this->isCsrfTokenValid('gestion_commande_'.$id, $request->request->get('_token'))) {
             $this->addFlash('error', 'Token CSRF invalide.');
             return $this->redirectToRoute('app_gestion_commandes_dota');
@@ -1084,6 +1134,9 @@ public function validerPanier(SessionInterface $session, EntityManagerInterface 
     #[Route('/dota/ajax/get_user_points', name: 'ajax_get_user_points', methods: ['POST'])]
     public function getUserPoints(Request $request, EntityManagerInterface $entityManager, SessionInterface $session): JsonResponse
     {
+        // protection ROLE_ADM_DOTA
+        $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
+
         if (!$this->isGranted('ROLE_ADMIN')) {
             return new JsonResponse(['success' => false, 'message' => 'Accès refusé'], 403);
         }
@@ -1123,6 +1176,7 @@ public function validerPanier(SessionInterface $session, EntityManagerInterface 
         EntityManagerInterface $entityManager,
         SessionInterface $session
     ): Response {
+
         $commande = $entityManager->getRepository(Commande::class)->find($id);
 
         if (!$commande) {
@@ -1169,6 +1223,9 @@ public function validerPanier(SessionInterface $session, EntityManagerInterface 
     #[Route('/dota/admin/update-points', name: 'admin_update_points', methods: ['POST'])]
     public function updateUserPoints(Request $request, EntityManagerInterface $entityManager): JsonResponse
     {
+        // protection ROLE_ADM_DOTA
+        $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
+
         if (!$this->isGranted('ROLE_ADMIN')) {
             return new JsonResponse(['success' => false, 'message' => 'Accès refusé'], 403);
         }
@@ -1196,6 +1253,9 @@ public function validerPanier(SessionInterface $session, EntityManagerInterface 
     #[Route('/dota/commande/{id}/edit', name: 'app_commande_edit', methods: ['GET', 'POST'])]
     public function editCommande(int $id, Request $request, EntityManagerInterface $entityManager): Response
     {
+        // protection ROLE_ADM_DOTA
+        $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
+
         if (!$this->isGranted('ROLE_ADMIN')) {
             $this->addFlash('error', 'Accès non autorisé.');
             return $this->redirectToRoute('app_gestion_commandes_dota');
@@ -1299,6 +1359,9 @@ public function validerPanier(SessionInterface $session, EntityManagerInterface 
     #[Route('/dota/exchange', name: 'app_exchange_dota', methods: ['GET'])]
     public function exchange_dota(EntityManagerInterface $entityManager): Response
     {
+        // protection ROLE_ADM_DOTA
+        $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
+
         if (!$this->getUser()) {
             return $this->redirectToRoute('app_accueil');
         }
@@ -1345,6 +1408,9 @@ public function validerPanier(SessionInterface $session, EntityManagerInterface 
     #[Route('/dota/exchange/request', name: 'app_exchange_request', methods: ['POST'])]
     public function handleExchangeRequest(Request $request, EntityManagerInterface $entityManager): Response
     {
+        // protection ROLE_ADM_DOTA
+        $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
+
         $user = $this->getUser();
         if (!$user) {
             return $this->redirectToRoute('app_login');
@@ -1391,6 +1457,9 @@ public function validerPanier(SessionInterface $session, EntityManagerInterface 
     #[Route('/admin/update-points', name: 'admin_update_points', methods: ['POST'])]
     public function updatePoints(Request $request, EntityManagerInterface $em, UserRepository $userRepository): JsonResponse
     {
+        // protection ROLE_ADM_DOTA
+        $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
+
         $data = json_decode($request->getContent(), true);
         $user = $userRepository->find($data['user_id'] ?? 0);
 
@@ -1422,6 +1491,9 @@ public function validerPanier(SessionInterface $session, EntityManagerInterface 
     #[Route('/commande/{id}/attente', name: 'app_commande_mettre_en_attente', methods: ['POST'])]
     public function mettreEnAttente(Commande $commande, EntityManagerInterface $em, Request $request): Response
     {
+        // protection ROLE_ADM_DOTA
+        $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
+
         if (!$this->isCsrfTokenValid('gestion_commande_' . $commande->getId(), $request->request->get('_token'))) {
             throw $this->createAccessDeniedException('Token invalide');
         }
@@ -1436,6 +1508,9 @@ public function validerPanier(SessionInterface $session, EntityManagerInterface 
     #[Route('/commande/{id}/reactiver', name: 'app_commande_reactiver', methods: ['POST'])]
     public function reactiver(Commande $commande, EntityManagerInterface $em, Request $request): Response
     {
+        // protection ROLE_ADM_DOTA
+        $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
+
         if (!$this->isCsrfTokenValid('gestion_commande_' . $commande->getId(), $request->request->get('_token'))) {
             throw $this->createAccessDeniedException('Token invalide');
         }
