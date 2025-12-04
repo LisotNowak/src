@@ -207,10 +207,10 @@ class DotationController extends AbstractController
     #[Route('/dota', name: 'app_index_dota')]
     public function index_dota(EntityManagerInterface $entityManager, SessionInterface $session): Response
     {
-        // NOTE: catalogue page - no ROLE_ADM_DOTA enforced here
-        // Vérifiez si l'utilisateur est déjà authentifié
-        if ($this->isGranted('IS_AUTHENTICATED_FULLY')) {
-            // Redirigez l'utilisateur s'il est déjà authentifié
+            // Autoriser ROLE_ADM_DOTA OU ROLE_USER_DOTA
+            if (!$this->isGranted('ROLE_ADM_DOTA') && !$this->isGranted('ROLE_USER_DOTA')) {
+                return $this->redirectToRoute('app_accueil');
+            }
 
             $listeArticles = $entityManager->getRepository(Article::class)->findBy([], ['nomType' => 'ASC', 'nom' => 'ASC']);
             $listeCouleurs = $entityManager->getRepository(Couleur::class)->findAll();
@@ -245,9 +245,6 @@ class DotationController extends AbstractController
             }
 
             return $this->render('dotation/index.html.twig', $params);
-        }
-
-        return $this->redirectToRoute('app_accueil');
         
     }
 
@@ -257,9 +254,6 @@ class DotationController extends AbstractController
         // protection ROLE_ADM_DOTA
         $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
 
-        // Vérifiez si l'utilisateur est déjà authentifié
-        if ($this->isGranted('IS_AUTHENTICATED_FULLY')) {
-            // Redirigez l'utilisateur s'il est déjà authentifié
 
             $listeArticles = $entityManager->getRepository(Article::class)->findAll();
             $listeTypes = $entityManager->getRepository(Type::class)->findAll();
@@ -273,9 +267,6 @@ class DotationController extends AbstractController
                 'listeArticles' => $listeArticles,
                 'active_link' => 'admin'
             ]);
-        }
-
-        return $this->redirectToRoute('app_accueil');
         
     }
 
@@ -409,7 +400,7 @@ class DotationController extends AbstractController
         $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
 
         // Vérifiez si l'utilisateur est déjà authentifié
-        if ($this->isGranted('IS_AUTHENTICATED_FULLY')) {
+        if ($this->isGranted('ROLE_ADM_DOTA') && $this->isGranted('ROLE_USER_DOTA')) {
             // Redirigez l'utilisateur s'il est déjà authentifié
 
             $listeUsers = $entityManager->getRepository(User::class)->findAll();
@@ -444,7 +435,7 @@ class DotationController extends AbstractController
         // protection ROLE_ADM_DOTA
         $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
 
-        if ($this->isGranted('IS_AUTHENTICATED_FULLY')) {
+        if ($this->isGranted('ROLE_ADM_DOTA') && $this->isGranted('ROLE_USER_DOTA')) {
             $listeArticles = $entityManager->getRepository(Article::class)->findAll();
             $listeCouleurs = $entityManager->getRepository(Couleur::class)->findAll();
             $couleur = "";
@@ -530,10 +521,6 @@ class DotationController extends AbstractController
         // protection ROLE_ADM_DOTA
         $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
 
-        // Vérifiez si l'utilisateur est déjà authentifié
-        if ($this->isGranted('IS_AUTHENTICATED_FULLY')) {
-            // Redirigez l'utilisateur s'il est déjà authentifié
-
             
 
             if($request->request->get('id') == ""){
@@ -553,8 +540,6 @@ class DotationController extends AbstractController
                 'product' => $product,
                 'nombreArticles' => $nombreArticles,
             ]);
-        }
-        return $this->redirectToRoute('app_accueil');
         
     }
 
@@ -588,6 +573,11 @@ class DotationController extends AbstractController
     #[Route('/dota/addToCart', name: 'add_to_cart', methods: ['POST'])]
     public function addToCart(EntityManagerInterface $entityManager, Request $request, SessionInterface $session): Response
     {
+
+        // Autoriser ROLE_ADM_DOTA OU ROLE_USER_DOTA
+        if (!$this->isGranted('ROLE_ADM_DOTA') && !$this->isGranted('ROLE_USER_DOTA')) {
+            return $this->redirectToRoute('app_accueil');
+        }
 
         $productId = $request->request->get('product_id');
         $quantity = max(1, (int) $request->request->get('quantity', 1));
@@ -689,10 +679,10 @@ class DotationController extends AbstractController
     #[Route('/dota/panier', name: 'app_panier_dota')]
     public function panier_dota(Request $request, EntityManagerInterface $entityManager, SessionInterface $session): Response
     {
-        // NOTE: panier page - no ROLE_ADM_DOTA enforced here
-        // Vérifiez si l'utilisateur est déjà authentifié
-        if ($this->isGranted('IS_AUTHENTICATED_FULLY')) {
-            // Redirigez l'utilisateur s'il est déjà authentifié
+            // Autoriser ROLE_ADM_DOTA OU ROLE_USER_DOTA
+            if (!$this->isGranted('ROLE_ADM_DOTA') && !$this->isGranted('ROLE_USER_DOTA')) {
+                return $this->redirectToRoute('app_accueil');
+            }
 
             $panier = $session->get('cart', []); 
             $nombreArticles = count($panier); 
@@ -717,130 +707,141 @@ class DotationController extends AbstractController
                 'panier' => $panier,
                 'nombreArticles' => $nombreArticles,
             ]);
-        }
-        return $this->redirectToRoute('app_accueil');
         
     }
 
     #[Route('/dota/updateCart', name: 'update_cart', methods: ['POST'])]
-public function updateCart(Request $request, SessionInterface $session): Response
-{
-
-    $productId = $request->request->get('product_id');
-    $size = $request->request->get('size');
-    $color = $request->request->get('color');
-    $quantity = (int) $request->request->get('quantity');
-
-    $cart = $session->get('cart', []);
-    $cartKey = $productId . '_' . $size . '_' . $color;
-
-    // Vérifier points si on augmente la quantité
-    if (isset($cart[$cartKey]) && $quantity > 0) {
-        $user = $this->getUser();
-        $userPoints = $user ? (int)$user->getPointDotation() : 0;
-
-        // calcul points courants hors ligne pour cet item
-        $pointsInCart = 0;
-        foreach ($cart as $key => $it) {
-            if ($key === $cartKey) continue;
-            $pointsInCart += (isset($it['quantite'])?(int)$it['quantite']:1) * (isset($it['point'])?(int)$it['point']:0);
+    public function updateCart(Request $request, SessionInterface $session): Response
+    {
+        // Autoriser ROLE_ADM_DOTA OU ROLE_USER_DOTA
+        if (!$this->isGranted('ROLE_ADM_DOTA') && !$this->isGranted('ROLE_USER_DOTA')) {
+            return $this->redirectToRoute('app_accueil');
         }
 
-        $itemPoint = isset($cart[$cartKey]['point']) ? (int)$cart[$cartKey]['point'] : 0;
-        $potential = $pointsInCart + ($itemPoint * $quantity);
-        if ($potential > $userPoints) {
-            $this->addFlash('error', 'Impossible : points insuffisants pour cette quantité.');
-            return $this->redirectToRoute('app_panier_dota');
+        $productId = $request->request->get('product_id');
+        $size = $request->request->get('size');
+        $color = $request->request->get('color');
+        $quantity = (int) $request->request->get('quantity');
+
+        $cart = $session->get('cart', []);
+        $cartKey = $productId . '_' . $size . '_' . $color;
+
+        // Vérifier points si on augmente la quantité
+        if (isset($cart[$cartKey]) && $quantity > 0) {
+            $user = $this->getUser();
+            $userPoints = $user ? (int)$user->getPointDotation() : 0;
+
+            // calcul points courants hors ligne pour cet item
+            $pointsInCart = 0;
+            foreach ($cart as $key => $it) {
+                if ($key === $cartKey) continue;
+                $pointsInCart += (isset($it['quantite'])?(int)$it['quantite']:1) * (isset($it['point'])?(int)$it['point']:0);
+            }
+
+            $itemPoint = isset($cart[$cartKey]['point']) ? (int)$cart[$cartKey]['point'] : 0;
+            $potential = $pointsInCart + ($itemPoint * $quantity);
+            if ($potential > $userPoints) {
+                $this->addFlash('error', 'Impossible : points insuffisants pour cette quantité.');
+                return $this->redirectToRoute('app_panier_dota');
+            }
+    }
+
+        // mise à jour habituelle
+        if (isset($cart[$cartKey])) {
+            if ($quantity > 0) {
+                $cart[$cartKey]['quantite'] = $quantity;
+            } else {
+                unset($cart[$cartKey]);
+            }
         }
-    }
 
-    // mise à jour habituelle
-    if (isset($cart[$cartKey])) {
-        if ($quantity > 0) {
-            $cart[$cartKey]['quantite'] = $quantity;
-        } else {
-            unset($cart[$cartKey]);
-        }
-    }
-
-    $session->set('cart', $cart);
-    return $this->redirectToRoute('app_panier_dota');
-}
-
-#[Route('/dota/removeFromCart', name: 'remove_from_cart', methods: ['POST'])]
-public function removeFromCart(Request $request, SessionInterface $session): Response
-{
-    $productId = $request->request->get('product_id');
-    $size = $request->request->get('size');
-    $color = $request->request->get('color'); // Ajout de la couleur
-
-    $cart = $session->get('cart', []);
-
-    $cartKey = $productId . '_' . $size . '_' . $color; // Clé harmonisée
-
-    if (isset($cart[$cartKey])) {
-        unset($cart[$cartKey]); // Supprime l'article
-    }
-
-    $session->set('cart', $cart);
-
-    return $this->redirectToRoute('app_panier_dota');
-}
-
-#[Route('/dota/validerPanier', name: 'valider_panier', methods: ['POST'])]
-public function validerPanier(SessionInterface $session, EntityManagerInterface $entityManager): Response
-{
-
-    $user = $this->getUser();
-    $panier = $session->get('cart', []);
-
-    if (!$user || empty($panier)) {
-        $this->addFlash('error', 'Erreur : le panier est vide ou l’utilisateur n’est pas connecté.');
+        $session->set('cart', $cart);
         return $this->redirectToRoute('app_panier_dota');
     }
 
-    // Si admin et une cible en session, on place la commande pour cet utilisateur
-    $targetId = $session->get('target_user_id');
-    $targetUser = null;
-    if ($this->isGranted('ROLE_ADMIN') && $targetId) {
-        $targetUser = $entityManager->getRepository(User::class)->find($targetId);
+    #[Route('/dota/removeFromCart', name: 'remove_from_cart', methods: ['POST'])]
+    public function removeFromCart(Request $request, SessionInterface $session): Response
+    {
+        // Autoriser ROLE_ADM_DOTA OU ROLE_USER_DOTA
+        if (!$this->isGranted('ROLE_ADM_DOTA') && !$this->isGranted('ROLE_USER_DOTA')) {
+            return $this->redirectToRoute('app_accueil');
+        }
+        
+        $productId = $request->request->get('product_id');
+        $size = $request->request->get('size');
+        $color = $request->request->get('color'); // Ajout de la couleur
+
+        $cart = $session->get('cart', []);
+
+        $cartKey = $productId . '_' . $size . '_' . $color; // Clé harmonisée
+
+        if (isset($cart[$cartKey])) {
+            unset($cart[$cartKey]); // Supprime l'article
+        }
+
+        $session->set('cart', $cart);
+
+        return $this->redirectToRoute('app_panier_dota');
     }
 
-    date_default_timezone_set('Europe/Paris');
+    #[Route('/dota/validerPanier', name: 'valider_panier', methods: ['POST'])]
+    public function validerPanier(SessionInterface $session, EntityManagerInterface $entityManager): Response
+    {
+        // Autoriser ROLE_ADM_DOTA OU ROLE_USER_DOTA
+        if (!$this->isGranted('ROLE_ADM_DOTA') && !$this->isGranted('ROLE_USER_DOTA')) {
+            return $this->redirectToRoute('app_accueil');
+        }
 
-    // Créer une nouvelle commande
-    $commande = new Commande();
-    $commande->setUserMail($targetUser ? $targetUser->getEmail() : $user->getEmail());
-    $commande->setDate((new \DateTime())->format('Y-m-d H:i:s'));
-    $commande->setNomEtat('Validée');
+        $user = $this->getUser();
+        $panier = $session->get('cart', []);
 
-    $entityManager->persist($commande);
-    $entityManager->flush(); // Nécessaire pour obtenir l'ID de la commande
+        if (!$user || empty($panier)) {
+            $this->addFlash('error', 'Erreur : le panier est vide ou l’utilisateur n’est pas connecté.');
+            return $this->redirectToRoute('app_panier_dota');
+        }
 
-    // Ajouter les articles du panier à la commande via AssociationCommandeArticle
-    foreach ($panier as $item) {
-        $associationCommandeArticle = new AssociationCommandeArticle();
-        $associationCommandeArticle->setIdCommande($commande->getId());
-        $associationCommandeArticle->setIdArticle($item['id']);
-        $associationCommandeArticle->setNomTaille($item['taille']);
-        $associationCommandeArticle->setNomCouleur($item['couleur']);
-        $associationCommandeArticle->setNb($item['quantite']);
+        // Si admin et une cible en session, on place la commande pour cet utilisateur
+        $targetId = $session->get('target_user_id');
+        $targetUser = null;
+        if ($this->isGranted('ROLE_ADMIN') && $targetId) {
+            $targetUser = $entityManager->getRepository(User::class)->find($targetId);
+        }
 
-        $entityManager->persist($associationCommandeArticle);
+        date_default_timezone_set('Europe/Paris');
+
+        // Créer une nouvelle commande
+        $commande = new Commande();
+        $commande->setUserMail($targetUser ? $targetUser->getEmail() : $user->getEmail());
+        $commande->setDate((new \DateTime())->format('Y-m-d H:i:s'));
+        $commande->setNomEtat('Validée');
+
+        $entityManager->persist($commande);
+        $entityManager->flush(); // Nécessaire pour obtenir l'ID de la commande
+
+        // Ajouter les articles du panier à la commande via AssociationCommandeArticle
+        foreach ($panier as $item) {
+            $associationCommandeArticle = new AssociationCommandeArticle();
+            $associationCommandeArticle->setIdCommande($commande->getId());
+            $associationCommandeArticle->setIdArticle($item['id']);
+            $associationCommandeArticle->setNomTaille($item['taille']);
+            $associationCommandeArticle->setNomCouleur($item['couleur']);
+            $associationCommandeArticle->setNb($item['quantite']);
+
+            $entityManager->persist($associationCommandeArticle);
+        }
+
+        // Sauvegarder la commande et ses associations
+        $entityManager->flush();
+
+        // Vider le panier et éventuellement la cible
+        $session->remove('cart');
+        if ($targetUser) {
+            $session->remove('target_user_id');
+        }
+
+        $this->addFlash('success', 'Votre panier a été validé avec succès.');
+        return $this->redirectToRoute('app_panier_dota');
     }
-
-    // Sauvegarder la commande et ses associations
-    $entityManager->flush();
-
-    // Vider le panier et éventuellement la cible
-    $session->remove('cart');
-    if ($targetUser) {
-        $session->remove('target_user_id');
-    }
-
-    $this->addFlash('success', 'Votre panier a été validé avec succès.');
-    return $this->redirectToRoute('app_panier_dota');
-}
 
 
     #[Route('/dota/mes-demandes-echange', name: 'app_mes_demandes_echange')]
@@ -886,6 +887,11 @@ public function validerPanier(SessionInterface $session, EntityManagerInterface 
     #[Route('/dota/mes-commandes', name: 'app_mes_commandes_dota')]
     public function mesCommandes(Request $request, EntityManagerInterface $entityManager): Response
     {
+        // Autoriser ROLE_ADM_DOTA OU ROLE_USER_DOTA
+        if (!$this->isGranted('ROLE_ADM_DOTA') && !$this->isGranted('ROLE_USER_DOTA')) {
+            return $this->redirectToRoute('app_accueil');
+        }
+        
         $user = $this->getUser();
         if (!$user) {
             return $this->redirectToRoute('app_accueil');
