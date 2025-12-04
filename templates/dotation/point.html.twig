@@ -7,7 +7,16 @@
 
 {% block body %}
 <div class="container-fluid mt-4">
+    <style>
+        .legend-box { display:inline-block; width:14px; height:14px; margin-right:6px; border:1px solid #ccc; vertical-align:middle; }
+    </style>
+
     <h2 class="mb-4">Gestion des points utilisateurs</h2>
+
+    <!-- Légende -->
+    <div class="mb-3">
+        <span class="legend-box" style="background-color:#d4edda;border-color:#c3e6cb;"></span> Utilisateur avec ROLE_USER_DOTA
+    </div>
 
     <!-- Filtres -->
     <div class="row mb-4">
@@ -29,9 +38,21 @@
             </select>
         </div>
         <div class="col-md-4 d-flex align-items-end">
-            <button class="btn btn-secondary" onclick="resetFilters()">
-                <i class="bi bi-arrow-clockwise"></i> Réinitialiser
-            </button>
+            <div class="me-2">
+                <button class="btn btn-secondary" onclick="resetFilters()">
+                    <i class="bi bi-arrow-clockwise"></i> Réinitialiser
+                </button>
+            </div>
+
+            <!-- Boutons pour donner / retirer ROLE_USER_DOTA au service sélectionné -->
+            <div>
+                <button id="btnGrantRole" class="btn btn-primary me-1" onclick="setRoleForService('grant')" disabled>
+                    <i class="bi bi-person-plus"></i> Donner ROLE_USER_DOTA
+                </button>
+                <button id="btnRevokeRole" class="btn btn-danger" onclick="setRoleForService('revoke')" disabled>
+                    <i class="bi bi-person-x"></i> Retirer ROLE_USER_DOTA
+                </button>
+            </div>
         </div>
     </div>
 
@@ -54,25 +75,31 @@
             </thead>
             <tbody id="userTableBody">
                 {% for user in listeUsers %}
-                    <tr class="user-row" data-service="{{ user.service }}" data-section="{{ user.section }}">
-                        <td>{{ user.nom }}</td>
-                        <td>{{ user.prenom }}</td>
-                        <td>{{ user.email }}</td>
+                    {% set hasRole = 'ROLE_USER_DOTA' in user.getRoles()|join(',') %}
+                    {% set bg = hasRole ? 'background-color:#d4edda !important;' : '' %}
 
-                        <td style="width: 120px;">
+                    <tr class="user-row"
+                        data-service="{{ user.service }}"
+                        data-section="{{ user.section }}"
+                    >
+
+                        <td style="{{ bg }}">{{ user.nom }}</td>
+                        <td style="{{ bg }}">{{ user.prenom }}</td>
+                        <td style="{{ bg }}">{{ user.email }}</td>
+
+                        <td style="width: 120px; {{ bg }}">
                             <input type="number" 
-                                   value="{{ user.pointDotation }}" 
-                                   id="points-{{ user.id }}" 
-                                   class="form-control text-center">
+                                value="{{ user.pointDotation }}" 
+                                id="points-{{ user.id }}" 
+                                class="form-control text-center">
                         </td>
-                        
-                        <td>{{ user.contract }}</td>
 
-                        <td>
+                        <td style="{{ bg }}">{{ user.contract }}</td>
+
+                        <td style="{{ bg }}">
                             {% if user.dateDebutContrat and not user.dateFinContrat %}
                                 CDI
                             {% elseif user.dateDebutContrat and user.dateFinContrat %}
-                                {# Calcul de la durée du contrat #}
                                 {% set start = user.dateDebutContrat %}
                                 {% set end = user.dateFinContrat %}
                                 {% set years = end|date('Y') - start|date('Y') %}
@@ -87,24 +114,24 @@
                             {% endif %}
                         </td>
 
-                        <td>{{ user.service|raw }}</td>
-                        <td>{{ user.section|raw }}</td>
+                        <td style="{{ bg }}">{{ user.service|raw }}</td>
+                        <td style="{{ bg }}">{{ user.section|raw }}</td>
 
-                        <td>
+                        <td style="{{ bg }}">
                             <input type="date"
-                                   value="{{ user.dateDebutContrat ? user.dateDebutContrat|date('Y-m-d') : '' }}"
-                                   id="dateDebut-{{ user.id }}"
-                                   class="form-control text-center">
+                                value="{{ user.dateDebutContrat ? user.dateDebutContrat|date('Y-m-d') : '' }}"
+                                id="dateDebut-{{ user.id }}"
+                                class="form-control text-center">
                         </td>
 
-                        <td>
+                        <td style="{{ bg }}">
                             <input type="date"
-                                   value="{{ user.dateFinContrat ? user.dateFinContrat|date('Y-m-d') : '' }}"
-                                   id="dateFin-{{ user.id }}"
-                                   class="form-control text-center">
+                                value="{{ user.dateFinContrat ? user.dateFinContrat|date('Y-m-d') : '' }}"
+                                id="dateFin-{{ user.id }}"
+                                class="form-control text-center">
                         </td>
 
-                        <td>
+                        <td style="{{ bg }}">
                             <button class="btn btn-success btn-sm" 
                                     onclick="updateUserData({{ user.id }})">
                                 <i class="bi bi-save"></i> Sauvegarder
@@ -113,10 +140,11 @@
                     </tr>
                 {% else %}
                     <tr id="noResultsRow">
-                        <td colspan="9" class="text-muted">Aucun utilisateur trouvé.</td>
+                        <td colspan="11" class="text-muted">Aucun utilisateur trouvé.</td>
                     </tr>
                 {% endfor %}
             </tbody>
+
         </table>
     </div>
 </div>
@@ -153,6 +181,7 @@ function onServiceChange() {
     }
 
     applyFilters();
+    updateServiceRoleButtons(); // <-- mise à jour des boutons
 }
 
 function applyFilters() {
@@ -180,6 +209,8 @@ function applyFilters() {
     if (noResultsRow) {
         noResultsRow.style.display = visibleCount === 0 ? '' : 'none';
     }
+
+    updateServiceRoleButtons(); // <-- mise à jour des boutons après filtrage
 }
 
 function resetFilters() {
@@ -188,7 +219,25 @@ function resetFilters() {
     document.getElementById('filterSection').disabled = true;
     document.getElementById('filterSection').innerHTML = '<option value="">-- Toutes les sections --</option>';
     applyFilters();
+    updateServiceRoleButtons(); // <-- mise à jour des boutons
 }
+
+// nouveau : active/désactive boutons selon règles : un service sélectionné ET aucune section sélectionnée
+function updateServiceRoleButtons() {
+    const service = document.getElementById('filterService').value;
+    const section = document.getElementById('filterSection').value;
+    const btnGrant = document.getElementById('btnGrantRole');
+    const btnRevoke = document.getElementById('btnRevokeRole');
+
+    const enabled = (service !== '') && (section === '');
+    if (btnGrant) btnGrant.disabled = !enabled;
+    if (btnRevoke) btnRevoke.disabled = !enabled;
+}
+
+// appeler au chargement pour initialiser l'état des boutons
+document.addEventListener('DOMContentLoaded', function() {
+    updateServiceRoleButtons();
+});
 
 function updateUserData(userId) {
     const points = document.getElementById('points-' + userId).value;
@@ -214,6 +263,42 @@ function updateUserData(userId) {
         }
     })
     .catch(() => alert("⚠️ Erreur de communication avec le serveur."));
+}
+
+// token CSRF pour les actions de rôle par service
+const csrfToken = '{{ csrf_token("service_role_action") }}';
+
+function setRoleForService(action) {
+    const service = document.getElementById('filterService').value;
+    if (!service) {
+        alert('Sélectionnez d\'abord un service.');
+        return;
+    }
+    const confirmMsg = action === 'grant'
+        ? `Donner ROLE_USER_DOTA à tous les utilisateurs du service "${service}" ?`
+        : `Retirer ROLE_USER_DOTA à tous les utilisateurs du service "${service}" ?`;
+    if (!confirm(confirmMsg)) return;
+
+    fetch('{{ path("app_dota_service_role") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            service: service,
+            action: action,
+            _csrf_token: csrfToken
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            alert(`Opération réussie — utilisateurs modifiés : ${data.modified}`);
+            // Recharger la page pour actualiser l'affichage
+            location.reload();
+        } else {
+            alert('Erreur : ' + (data.message || 'erreur inconnue'));
+        }
+    })
+    .catch(() => alert('Erreur réseau en contactant le serveur.'));
 }
 </script>
 {% endblock %}

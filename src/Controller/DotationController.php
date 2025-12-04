@@ -1522,5 +1522,56 @@ public function validerPanier(SessionInterface $session, EntityManagerInterface 
         return $this->redirectToRoute('app_gestion_commandes_dota');
     }
 
+    #[Route('/dota/service/role', name: 'app_dota_service_role', methods: ['POST'])]
+    public function setRoleForService(Request $request, EntityManagerInterface $em, UserRepository $userRepository): JsonResponse
+    {
+        // protection ROLE_ADM_DOTA
+        $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
+
+        if (!$this->isGranted('ROLE_ADMIN')) {
+            return new JsonResponse(['success' => false, 'message' => 'Accès refusé'], 403);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $token = $data['_csrf_token'] ?? '';
+        if (!$this->isCsrfTokenValid('service_role_action', $token)) {
+            return new JsonResponse(['success' => false, 'message' => 'Token CSRF invalide'], 400);
+        }
+
+        $service = $data['service'] ?? null;
+        $action = $data['action'] ?? null; // 'grant' ou 'revoke'
+
+        if (!$service || !in_array($action, ['grant', 'revoke'])) {
+            return new JsonResponse(['success' => false, 'message' => 'Paramètres invalides'], 400);
+        }
+
+        $users = $userRepository->findBy(['service' => $service]);
+        $modified = 0;
+
+        foreach ($users as $user) {
+            $roles = $user->getRoles();
+            if ($action === 'grant') {
+                if (!in_array('ROLE_USER_DOTA', $roles, true)) {
+                    $roles[] = 'ROLE_USER_DOTA';
+                    $user->setRoles($roles);
+                    $em->persist($user);
+                    $modified++;
+                }
+            } else { // revoke
+                if (in_array('ROLE_USER_DOTA', $roles, true)) {
+                    $roles = array_values(array_filter($roles, fn($r) => $r !== 'ROLE_USER_DOTA'));
+                    $user->setRoles($roles);
+                    $em->persist($user);
+                    $modified++;
+                }
+            }
+        }
+
+        if ($modified > 0) {
+            $em->flush();
+        }
+
+        return new JsonResponse(['success' => true, 'modified' => $modified]);
+    }
 
 }
