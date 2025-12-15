@@ -7,12 +7,23 @@
 
 {% block body %}
 <div class="container mt-4" id="top-logo">
-    <div class="row">
-        <div class="col-md-3" style="right: 5%;">
-            Points disponibles : {{ app.user.pointDotation }}P
+    <div class="row align-items-center">
+        <div class="col-md-3 d-flex align-items-center">
+            {% set totalPoints = 0 %}
+            {% for type, articles in panierGrouped %}
+                {% for article in articles %}
+                    {% set totalPoints = totalPoints + (article.point * article.quantite) %}
+                {% endfor %}
+            {% endfor %}
+            {% set remaining = (app.user.pointDotation - totalPoints) < 0 ? 0 : (app.user.pointDotation - totalPoints) %}
+            <div>
+                <div><span class="mr-2">Points disponibles :</span><strong id="totalPoints" data-value="{{ app.user.pointDotation }}">{{ app.user.pointDotation }} P</strong></div>
+                <div class="text-muted small">Points dans le panier : <span id="pointsInCart" data-value="{{ totalPoints }}">{{ totalPoints }} P</span></div>
+                <div class="mt-1"><strong>Points restants : <span id="pointsRemaining" data-value="{{ remaining }}">{{ remaining }} P</span></strong></div>
+            </div>
         </div>
         
-        <div class="col-md-6" id="searchbar"></div>
+        <div class="col-md-8"></div>
 
         <div class="col-md-1 d-flex justify-content-end align-items-center" id="icons">          
           <a href="/dota/panier" class="d-inline-block">
@@ -147,11 +158,14 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const pointsDisponibles = parseInt(document.getElementById('points-disponibles').dataset.points);
+    const totalPointsEl = document.getElementById('totalPoints');
+    const pointsInCartEl = document.getElementById('pointsInCart');
+    const pointsRemainingEl = document.getElementById('pointsRemaining');
     const inputs = document.querySelectorAll('.numberbox3');
-    const totalPointsEl = document.getElementById('total-points');
     const alertPoints = document.getElementById('alert-points');
     const btnValider = document.getElementById('btn-valider');
+    
+    const pointsDisponibles = parseInt(totalPointsEl.dataset.value);
 
     function updateTotal() {
         let total = 0;
@@ -160,12 +174,19 @@ document.addEventListener('DOMContentLoaded', function() {
             let quantity = parseInt(input.value) || 0;
             total += point * quantity;
         });
-        totalPointsEl.textContent = total + 'P';
+        
+        // Mise à jour des éléments d'affichage
+        pointsInCartEl.textContent = total + ' P';
+        pointsInCartEl.dataset.value = total;
+        
+        const remaining = Math.max(pointsDisponibles - total, 0);
+        pointsRemainingEl.textContent = remaining + ' P';
+        pointsRemainingEl.dataset.value = remaining;
 
         if(total > pointsDisponibles) {
             alertPoints.style.display = 'block';
             document.querySelectorAll('.input-group button').forEach(btn => btn.disabled = true);
-            btnValider.disabled = true;  // Désactive aussi le bouton Valider
+            btnValider.disabled = true;
         } else {
             alertPoints.style.display = 'none';
             document.querySelectorAll('.input-group button').forEach(btn => btn.disabled = false);
@@ -177,6 +198,5 @@ document.addEventListener('DOMContentLoaded', function() {
 
     updateTotal(); // calcul initial
 });
-
 </script>
 {% endblock %}
