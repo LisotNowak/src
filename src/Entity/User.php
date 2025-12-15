@@ -62,6 +62,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $contract = null;
 
+    #[ORM\Column(type: "boolean", nullable: true)]
+    private ?bool $passwordChanged = false;
+
     // --- Getters et setters existants ---
     
     public function getId(): ?int
@@ -211,6 +214,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setContract(?string $contract): static
     {
         $this->contract = $contract;
+        return $this;
+    }
+
+    public function isPasswordChanged(): bool
+    {
+        return $this->passwordChanged ?? false;
+    }
+
+    public function setPasswordChanged(bool $passwordChanged): static
+    {
+        $this->passwordChanged = $passwordChanged;
         return $this;
     }
 }
