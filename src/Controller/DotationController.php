@@ -212,12 +212,12 @@ class DotationController extends AbstractController
                 return $this->redirectToRoute('app_accueil');
             }
 
-            $listeArticles = $entityManager->getRepository(Article::class)->findBy([], ['nomType' => 'ASC', 'nom' => 'ASC']);
+            $listeArticles = $entityManager->getRepository(Article::class)->findAll();
             $listeCouleurs = $entityManager->getRepository(Couleur::class)->findAll();
 
             $listeAssociationTaillesArticle = $entityManager->getRepository(AssociationTaillesArticle::class)->findAll();
             $listeAssociationCouleursArticle = $entityManager->getRepository(AssociationCouleursArticle::class)->findAll();
-            $listeTypes = $entityManager->getRepository(Type::class)->findAll();
+            $listeTypes = $entityManager->getRepository(Type::class)->findBy([], ['id' => 'ASC']);
             $panier = $session->get('cart', []); 
             $nombreArticles = count($panier); 
 

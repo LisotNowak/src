@@ -23,9 +23,9 @@
             {% set pointsInCart = pointsInCart|default(0) %}
             {% set remaining = (app.user.pointDotation - pointsInCart) < 0 ? 0 : (app.user.pointDotation - pointsInCart) %}
             <div>
-                <div><span class="mr-2">Points disponibles :</span><strong id="totalPoints" data-value="{{ app.user.pointDotation }}">{{ app.user.pointDotation }} P</strong></div>
-                <div class="text-muted small">Points dans le panier : <span id="pointsInCart" data-value="{{ pointsInCart }}">{{ pointsInCart }} P</span></div>
-                <div class="mt-1"><strong>Points restants : <span id="pointsRemaining" data-value="{{ remaining }}">{{ remaining }} P</span></strong></div>
+                <div><span class="mr-2">Points disponibles : </span><strong id="totalPoints" data-value="{{ app.user.pointDotation }}">{{ app.user.pointDotation }} Points</strong></div>
+                <div class="text-muted small">Points dans le panier : <span id="pointsInCart" data-value="{{ pointsInCart }}">{{ pointsInCart }} Points</span></div>
+                <div class="mt-1"><strong>Points restants : <span id="pointsRemaining" data-value="{{ remaining }}">{{ remaining }} Points</span></strong></div>
             </div>
          </div>
 
@@ -162,7 +162,7 @@
                  alt="{{ product.nom }}">
             <div class="card-body d-flex flex-column">
               <p class="card-text">{{ product.nom }}</p>
-              <p class="card-cost">{{ product.point }} P</p>
+              <p class="card-cost">{{ product.point }} Points</p>
               <p class="card-cost">{{ product.description }}</p>
 
               {# --- Choix taille (scopé par produit) --- #}

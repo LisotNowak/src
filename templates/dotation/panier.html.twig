@@ -17,9 +17,9 @@
             {% endfor %}
             {% set remaining = (app.user.pointDotation - totalPoints) < 0 ? 0 : (app.user.pointDotation - totalPoints) %}
             <div>
-                <div><span class="mr-2">Points disponibles :</span><strong id="totalPoints" data-value="{{ app.user.pointDotation }}">{{ app.user.pointDotation }} P</strong></div>
-                <div class="text-muted small">Points dans le panier : <span id="pointsInCart" data-value="{{ totalPoints }}">{{ totalPoints }} P</span></div>
-                <div class="mt-1"><strong>Points restants : <span id="pointsRemaining" data-value="{{ remaining }}">{{ remaining }} P</span></strong></div>
+                <div><span class="mr-2">Points disponibles : </span><strong id="totalPoints" data-value="{{ app.user.pointDotation }}">{{ app.user.pointDotation }} Points</strong></div>
+                <div class="text-muted small">Points dans le panier : <span id="pointsInCart" data-value="{{ totalPoints }}">{{ totalPoints }} Points</span></div>
+                <div class="mt-1"><strong>Points restants : <span id="pointsRemaining" data-value="{{ remaining }}">{{ remaining }} Points</span></strong></div>
             </div>
         </div>
         
@@ -78,7 +78,7 @@
                                 <h5 class="text-muted pt-2">{{ article.nom }}</h5>
                                 <p class="text-uppercase font-weight-light">{{ article.reference }}</p>
                                 <div class="linespace mb-4">
-                                    <p class="text-muted mt-4">Points : {{ article.point }}P</p>
+                                    <p class="text-muted mt-4">Points : {{ article.point }}Points</p>
                                     <p class="text-muted mt-4">{{ article.description }}</p>
                                     <p class="text-muted">Taille : {{ article.taille }}</p>
                                     <p class="text-muted">Couleur : {{ article.couleur }}</p>
@@ -127,7 +127,7 @@
                             {% for article in articles %}
                                 <tr>
                                     <th scope="row" class="font-weight-light">{{ article.nom }} {{ article.taille }} {{ article.couleur }} X {{ article.quantite }}</th>
-                                    <td>{{ (article.point * article.quantite) }}P</td>
+                                    <td>{{ (article.point * article.quantite) }} Points</td>
                                     {% set totalPoints = totalPoints + (article.point * article.quantite) %}
                                 </tr>
                             {% endfor %}
@@ -135,7 +135,7 @@
                     </tbody>
                 </table>
                 <hr>
-                <h6 class="pl-2 pt-1">Total :<span class="float-right" id="total-points">{{ totalPoints }}P</span></h6>
+                <h6 class="pl-2 pt-1">Total : <span class="float-right" id="total-points">{{ totalPoints }} Points</span></h6>
                 <hr>
 
                 <div id="alert-points" class="alert alert-danger mt-2" style="display: none;">
@@ -176,11 +176,11 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         // Mise à jour des éléments d'affichage
-        pointsInCartEl.textContent = total + ' P';
+        pointsInCartEl.textContent = total + ' Points';
         pointsInCartEl.dataset.value = total;
         
         const remaining = Math.max(pointsDisponibles - total, 0);
-        pointsRemainingEl.textContent = remaining + ' P';
+        pointsRemainingEl.textContent = remaining + ' Points';
         pointsRemainingEl.dataset.value = remaining;
 
         if(total > pointsDisponibles) {
