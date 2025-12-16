@@ -399,10 +399,6 @@ class DotationController extends AbstractController
         // protection ROLE_ADM_DOTA
         $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
 
-        // Vérifiez si l'utilisateur est déjà authentifié
-        if ($this->isGranted('ROLE_ADM_DOTA') && $this->isGranted('ROLE_USER_DOTA')) {
-            // Redirigez l'utilisateur s'il est déjà authentifié
-
             $listeUsers = $entityManager->getRepository(User::class)->findAll();
                 
             // Récupérer les services uniques
@@ -423,7 +419,6 @@ class DotationController extends AbstractController
                 'services' => $services,
                 'servicesSections' => $servicesSections,
             ]);
-        }
 
         return $this->redirectToRoute('app_accueil');
 
