@@ -15,11 +15,18 @@
                 
                 {% if maintenance.isCategoryActive(category) %}
                     {% set categoryConfig = maintenance.getCategoryConfig(category) %}
+                    {% set currentMode = maintenance.getModeForCategory(category) %}
                     <div class="d-flex align-items-center flex-grow-1 mt-2 mt-md-0">
-                        {# Formulaire pour METTRE À JOUR le message #}
-                        <form action="{{ path('dev_maintenance_activate', {category: category}) }}" method="post" class="d-flex align-items-center flex-grow-1">
-                            <input type="text" name="message" class="form-control form-control-sm" value="{{ categoryConfig.message|default('') }}">
-                            <button type="submit" class="btn btn-sm btn-info text-nowrap ml-2">Mettre à jour</button>
+                        {# Formulaire pour METTRE À JOUR le message et le mode #}
+                        <form action="{{ path('dev_maintenance_activate', {category: category}) }}" method="post" class="d-flex align-items-center flex-grow-1 flex-wrap gap-2">
+                            <input type="text" name="message" class="form-control form-control-sm" value="{{ categoryConfig.message|default('') }}" placeholder="Message">
+                            
+                            <select name="mode" class="form-control form-control-sm" style="width: auto;">
+                                <option value="block" {% if currentMode == 'block' %}selected{% endif %}>Bloquer l'accès</option>
+                                <option value="modal" {% if currentMode == 'modal' %}selected{% endif %}>Afficher un modal</option>
+                            </select>
+                            
+                            <button type="submit" class="btn btn-sm btn-info text-nowrap">Mettre à jour</button>
                         </form>
                         {# Formulaire pour DÉSACTIVER #}
                         <form action="{{ path('dev_maintenance_deactivate', {category: category}) }}" method="post" class="ml-2">
@@ -28,8 +35,14 @@
                     </div>
                 {% else %}
                     {# Formulaire pour ACTIVER #}
-                    <form action="{{ path('dev_maintenance_activate', {category: category}) }}" method="post" class="d-flex align-items-center flex-grow-1 mt-2 mt-md-0">
-                        <input type="text" name="message" class="form-control form-control-sm mr-2" placeholder="Message personnalisé (optionnel)">
+                    <form action="{{ path('dev_maintenance_activate', {category: category}) }}" method="post" class="d-flex align-items-center flex-grow-1 mt-2 mt-md-0 flex-wrap gap-2">
+                        <input type="text" name="message" class="form-control form-control-sm" placeholder="Message personnalisé (optionnel)">
+                        
+                        <select name="mode" class="form-control form-control-sm" style="width: auto;">
+                            <option value="block">Bloquer l'accès</option>
+                            <option value="modal">Afficher un modal</option>
+                        </select>
+                        
                         <button type="submit" class="btn btn-sm btn-danger text-nowrap">Activer</button>
                     </form>
                 {% endif %}
@@ -66,4 +79,10 @@
         <div class="alert alert-info">Aucune route correspondante trouvée.</div>
     {% endfor %}
 </div>
+
+<style>
+    .gap-2 {
+        gap: 0.5rem;
+    }
+</style>
 {% endblock %}

@@ -9,6 +9,7 @@ class MaintenanceService
     private readonly string $configPath;
     private readonly Filesystem $filesystem;
     private const DEFAULT_MESSAGE = 'Cette partie du site est actuellement en maintenance. <br> Elle sera de retour très prochainement. Merci de votre patience.';
+    private const DEFAULT_MODAL_MESSAGE = 'Cette section est en cours de mise à jour.';
 
     public function __construct(string $projectDir)
     {
@@ -37,8 +38,7 @@ class MaintenanceService
     }
 
     /**
-     * Récupère la configuration pour une catégorie (message, etc.).
-     * @return array|null
+     * Récupère la configuration pour une catégorie (message, mode, etc.).
      */
     public function getCategoryConfig(string $category): ?array
     {
@@ -56,13 +56,44 @@ class MaintenanceService
     }
 
     /**
-     * Active le mode maintenance pour une catégorie avec un message personnalisé.
+     * Récupère le mode pour une catégorie ('block' ou 'modal').
      */
-    public function activate(string $category, ?string $message): void
+    public function getModeForCategory(string $category): string
     {
         $config = $this->getConfig();
+        return $config[$category]['mode'] ?? 'block';
+    }
+
+    /**
+     * Vérifie si une catégorie est bloquée (mode 'block').
+     */
+    public function isCategoryBlocked(string $category): bool
+    {
+        return $this->isCategoryActive($category) && $this->getModeForCategory($category) === 'block';
+    }
+
+    /**
+     * Vérifie si une catégorie affiche un modal d'avertissement (mode 'modal').
+     */
+    public function isCategoryModal(string $category): bool
+    {
+        return $this->isCategoryActive($category) && $this->getModeForCategory($category) === 'modal';
+    }
+
+    /**
+     * Active le mode maintenance pour une catégorie avec un message personnalisé.
+     * @param string $mode 'block' pour bloquer l'accès, 'modal' pour afficher un modal sans bloquer
+     */
+    public function activate(string $category, ?string $message, string $mode = 'block'): void
+    {
+        $config = $this->getConfig();
+        
+        // Utilise le message par défaut approprié selon le mode
+        $defaultMsg = $mode === 'modal' ? self::DEFAULT_MODAL_MESSAGE : self::DEFAULT_MESSAGE;
+        
         $config[$category] = [
-            'message' => !empty($message) ? $message : self::DEFAULT_MESSAGE
+            'message' => !empty($message) ? $message : $defaultMsg,
+            'mode' => $mode
         ];
         $this->saveConfig($config);
     }

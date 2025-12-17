@@ -2,11 +2,11 @@
 
 namespace App\Controller;
 
-use App\Service\MaintenanceService; // Ajoutez cette ligne
+use App\Service\MaintenanceService;
 use ReflectionClass;
 use ReflectionMethod;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\Request; // Assurez-vous que cette ligne est présente
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Routing\RouterInterface;
@@ -84,6 +84,7 @@ class DebugController extends AbstractController
 
         return $this->render('routes_list.html.twig', [
             'categorizedRoutes' => $categorizedRoutes,
+            'maintenance' => $maintenanceService,
         ]);
     }
 
@@ -91,8 +92,11 @@ class DebugController extends AbstractController
     public function activateMaintenance(string $category, Request $request, MaintenanceService $maintenanceService): Response
     {
         $message = $request->request->get('message');
-        $maintenanceService->activate($category, $message);
-        $this->addFlash('success', "Le mode maintenance a été activé pour la catégorie '{$category}'.");
+        $mode = $request->request->get('mode', 'block');
+        $maintenanceService->activate($category, $message, $mode);
+        
+        $modeLabel = $mode === 'modal' ? 'un modal' : 'le blocage';
+        $this->addFlash('success', "Le mode maintenance ({$modeLabel}) a été activé pour la catégorie '{$category}'.");
         return $this->redirectToRoute('dev_routes_list');
     }
 

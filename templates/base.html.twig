@@ -18,6 +18,7 @@
         {% block javascripts %}{% endblock %}
 
         <style>
+            /* MODAL DE BLOCAGE (Maintenance complète) */
             .maintenance-backdrop {
                 position: fixed;
                 top: 0;
@@ -25,7 +26,7 @@
                 width: 100vw;
                 height: 100vh;
                 background-color: rgba(0, 0, 0, 0.7);
-                z-index: 1050; /* Au-dessus de la plupart des éléments */
+                z-index: 1050;
             }
             .maintenance-modal {
                 position: fixed;
@@ -51,6 +52,58 @@
                 border: none;
                 cursor: pointer;
             }
+
+            /* MODAL D'AVERTISSEMENT (Sans blocage) */
+            .warning-modal-backdrop {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                background-color: rgba(0, 0, 0, 0.3);
+                z-index: 1040;
+            }
+            .warning-modal {
+                position: fixed;
+                top: 20%;
+                left: 50%;
+                transform: translateX(-50%);
+                z-index: 1041;
+                background: white;
+                padding: 30px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                min-width: 300px;
+                max-width: 500px;
+                border-left: 5px solid #ffc107;
+            }
+            .warning-modal-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 15px;
+            }
+            .warning-modal-close-btn {
+                font-size: 1.5rem;
+                font-weight: bold;
+                color: #888;
+                background: none;
+                border: none;
+                cursor: pointer;
+                padding: 0;
+            }
+            .warning-modal-close-btn:hover {
+                color: #333;
+            }
+            .warning-modal h3 {
+                margin: 0;
+                font-size: 1.2rem;
+                color: #333;
+            }
+            .warning-modal-content {
+                color: #666;
+                font-size: 0.95rem;
+            }
         </style>
     </head>
     <body>
@@ -58,7 +111,8 @@
         {% set path_parts = current_path|trim('/')|split('/') %}
         {% set current_category = path_parts|first %}
 
-        {% if current_category and maintenance.isCategoryActive(current_category) %}
+        {# MODAL DE BLOCAGE (Accès refusé complètement) #}
+        {% if current_category and maintenance.isCategoryBlocked(current_category) %}
             <div id="maintenance-container">
                 <div class="maintenance-backdrop"></div>
                 <div class="maintenance-modal">
@@ -69,12 +123,27 @@
                     <i class="fas fa-tools fa-3x text-warning mb-3"></i>
                     <h2 class="h4">Section en Maintenance</h2>
                     <p class="text-muted">
-                        {# Affiche le message personnalisé ou le message par défaut #}
                         {{ maintenance.getMessageForCategory(current_category)|raw }}
                     </p>
                     {% if is_granted('ROLE_ADMIN') %}
                         <small class="d-block mt-3 text-info">Vous pouvez fermer cette fenêtre car vous êtes administrateur.</small>
                     {% endif %}
+                </div>
+            </div>
+        {% endif %}
+
+        {# MODAL D'AVERTISSEMENT (Accès autorisé, juste un avertissement) #}
+        {% if current_category and maintenance.isCategoryModal(current_category) %}
+            <div id="warning-modal-container">
+                <div class="warning-modal-backdrop"></div>
+                <div class="warning-modal">
+                    <div class="warning-modal-header">
+                        <h3>⚠️ Avertissement</h3>
+                        <button class="warning-modal-close-btn" onclick="document.getElementById('warning-modal-container').style.display='none'">&times;</button>
+                    </div>
+                    <div class="warning-modal-content">
+                        {{ maintenance.getMessageForCategory(current_category)|raw }}
+                    </div>
                 </div>
             </div>
         {% endif %}
