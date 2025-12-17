@@ -156,12 +156,12 @@
 
         <div class="col-md-3 col-sm-6 mb-4">
           <div class="card h-100" data-nom="{{ product.nom | lower }}" data-type="{{ product.nomType | lower }}">
-            <p class="pl-2 ms-2">Référence : {{ product.reference }}</p>
+            <p class="card-text text-center">{{ product.nom }}</p>
             <img class="card-img-top img-fluid"
                  src="{{ product.image is not empty ? asset('uploads/images/' ~ product.image) : asset('img/defaultimage.png') }}"
                  alt="{{ product.nom }}">
             <div class="card-body d-flex flex-column">
-              <p class="card-text">{{ product.nom }}</p>
+              <p class="pl-2">Référence : {{ product.reference }}</p>
               <p class="card-cost">{{ product.point }} Points</p>
               <p class="card-cost">{{ product.description }}</p>
 

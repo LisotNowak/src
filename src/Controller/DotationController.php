@@ -399,7 +399,7 @@ class DotationController extends AbstractController
         // protection ROLE_ADM_DOTA
         $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
 
-            $listeUsers = $entityManager->getRepository(User::class)->findAll();
+            $listeUsers = $entityManager->getRepository(User::class)->findBy([], ['nom' => 'ASC']);
                 
             // Récupérer les services uniques
             $services = array_unique(array_map(fn($u) => $u->getService(), $listeUsers));
