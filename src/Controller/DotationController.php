@@ -430,7 +430,7 @@ class DotationController extends AbstractController
         // protection ROLE_ADM_DOTA
         $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
 
-        if ($this->isGranted('ROLE_ADM_DOTA') && $this->isGranted('ROLE_USER_DOTA')) {
+
             $listeArticles = $entityManager->getRepository(Article::class)->findAll();
             $listeCouleurs = $entityManager->getRepository(Couleur::class)->findAll();
             $couleur = "";
@@ -467,7 +467,7 @@ class DotationController extends AbstractController
             return $this->render('dotation/stock.html.twig', [
                 'produitsAvecDetails' => $produitsAvecDetails,
             ]);
-        }
+        
     
         return $this->redirectToRoute('app_accueil');
     }
