@@ -113,10 +113,11 @@
                     <label class="form-label">Tailles :</label>
                     <div id="taille">
                         {% for taille in listeTailles %}
+                            {% set taille_id = 'taille-' ~ (taille.nom|replace({' ':'_'})|lower) %}
                             <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="checkbox" name="produit-taille[]" id="taille-{{ taille.id }}" value="{{ taille.nom }}"
+                                <input class="form-check-input" type="checkbox" name="produit-taille[]" id="{{ taille_id }}" value="{{ taille.nom }}"
                                     {% if produit.tailles is not empty and taille in produit.tailles %}checked{% endif %}>
-                                <label class="form-check-label" for="taille-{{ taille.id }}">{{ taille.nom }}</label>
+                                <label class="form-check-label" for="{{ taille_id }}">{{ taille.nom }}</label>
                             </div>
                         {% endfor %}
                     </div>
@@ -128,15 +129,16 @@
                         {% for couleur in listeCouleurs %}
                             {% set code = couleur.codeCouleur|lower %}
                             {% set texteNoir = code == 'beige' or code == 'white' or code == '#ffffff' or code == '#fff' %}
+                            {% set couleur_id = 'couleur-' ~ (couleur.nom|replace({' ':'_'})|lower) %}
                             <div class="form-check form-check-inline">
                                 <input class="form-check-input"
                                     type="checkbox"
                                     name="produit-couleur[]"
-                                    id="couleur-{{ couleur.id }}"
+                                    id="{{ couleur_id }}"
                                     value="{{ couleur.nom }}"
                                     {% if produit.couleurs is not empty and couleur in produit.couleurs %}checked{% endif %}>
                                 <label class="form-check-label"
-                                    for="couleur-{{ couleur.id }}"
+                                    for="{{ couleur_id }}"
                                     style="
                                         background-color: {{ couleur.codeCouleur }};
                                         color: {{ texteNoir ? '#000' : '#fff' }};
