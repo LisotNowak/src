@@ -9,6 +9,8 @@ use App\Entity\dotation\Stock;
 use App\Entity\dotation\AssociationCommandeArticle;
 use App\Entity\dotation\AssociationTaillesArticle;
 use App\Entity\dotation\AssociationCouleursArticle;
+use App\Entity\dotation\Taille;
+use App\Entity\dotation\Couleur;
 use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -52,11 +54,18 @@ class OrderController extends AbstractController
         $entityManager->flush();
 
         foreach ($panier as $item) {
+            $article = $entityManager->getRepository(Article::class)->find($item['id']);
+            if (!$article) {
+                continue;
+            }
+            $tailleEntity = $entityManager->getRepository(Taille::class)->findOneBy(['nom' => $item['taille']]);
+            $couleurEntity = $entityManager->getRepository(Couleur::class)->findOneBy(['nom' => $item['couleur']]);
+
             $associationCommandeArticle = new AssociationCommandeArticle();
-            $associationCommandeArticle->setIdCommande($commande->getId());
-            $associationCommandeArticle->setIdArticle($item['id']);
-            $associationCommandeArticle->setNomTaille($item['taille']);
-            $associationCommandeArticle->setNomCouleur($item['couleur']);
+            $associationCommandeArticle->setCommande($commande);
+            $associationCommandeArticle->setArticle($article);
+            $associationCommandeArticle->setTaille($tailleEntity);
+            $associationCommandeArticle->setCouleur($couleurEntity);
             $associationCommandeArticle->setNb($item['quantite']);
 
             $entityManager->persist($associationCommandeArticle);
@@ -104,30 +113,32 @@ class OrderController extends AbstractController
         $commandesEntities = $entityManager->getRepository(Commande::class)
             ->findBy($criteria, ['date' => 'DESC']);
 
+        $selectedTypeEntity = $selectedTypeId > 0 ? $entityManager->getRepository(Type::class)->find($selectedTypeId) : null;
+
         $commandes = [];
         foreach ($commandesEntities as $commande) {
             $assocs = $entityManager->getRepository(AssociationCommandeArticle::class)
-                ->findBy(['idCommande' => $commande->getId()]);
+                ->findBy(['commande' => $commande]);
 
             $items = [];
             foreach ($assocs as $assoc) {
-                $article = $entityManager->getRepository(Article::class)->find($assoc->getIdArticle());
+                $article = $assoc->getArticle();
                 if (!$article) {
                     continue;
                 }
 
-                if ($selectedTypeId > 0) {
-                    $articleType = $article->getType();
-                    $articleTypeId = $articleType ? $articleType->getId() : 0;
-                    if ($articleTypeId !== $selectedTypeId) {
+                if ($selectedTypeEntity) {
+                    // Article stores `nomType` as string; compare by name
+                    $articleNomType = $article->getNomType();
+                    if ($articleNomType !== $selectedTypeEntity->getNom()) {
                         continue;
                     }
                 }
 
                 $items[] = [
                     'article' => $article,
-                    'taille' => $assoc->getNomTaille(),
-                    'couleur' => $assoc->getNomCouleur(),
+                    'taille' => $assoc->getTaille()?->getNom(),
+                    'couleur' => $assoc->getCouleur()?->getNom(),
                     'quantite' => $assoc->getNb(),
                 ];
             }
@@ -164,26 +175,26 @@ class OrderController extends AbstractController
             $commandes = [];
             foreach ($commandesEntities as $commande) {
                 $assocs = $entityManager->getRepository(AssociationCommandeArticle::class)
-                    ->findBy(['idCommande' => $commande->getId()]);
+                    ->findBy(['commande' => $commande]);
 
                 $items = [];
                 foreach ($assocs as $assoc) {
-                    $article = $entityManager->getRepository(Article::class)->find($assoc->getIdArticle());
+                    $article = $assoc->getArticle();
 
                     $stockDisponible = 0;
                     if ($article) {
                         $stockEntity = $entityManager->getRepository(Stock::class)->findOneBy([
                             'referenceArticle' => $article->getReference(),
-                            'nomTaille' => $assoc->getNomTaille(),
-                            'nomCouleur' => $assoc->getNomCouleur(),
+                            'nomTaille' => $assoc->getTaille()?->getNom(),
+                            'nomCouleur' => $assoc->getCouleur()?->getNom(),
                         ]);
                         $stockDisponible = $stockEntity ? (int) $stockEntity->getStock() : 0;
                     }
 
                     $items[] = [
                         'article' => $article,
-                        'taille' => $assoc->getNomTaille(),
-                        'couleur' => $assoc->getNomCouleur(),
+                        'taille' => $assoc->getTaille()?->getNom(),
+                        'couleur' => $assoc->getCouleur()?->getNom(),
                         'quantite' => $assoc->getNb(),
                         'stockDisponible' => $stockDisponible,
                     ];
@@ -229,7 +240,7 @@ class OrderController extends AbstractController
             return $this->redirectToRoute('app_gestion_commandes_dota');
         }
 
-        $assocs = $entityManager->getRepository(AssociationCommandeArticle::class)->findBy(['idCommande' => $commande->getId()]);
+        $assocs = $entityManager->getRepository(AssociationCommandeArticle::class)->findBy(['commande' => $commande]);
         if (empty($assocs)) {
             $this->addFlash('error', 'Aucune ligne trouvée pour cette commande.');
             return $this->redirectToRoute('app_gestion_commandes_dota');
@@ -237,26 +248,27 @@ class OrderController extends AbstractController
 
         $errors = [];
         foreach ($assocs as $assoc) {
-            $article = $entityManager->getRepository(Article::class)->find($assoc->getIdArticle());
+            $article = $assoc->getArticle();
+            $articleId = $article ? $article->getId() : 'n/a';
             if (!$article) {
-                $errors[] = "Article introuvable (ID {$assoc->getIdArticle()}).";
+                $errors[] = "Article introuvable (ID {$articleId}).";
                 continue;
             }
 
             $stock = $entityManager->getRepository(Stock::class)->findOneBy([
                 'referenceArticle' => $article->getReference(),
-                'nomTaille' => $assoc->getNomTaille(),
-                'nomCouleur' => $assoc->getNomCouleur(),
+                'nomTaille' => $assoc->getTaille()?->getNom(),
+                'nomCouleur' => $assoc->getCouleur()?->getNom(),
             ]);
 
             if (!$stock) {
-                $errors[] = sprintf('Pas de fiche stock pour %s (%s / %s).', $article->getNom(), $assoc->getNomTaille(), $assoc->getNomCouleur());
+                $errors[] = sprintf('Pas de fiche stock pour %s (%s / %s).', $article->getNom(), $assoc->getTaille()?->getNom(), $assoc->getCouleur()?->getNom());
                 continue;
             }
 
             if ($stock->getStock() < $assoc->getNb()) {
                 $errors[] = sprintf('Stock insuffisant pour %s %s/%s : demandé %d, disponible %d.',
-                    $article->getNom(), $assoc->getNomTaille(), $assoc->getNomCouleur(), $assoc->getNb(), $stock->getStock());
+                    $article->getNom(), $assoc->getTaille()?->getNom(), $assoc->getCouleur()?->getNom(), $assoc->getNb(), $stock->getStock());
             }
         }
 
@@ -268,11 +280,11 @@ class OrderController extends AbstractController
         }
 
         foreach ($assocs as $assoc) {
-            $article = $entityManager->getRepository(Article::class)->find($assoc->getIdArticle());
+            $article = $assoc->getArticle();
             $stock = $entityManager->getRepository(Stock::class)->findOneBy([
                 'referenceArticle' => $article->getReference(),
-                'nomTaille' => $assoc->getNomTaille(),
-                'nomCouleur' => $assoc->getNomCouleur(),
+                'nomTaille' => $assoc->getTaille()?->getNom(),
+                'nomCouleur' => $assoc->getCouleur()?->getNom(),
             ]);
 
             $stock->setStock($stock->getStock() - $assoc->getNb());
@@ -326,17 +338,20 @@ class OrderController extends AbstractController
         }
 
         $assocs = $entityManager->getRepository(AssociationCommandeArticle::class)
-            ->findBy(['idCommande' => $commande->getId()]);
+            ->findBy(['commande' => $commande]);
 
         $cart = [];
 
         foreach ($assocs as $assoc) {
-            $article = $entityManager->getRepository(Article::class)->find($assoc->getIdArticle());
+            $article = $assoc->getArticle();
             if (!$article) {
                 continue;
             }
 
-            $cartKey = $article->getId() . '_' . $assoc->getNomTaille() . '_' . $assoc->getNomCouleur();
+            $tailleNom = $assoc->getTaille()?->getNom();
+            $couleurNom = $assoc->getCouleur()?->getNom();
+
+            $cartKey = $article->getId() . '_' . $tailleNom . '_' . $couleurNom;
 
             $cart[$cartKey] = [
                 'id' => $article->getId(),
@@ -345,8 +360,8 @@ class OrderController extends AbstractController
                 'reference' => $article->getReference(),
                 'description' => $article->getDescription(),
                 'prix' => $article->getPrix(),
-                'taille' => $assoc->getNomTaille(),
-                'couleur' => $assoc->getNomCouleur(),
+                'taille' => $tailleNom,
+                'couleur' => $couleurNom,
                 'point' => $article->getPoint(),
                 'image' => $article->getImage(),
             ];
@@ -382,7 +397,7 @@ class OrderController extends AbstractController
                 if ($request->request->has('delete_item')) {
                     $assocIdToDelete = $request->request->get('delete_item');
                     $assocToDelete = $entityManager->getRepository(AssociationCommandeArticle::class)->find($assocIdToDelete);
-                    if ($assocToDelete && $assocToDelete->getIdCommande() === $commande->getId()) {
+                    if ($assocToDelete && $assocToDelete->getCommande()?->getId() === $commande->getId()) {
                         $entityManager->remove($assocToDelete);
                         $entityManager->flush();
                         $this->addFlash('success', 'L\'article a été supprimé de la commande.');
@@ -391,7 +406,7 @@ class OrderController extends AbstractController
                 }
 
                 $itemsData = $request->request->all('items');
-                $assocs = $entityManager->getRepository(AssociationCommandeArticle::class)->findBy(['idCommande' => $commande->getId()]);
+                $assocs = $entityManager->getRepository(AssociationCommandeArticle::class)->findBy(['commande' => $commande]);
 
                 foreach ($assocs as $assoc) {
                     $assocId = $assoc->getId();
@@ -401,8 +416,14 @@ class OrderController extends AbstractController
 
                         if ($newQuantity > 0) {
                             $assoc->setNb($newQuantity);
-                            $assoc->setNomTaille($data['taille'] ?? $assoc->getNomTaille());
-                            $assoc->setNomCouleur($data['couleur'] ?? $assoc->getNomCouleur());
+                            if (!empty($data['taille'])) {
+                                $tailleEntity = $entityManager->getRepository(Taille::class)->findOneBy(['nom' => $data['taille']]);
+                                $assoc->setTaille($tailleEntity);
+                            }
+                            if (!empty($data['couleur'])) {
+                                $couleurEntity = $entityManager->getRepository(Couleur::class)->findOneBy(['nom' => $data['couleur']]);
+                                $assoc->setCouleur($couleurEntity);
+                            }
                             $entityManager->persist($assoc);
                         } else {
                             $entityManager->remove($assoc);
@@ -419,11 +440,15 @@ class OrderController extends AbstractController
 
                     if ($articleId && $quantity > 0 && $taille && $couleur) {
                         $newAssoc = new AssociationCommandeArticle();
-                        $newAssoc->setIdCommande($commande->getId());
-                        $newAssoc->setIdArticle($articleId);
+                        $articleEntity = $entityManager->getRepository(Article::class)->find($articleId);
+                        $tailleEntity = $entityManager->getRepository(Taille::class)->findOneBy(['nom' => $taille]);
+                        $couleurEntity = $entityManager->getRepository(Couleur::class)->findOneBy(['nom' => $couleur]);
+
+                        $newAssoc->setCommande($commande);
+                        $newAssoc->setArticle($articleEntity);
                         $newAssoc->setNb($quantity);
-                        $newAssoc->setNomTaille($taille);
-                        $newAssoc->setNomCouleur($couleur);
+                        $newAssoc->setTaille($tailleEntity);
+                        $newAssoc->setCouleur($couleurEntity);
                         $entityManager->persist($newAssoc);
                     }
                 }
@@ -434,18 +459,18 @@ class OrderController extends AbstractController
             return $this->redirectToRoute('app_gestion_commandes_dota');
         }
 
-        $assocs = $entityManager->getRepository(AssociationCommandeArticle::class)->findBy(['idCommande' => $commande->getId()]);
+        $assocs = $entityManager->getRepository(AssociationCommandeArticle::class)->findBy(['commande' => $commande]);
         $itemsDetails = [];
         foreach ($assocs as $assoc) {
-            $article = $entityManager->getRepository(Article::class)->find($assoc->getIdArticle());
-            $taillesDispo = $entityManager->getRepository(AssociationTaillesArticle::class)->findBy(['idArticle' => $assoc->getIdArticle()]);
-            $couleursDispo = $entityManager->getRepository(AssociationCouleursArticle::class)->findBy(['idArticle' => $assoc->getIdArticle()]);
+            $article = $assoc->getArticle();
+            $taillesDispo = $entityManager->getRepository(AssociationTaillesArticle::class)->findBy(['article' => $article]);
+            $couleursDispo = $entityManager->getRepository(AssociationCouleursArticle::class)->findBy(['article' => $article]);
 
             $itemsDetails[] = [
                 'assoc' => $assoc,
                 'article' => $article,
-                'taillesDisponibles' => array_map(fn($t) => $t->getNomTaille(), $taillesDispo),
-                'couleursDisponibles' => array_map(fn($c) => $c->getNomCouleur(), $couleursDispo),
+                'taillesDisponibles' => array_map(fn($t) => $t->getTaille()?->getNom(), $taillesDispo),
+                'couleursDisponibles' => array_map(fn($c) => $c->getCouleur()?->getNom(), $couleursDispo),
             ];
         }
 

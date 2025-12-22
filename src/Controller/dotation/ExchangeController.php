@@ -33,7 +33,7 @@ class ExchangeController extends AbstractController
             $oldAssociation = $demande->getOldAssociationCommandeArticle();
             $oldArticle = null;
             if ($oldAssociation) {
-                $oldArticle = $entityManager->getRepository(Article::class)->find($oldAssociation->getIdArticle());
+                $oldArticle = $oldAssociation->getArticle();
             }
 
             $demandesDetails[] = [
@@ -85,13 +85,13 @@ class ExchangeController extends AbstractController
             $entityManager->persist($stockNewItem);
 
             $oldAssoc = $demande->getOldAssociationCommandeArticle();
-            $oldArticle = $entityManager->getRepository(Article::class)->find($oldAssoc->getIdArticle());
+            $oldArticle = $oldAssoc ? $oldAssoc->getArticle() : null;
             
             if ($oldArticle) {
                 $stockOldItem = $entityManager->getRepository(Stock::class)->findOneBy([
                     'referenceArticle' => $oldArticle->getReference(),
-                    'nomTaille' => $oldAssoc->getNomTaille(),
-                    'nomCouleur' => $oldAssoc->getNomCouleur(),
+                    'nomTaille' => $oldAssoc->getTaille()?->getNom(),
+                    'nomCouleur' => $oldAssoc->getCouleur()?->getNom(),
                 ]);
     
                 if ($stockOldItem) {
@@ -109,11 +109,15 @@ class ExchangeController extends AbstractController
             $entityManager->flush();
 
             $assocEchange = new AssociationCommandeArticle();
-            $assocEchange->setIdCommande($commandeEchange->getId());
-            $assocEchange->setIdArticle($newArticle->getId());
+            $newArticleEntity = $newArticle;
+            $tailleEntity = $entityManager->getRepository(\App\Entity\dotation\Taille::class)->findOneBy(['nom' => $newTaille]);
+            $couleurEntity = $entityManager->getRepository(\App\Entity\dotation\Couleur::class)->findOneBy(['nom' => $newCouleur]);
+
+            $assocEchange->setCommande($commandeEchange);
+            $assocEchange->setArticle($newArticleEntity);
             $assocEchange->setNb(1);
-            $assocEchange->setNomTaille($newTaille);
-            $assocEchange->setNomCouleur($newCouleur);
+            $assocEchange->setTaille($tailleEntity);
+            $assocEchange->setCouleur($couleurEntity);
             $entityManager->persist($assocEchange);
 
             $this->addFlash('success', 'L\'échange a été approuvé. Le stock a été mis à jour et une commande a été créée.');
@@ -145,9 +149,7 @@ class ExchangeController extends AbstractController
 
         foreach ($demandesEntities as $demande) {
             $oldAssoc = $demande->getOldAssociationCommandeArticle();
-            $oldArticle = $oldAssoc 
-                ? $entityManager->getRepository(Article::class)->find($oldAssoc->getIdArticle()) 
-                : null;
+            $oldArticle = $oldAssoc ? $oldAssoc->getArticle() : null;
 
             $newArticle = $demande->getNewArticle();
 
@@ -179,18 +181,18 @@ class ExchangeController extends AbstractController
         $commandes = [];
         foreach ($commandesEntities as $commande) {
             $assocs = $entityManager->getRepository(AssociationCommandeArticle::class)
-                ->findBy(['idCommande' => $commande->getId()]);
+                ->findBy(['commande' => $commande]);
 
             $items = [];
             foreach ($assocs as $assoc) {
-                $article = $entityManager->getRepository(Article::class)->find($assoc->getIdArticle());
+                $article = $assoc->getArticle();
                 if (!$article) continue;
 
                 $items[] = [
                     'assoc' => $assoc,
                     'article' => $article,
-                    'taille' => $assoc->getNomTaille(),
-                    'couleur' => $assoc->getNomCouleur(),
+                    'taille' => $assoc->getTaille()?->getNom(),
+                    'couleur' => $assoc->getCouleur()?->getNom(),
                 ];
             }
 

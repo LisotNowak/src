@@ -14,39 +14,40 @@ class AssociationCouleursArticle
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\Column]
-    private ?int $idArticle = null;
+    #[ORM\ManyToOne(targetEntity: Article::class, inversedBy: 'associationCouleurs')]
+    #[ORM\JoinColumn(name: 'id_article', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
+    private ?Article $article = null;
 
-    #[ORM\Column(length: 255)]
-    private ?string $nomCouleur = null;
+    #[ORM\ManyToOne(targetEntity: Couleur::class)]
+    #[ORM\JoinColumn(name: 'nom_couleur', referencedColumnName: 'nom', nullable: false, onDelete: 'CASCADE')]
+    private ?Couleur $couleur = null;
 
     public function getId(): ?int
     {
         return $this->id;
     }
 
-    public function getIdArticle(): ?int
+    public function getArticle(): ?Article
     {
-        return $this->idArticle;
+        return $this->article;
     }
 
-    public function setIdArticle(int $idArticle): static
+    public function setArticle(?Article $article): static
     {
-        $this->idArticle = $idArticle;
+        $this->article = $article;
 
         return $this;
     }
 
-    public function getNomCouleur(): ?string
+    public function getCouleur(): ?Couleur
     {
-        return $this->nomCouleur;
+        return $this->couleur;
     }
 
-    public function setNomCouleur(string $nomCouleur): static
+    public function setCouleur(?Couleur $couleur): static
     {
-        $this->nomCouleur = $nomCouleur;
+        $this->couleur = $couleur;
 
         return $this;
     }
-
 }

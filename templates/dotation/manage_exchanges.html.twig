@@ -51,7 +51,7 @@
                                 <td>
                                     {% if oldArticle %}
                                         {{ oldArticle.nom }}<br>
-                                        <small class="text-muted">Taille: {{ demande.oldAssociationCommandeArticle.nomTaille }}, Couleur: {{ demande.oldAssociationCommandeArticle.nomCouleur }}</small>
+                                        <small class="text-muted">Taille: {{ demande.oldAssociationCommandeArticle.taille.nom|default('') }}, Couleur: {{ demande.oldAssociationCommandeArticle.couleur.nom|default('') }}</small>
                                     {% else %}
                                         Article non trouvé
                                     {% endif %}

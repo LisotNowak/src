@@ -29,12 +29,12 @@ class ArticleController extends AbstractController
         }
 
         $taillesAssoc = $entityManager->getRepository(AssociationTaillesArticle::class)
-            ->findBy(['idArticle' => $id]);
-        $taillesNoms = array_map(fn($assoc) => $assoc->getNomTaille(), $taillesAssoc);
+            ->findBy(['article' => $article]);
+        $taillesNoms = array_map(fn($assoc) => $assoc->getTaille()?->getNom(), $taillesAssoc);
 
         $couleursAssoc = $entityManager->getRepository(AssociationCouleursArticle::class)
-            ->findBy(['idArticle' => $id]);
-        $couleursNoms = array_map(fn($assoc) => $assoc->getNomCouleur(), $couleursAssoc);
+            ->findBy(['article' => $article]);
+        $couleursNoms = array_map(fn($assoc) => $assoc->getCouleur()?->getNom(), $couleursAssoc);
 
         return new JsonResponse([
             'id' => $article->getId(),
@@ -126,20 +126,21 @@ class ArticleController extends AbstractController
         $entityManager->persist($article);
         $entityManager->flush();
 
-        $entityManager->createQuery('DELETE FROM ' . AssociationTaillesArticle::class . ' a WHERE a.idArticle = :id')
-            ->setParameter('id', $article->getId())
+        // Delete old associations by entity reference
+        $entityManager->createQuery('DELETE FROM ' . AssociationTaillesArticle::class . ' a WHERE a.article = :article')
+            ->setParameter('article', $article)
             ->execute();
 
-        $entityManager->createQuery('DELETE FROM ' . AssociationCouleursArticle::class . ' c WHERE c.idArticle = :id')
-            ->setParameter('id', $article->getId())
+        $entityManager->createQuery('DELETE FROM ' . AssociationCouleursArticle::class . ' c WHERE c.article = :article')
+            ->setParameter('article', $article)
             ->execute();
 
         foreach ($tailleNoms as $tailleNom) {
             $taille = $entityManager->getRepository(Taille::class)->findOneBy(['nom' => $tailleNom]);
             if ($taille) {
                 $assocTaille = new AssociationTaillesArticle();
-                $assocTaille->setIdArticle($article->getId());
-                $assocTaille->setNomTaille($taille->getNom());
+                $assocTaille->setArticle($article);
+                $assocTaille->setTaille($taille);
                 $entityManager->persist($assocTaille);
             }
         }
@@ -148,8 +149,8 @@ class ArticleController extends AbstractController
             $couleur = $entityManager->getRepository(Couleur::class)->findOneBy(['nom' => $couleurNom]);
             if ($couleur) {
                 $assocCouleur = new AssociationCouleursArticle();
-                $assocCouleur->setIdArticle($article->getId());
-                $assocCouleur->setNomCouleur($couleur->getNom());
+                $assocCouleur->setArticle($article);
+                $assocCouleur->setCouleur($couleur);
                 $entityManager->persist($assocCouleur);
             }
         }

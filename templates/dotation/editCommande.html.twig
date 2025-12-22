@@ -43,7 +43,7 @@
                         <td>
                             <select name="items[{{ assocId }}][taille]" class="form-select">
                                 {% for taille in item.taillesDisponibles %}
-                                    <option value="{{ taille }}" {{ item.assoc.nomTaille == taille ? 'selected' : '' }}>
+                                    <option value="{{ taille }}" {{ (item.assoc.taille.nom|default('')) == taille ? 'selected' : '' }}>
                                         {{ taille }}
                                     </option>
                                 {% endfor %}
@@ -52,7 +52,7 @@
                         <td>
                             <select name="items[{{ assocId }}][couleur]" class="form-select">
                                 {% for couleur in item.couleursDisponibles %}
-                                    <option value="{{ couleur }}" {{ item.assoc.nomCouleur == couleur ? 'selected' : '' }}>
+                                    <option value="{{ couleur }}" {{ (item.assoc.couleur.nom|default('')) == couleur ? 'selected' : '' }}>
                                         {{ couleur }}
                                     </option>
                                 {% endfor %}

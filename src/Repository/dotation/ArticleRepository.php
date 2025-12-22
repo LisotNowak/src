@@ -6,9 +6,6 @@ use App\Entity\dotation\Article;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
-/**
- * @extends ServiceEntityRepository<Article>
- */
 class ArticleRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
@@ -16,29 +13,23 @@ class ArticleRepository extends ServiceEntityRepository
         parent::__construct($registry, Article::class);
     }
 
+    /**
+     * Chargement optimisé pour la page dotation
+     * Évite complètement le N+1 pour tailles/couleurs
+     */
+    public function findAllForDotation(): array
+    {
+        return $this->createQueryBuilder('a')
+            // tailles
+            ->leftJoin('a.associationTailles', 'ata')->addSelect('ata')
+            ->leftJoin('ata.taille', 'ta')->addSelect('ta')
 
-    //    /**
-    //     * @return Article[] Returns an array of Article objects
-    //     */
-    //    public function findByExampleField($value): array
-    //    {
-    //        return $this->createQueryBuilder('u')
-    //            ->andWhere('u.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->orderBy('u.id', 'ASC')
-    //            ->setMaxResults(10)
-    //            ->getQuery()
-    //            ->getResult()
-    //        ;
-    //    }
+            // couleurs
+            ->leftJoin('a.associationCouleurs', 'aca')->addSelect('aca')
+            ->leftJoin('aca.couleur', 'co')->addSelect('co')
 
-    //    public function findOneBySomeField($value): ?Article
-    //    {
-    //        return $this->createQueryBuilder('u')
-    //            ->andWhere('u.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->getQuery()
-    //            ->getOneOrNullResult()
-    //        ;
-    //    }
+            ->orderBy('a.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
 }

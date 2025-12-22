@@ -16,29 +16,15 @@ class AssociationCommandeArticleRepository extends ServiceEntityRepository
         parent::__construct($registry, AssociationCommandeArticle::class);
     }
 
-
-    //    /**
-    //     * @return AssociationCommandeArticle[] Returns an array of AssociationCommandeArticle objects
-    //     */
-    //    public function findByExampleField($value): array
-    //    {
-    //        return $this->createQueryBuilder('u')
-    //            ->andWhere('u.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->orderBy('u.id', 'ASC')
-    //            ->setMaxResults(10)
-    //            ->getQuery()
-    //            ->getResult()
-    //        ;
-    //    }
-
-    //    public function findOneBySomeField($value): ?AssociationCommandeArticle
-    //    {
-    //        return $this->createQueryBuilder('u')
-    //            ->andWhere('u.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->getQuery()
-    //            ->getOneOrNullResult()
-    //        ;
-    //    }
+    public function findAllForDotation(): array
+    {
+        return $this->createQueryBuilder('aca')
+            ->leftJoin('aca.article', 'a')->addSelect('a')
+            ->leftJoin('aca.taille', 'ta')->addSelect('ta')
+            ->leftJoin('aca.couleur', 'co')->addSelect('co')
+            ->leftJoin('aca.commande', 'c')->addSelect('c')
+            ->orderBy('aca.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
 }

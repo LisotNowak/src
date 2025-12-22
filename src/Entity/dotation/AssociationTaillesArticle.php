@@ -7,7 +7,6 @@ use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: AssociationTaillesArticleRepository::class)]
 #[ORM\Table(name: "association_tailles_article", schema: "dotation")]
-
 class AssociationTaillesArticle
 {
     #[ORM\Id]
@@ -15,46 +14,40 @@ class AssociationTaillesArticle
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\Column]
-    private ?int $idArticle = null;
+    #[ORM\ManyToOne(targetEntity: Article::class, inversedBy: 'associationTailles')]
+    #[ORM\JoinColumn(name: 'id_article', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
+    private ?Article $article = null;
 
-    #[ORM\Column(length: 255)]
-    private ?string $nomTaille = null;
+    #[ORM\ManyToOne(targetEntity: Taille::class)]
+    #[ORM\JoinColumn(name: 'nom_taille', referencedColumnName: 'nom', nullable: false, onDelete: 'CASCADE')]
+    private ?Taille $taille = null;
 
     public function getId(): ?int
     {
         return $this->id;
     }
 
-    public function setId(int $id): static
+    public function getArticle(): ?Article
     {
-        $this->id = $id;
+        return $this->article;
+    }
+
+    public function setArticle(?Article $article): static
+    {
+        $this->article = $article;
 
         return $this;
     }
 
-    public function getIdArticle(): ?int
+    public function getTaille(): ?Taille
     {
-        return $this->idArticle;
+        return $this->taille;
     }
 
-    public function setIdArticle(int $idArticle): static
+    public function setTaille(?Taille $taille): static
     {
-        $this->idArticle = $idArticle;
+        $this->taille = $taille;
 
         return $this;
     }
-
-    public function getNomTaille(): ?string
-    {
-        return $this->nomTaille;
-    }
-
-    public function setNomTaille(string $nomTaille): static
-    {
-        $this->nomTaille = $nomTaille;
-
-        return $this;
-    }
-
 }

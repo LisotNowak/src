@@ -14,19 +14,23 @@ class AssociationCommandeArticle
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\Column]
-    private ?int $idArticle = null;
+    #[ORM\ManyToOne(targetEntity: Article::class)]
+    #[ORM\JoinColumn(name: 'id_article', referencedColumnName: 'id', nullable: true, onDelete: 'CASCADE')]
+    private ?Article $article = null;
 
-    #[ORM\Column(length: 255)]
-    private ?string $nomCouleur = null;
+    #[ORM\ManyToOne(targetEntity: Taille::class)]
+    #[ORM\JoinColumn(name: 'nom_taille', referencedColumnName: 'nom', nullable: true, onDelete: 'CASCADE')]
+    private ?Taille $taille = null;
 
-    #[ORM\Column(length: 255)]
-    private ?string $nomTaille = null;
+    #[ORM\ManyToOne(targetEntity: Couleur::class)]
+    #[ORM\JoinColumn(name: 'nom_couleur', referencedColumnName: 'nom', nullable: true, onDelete: 'CASCADE')]
+    private ?Couleur $couleur = null;
 
-    #[ORM\Column]
-    private ?int $idCommande = null;
+    #[ORM\ManyToOne(targetEntity: Commande::class)]
+    #[ORM\JoinColumn(name: 'id_commande', referencedColumnName: 'id', nullable: true, onDelete: 'CASCADE')]
+    private ?Commande $commande = null;
 
-    #[ORM\Column]
+    #[ORM\Column(nullable: true)]
     private ?int $nb = null;
 
     public function getId(): ?int
@@ -34,38 +38,50 @@ class AssociationCommandeArticle
         return $this->id;
     }
 
-    public function getIdArticle(): ?int
+    public function getArticle(): ?Article
     {
-        return $this->idArticle;
+        return $this->article;
     }
 
-    public function setIdArticle(int $idArticle): static
+    public function setArticle(?Article $article): static
     {
-        $this->idArticle = $idArticle;
+        $this->article = $article;
 
         return $this;
     }
 
-    public function getNomTaille(): ?string
+    public function getTaille(): ?Taille
     {
-        return $this->nomTaille;
+        return $this->taille;
     }
 
-    public function setNomTaille(string $nomTaille): static
+    public function setTaille(?Taille $taille): static
     {
-        $this->nomTaille = $nomTaille;
+        $this->taille = $taille;
 
         return $this;
     }
 
-    public function getNomCouleur(): ?string
+    public function getCouleur(): ?Couleur
     {
-        return $this->nomCouleur;
+        return $this->couleur;
     }
 
-    public function setNomCouleur(string $nomCouleur): static
+    public function setCouleur(?Couleur $couleur): static
     {
-        $this->nomCouleur = $nomCouleur;
+        $this->couleur = $couleur;
+
+        return $this;
+    }
+
+    public function getCommande(): ?Commande
+    {
+        return $this->commande;
+    }
+
+    public function setCommande(?Commande $commande): static
+    {
+        $this->commande = $commande;
 
         return $this;
     }
@@ -75,23 +91,10 @@ class AssociationCommandeArticle
         return $this->nb;
     }
 
-    public function setNb(int $nb): static
+    public function setNb(?int $nb): static
     {
         $this->nb = $nb;
 
         return $this;
     }
-
-    public function getIdCommande(): ?int
-    {
-        return $this->idCommande;
-    }
-
-    public function setIdCommande(int $idCommande): static
-    {
-        $this->idCommande = $idCommande;
-
-        return $this;
-    }
-
 }

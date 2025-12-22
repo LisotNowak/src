@@ -3,6 +3,8 @@
 namespace App\Entity\dotation;
 
 use App\Repository\dotation\ArticleRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: ArticleRepository::class)]
@@ -34,6 +36,18 @@ class Article
 
     #[ORM\Column(length: 255)]
     private ?string $image = null;
+
+    #[ORM\OneToMany(mappedBy: 'article', targetEntity: AssociationTaillesArticle::class, cascade: ['persist','remove'])]
+    private Collection $associationTailles;
+
+    #[ORM\OneToMany(mappedBy: 'article', targetEntity: AssociationCouleursArticle::class, cascade: ['persist','remove'])]
+    private Collection $associationCouleurs;
+
+    public function __construct()
+    {
+        $this->associationTailles = new ArrayCollection();
+        $this->associationCouleurs = new ArrayCollection();
+    }
 
     public function getId(): ?int
     {
@@ -120,6 +134,64 @@ class Article
     public function setImage(string $image): static
     {
         $this->image = $image;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection|AssociationTaillesArticle[]
+     */
+    public function getAssociationTailles(): Collection
+    {
+        return $this->associationTailles;
+    }
+
+    public function addAssociationTaille(AssociationTaillesArticle $associationTaillesArticle): static
+    {
+        if (!$this->associationTailles->contains($associationTaillesArticle)) {
+            $this->associationTailles->add($associationTaillesArticle);
+            $associationTaillesArticle->setArticle($this);
+        }
+
+        return $this;
+    }
+
+    public function removeAssociationTaille(AssociationTaillesArticle $associationTaillesArticle): static
+    {
+        if ($this->associationTailles->removeElement($associationTaillesArticle)) {
+            if ($associationTaillesArticle->getArticle() === $this) {
+                $associationTaillesArticle->setArticle(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection|AssociationCouleursArticle[]
+     */
+    public function getAssociationCouleurs(): Collection
+    {
+        return $this->associationCouleurs;
+    }
+
+    public function addAssociationCouleur(AssociationCouleursArticle $associationCouleursArticle): static
+    {
+        if (!$this->associationCouleurs->contains($associationCouleursArticle)) {
+            $this->associationCouleurs->add($associationCouleursArticle);
+            $associationCouleursArticle->setArticle($this);
+        }
+
+        return $this;
+    }
+
+    public function removeAssociationCouleur(AssociationCouleursArticle $associationCouleursArticle): static
+    {
+        if ($this->associationCouleurs->removeElement($associationCouleursArticle)) {
+            if ($associationCouleursArticle->getArticle() === $this) {
+                $associationCouleursArticle->setArticle(null);
+            }
+        }
 
         return $this;
     }

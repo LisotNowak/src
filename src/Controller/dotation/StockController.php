@@ -26,23 +26,25 @@ class StockController extends AbstractController
         $produitsAvecDetails = [];
 
         foreach ($listeArticles as $article) {
-            $tailles = $entityManager->getRepository(AssociationTaillesArticle::class)->findBy(['idArticle' => $article->getId()]);
-            $assoCouleurs = $entityManager->getRepository(AssociationCouleursArticle::class)->findBy(['idArticle' => $article->getId()]);
+            $tailles = $entityManager->getRepository(AssociationTaillesArticle::class)->findBy(['article' => $article]);
+            $assoCouleurs = $entityManager->getRepository(AssociationCouleursArticle::class)->findBy(['article' => $article]);
             $stocks = $entityManager->getRepository(Stock::class)->findBy(['referenceArticle' => $article->getReference()]);
             $stockDetails = [];
             
-            foreach ($tailles as $taille) {
+            foreach ($tailles as $tailleAssoc) {
                 foreach ($assoCouleurs as $assoCouleur) {
-                    $stock = array_filter($stocks, function ($s) use ($taille, $assoCouleur) {
-                        return $s->getNomTaille() === $taille->getNomTaille() && $s->getNomCouleur() === $assoCouleur->getNomCouleur();
+                    $stock = array_filter($stocks, function ($s) use ($tailleAssoc, $assoCouleur) {
+                        $tailleNom = $tailleAssoc->getTaille()?->getNom();
+                        $couleurNom = $assoCouleur->getCouleur()?->getNom();
+                        return $s->getNomTaille() === $tailleNom && $s->getNomCouleur() === $couleurNom;
                     });
-                    $couleur = $entityManager->getRepository(Couleur::class)->findOneBy(['nom' => $assoCouleur->getNomCouleur()]);
-       
+                    $couleur = $assoCouleur->getCouleur();
+
                     $stockDetails[] = [
-                        'taille' => $taille->getNomTaille(),
-                        'couleur' => $assoCouleur->getNomCouleur(),
+                        'taille' => $tailleAssoc->getTaille()?->getNom(),
+                        'couleur' => $assoCouleur->getCouleur()?->getNom(),
                         'stock' => $stock ? reset($stock)->getStock() : 0,
-                        'codeCouleur' => $couleur->getCodeCouleur(),
+                        'codeCouleur' => $couleur ? $couleur->getCodeCouleur() : null,
                     ];
                 }
             }

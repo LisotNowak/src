@@ -16,29 +16,13 @@ class AssociationCouleursArticleRepository extends ServiceEntityRepository
         parent::__construct($registry, AssociationCouleursArticle::class);
     }
 
-
-    //    /**
-    //     * @return AssociationCouleursArticle[] Returns an array of AssociationCouleursArticle objects
-    //     */
-    //    public function findByExampleField($value): array
-    //    {
-    //        return $this->createQueryBuilder('u')
-    //            ->andWhere('u.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->orderBy('u.id', 'ASC')
-    //            ->setMaxResults(10)
-    //            ->getQuery()
-    //            ->getResult()
-    //        ;
-    //    }
-
-    //    public function findOneBySomeField($value): ?AssociationCouleursArticle
-    //    {
-    //        return $this->createQueryBuilder('u')
-    //            ->andWhere('u.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->getQuery()
-    //            ->getOneOrNullResult()
-    //        ;
-    //    }
+    public function findAllForDotation(): array
+    {
+        return $this->createQueryBuilder('aca')
+            ->leftJoin('aca.article', 'a')->addSelect('a')
+            ->leftJoin('aca.couleur', 'co')->addSelect('co')
+            ->orderBy('aca.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
 }

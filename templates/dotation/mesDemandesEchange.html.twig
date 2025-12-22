@@ -47,8 +47,8 @@
                                 <td>
                                     {% if entry.oldArticle %}
                                         {{ entry.oldArticle.nom }}<br>
-                                        Taille : {{ entry.oldAssoc.nomTaille }}<br>
-                                        Couleur : {{ entry.oldAssoc.nomCouleur }}
+                                        Taille : {{ entry.oldAssoc.taille.nom|default('') }}<br>
+                                        Couleur : {{ entry.oldAssoc.couleur.nom|default('') }}
                                     {% else %}
                                         Article supprimé
                                     {% endif %}
