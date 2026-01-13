@@ -76,10 +76,11 @@
                             data-client-nom="{{ client.triNom|default('') }}"
                             data-client-prenom="{{ client.triPrenom|default('') }}"
                             data-client-adresse1="{{ client.adresse1|default('') }}"
-                            data-client-adresse2="{{ client.adresse2|default('') }}"
                             data-client-codepostal="{{ client.codePostal|default('') }}"
                             data-client-ville="{{ client.ville|default('') }}"
                             data-client-pays="{{ client.pays|default('') }}"
+                            data-client-societe="{{ client.societeNom|default('') }}"
+                            data-client-categorie="{{ client.categorieEntity ? client.categorieEntity.id : '' }}"
                             style="cursor: pointer;">
                             
                             <td data-bs-toggle="modal" data-bs-target="#addressModal">{{ loop.index }}</td>
@@ -156,50 +157,71 @@
 
 <!-- Modal -->
 <div class="modal fade" id="addressModal" tabindex="-1" aria-labelledby="addressModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
+  <div class="modal-dialog modal-lg">
     <div class="modal-content">
+
       <div class="modal-header">
-        <h5 class="modal-title" id="addressModalLabel">Modifier l'adresse</h5>
+        <h5 class="modal-title" id="addressModalLabel">Modifier les informations</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
+
       <div class="modal-body">
         <form id="addressForm">
-            <input type="hidden" id="modalClientId" name="clientId">
-            <div class="mb-3">
-                <label for="modalNom" class="form-label">Nom</label>
-                <input type="text" class="form-control" id="modalNom">
-            </div>
-            <div class="mb-3">
-                <label for="modalPrenom" class="form-label">Prénom</label>
-                <input type="text" class="form-control" id="modalPrenom">
+            <input type="hidden" id="modalClientId">
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Nom</label>
+                    <input type="text" class="form-control" id="modalNom">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Prénom</label>
+                    <input type="text" class="form-control" id="modalPrenom">
+                </div>
             </div>
 
             <div class="mb-3">
-                <label for="modalAdresse1" class="form-label">Adresse 1</label>
+                <label class="form-label">Adresse</label>
                 <input type="text" class="form-control" id="modalAdresse1">
             </div>
-            <div class="mb-3" hidden>
-                <label for="modalAdresse2" class="form-label">Adresse 2</label>
-                <input type="text" class="form-control" id="modalAdresse2">
+
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Code postal</label>
+                    <input type="text" class="form-control" id="modalCodePostal">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Ville</label>
+                    <input type="text" class="form-control" id="modalVille">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Pays</label>
+                    <input type="text" class="form-control" id="modalPays">
+                </div>
             </div>
+
             <div class="mb-3">
-                <label for="modalCodePostal" class="form-label">Code Postal</label>
-                <input type="text" class="form-control" id="modalCodePostal">
+                <label class="form-label">Société</label>
+                <input type="text" class="form-control" id="modalSociete">
             </div>
+
             <div class="mb-3">
-                <label for="modalVille" class="form-label">Ville</label>
-                <input type="text" class="form-control" id="modalVille">
-            </div>
-            <div class="mb-3">
-                <label for="modalPays" class="form-label">Pays</label>
-                <input type="text" class="form-control" id="modalPays">
+                <label class="form-label">Catégorie</label>
+                <select class="form-select" id="modalCategorie">
+                    <option value="">-- Aucune --</option>
+                    {% for cat in categories %}
+                        <option value="{{ cat.id }}">{{ cat.nomCategorie }}</option>
+                    {% endfor %}
+                </select>
             </div>
         </form>
       </div>
+
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
         <button type="button" class="btn btn-primary" id="saveAddressBtn">Enregistrer</button>
       </div>
+
     </div>
   </div>
 </div>
@@ -280,25 +302,31 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const clientId = row.dataset.clientId;
         const adresse1 = row.dataset.clientAdresse1;
-        const adresse2 = row.dataset.clientAdresse2;
         const codePostal = row.dataset.clientCodepostal;
         const ville = row.dataset.clientVille;
         const pays = row.dataset.clientPays;
         const nom = row.dataset.clientNom;
         const prenom = row.dataset.clientPrenom;
+        const societe = row.dataset.clientSociete;
+        const categorieId = row.dataset.clientCategorie;
 
         document.getElementById('modalNom').value = nom;
         document.getElementById('modalPrenom').value = prenom;
         document.getElementById('modalClientId').value = clientId;
         document.getElementById('modalAdresse1').value = adresse1;
-        document.getElementById('modalAdresse2').value = adresse2;
         document.getElementById('modalCodePostal').value = codePostal;
         document.getElementById('modalVille').value = ville;
         document.getElementById('modalPays').value = pays;
+        document.getElementById('modalSociete').value = societe || '';
+        const categorieSelect = document.getElementById('modalCategorie');
+        if (categorieSelect) {
+            categorieSelect.value = categorieId || '';
+        }
+
     });
 
 
-    document.getElementById('saveAddressBtn').addEventListener('click', function() {
+        document.getElementById('saveAddressBtn').addEventListener('click', function() {
         const clientId = document.getElementById('modalClientId').value;
         const urlTemplate = "{{ path('app_client_update_address', {id: 'ID_PLACEHOLDER'}) }}";
         const url = urlTemplate.replace('ID_PLACEHOLDER', clientId);
@@ -307,10 +335,12 @@ document.addEventListener('DOMContentLoaded', function() {
             nom: document.getElementById('modalNom').value,
             prenom: document.getElementById('modalPrenom').value,
             adresse1: document.getElementById('modalAdresse1').value,
-            adresse2: document.getElementById('modalAdresse2').value,
+            adresse2: document.getElementById('modalAdresse2')?.value || '',
             codePostal: document.getElementById('modalCodePostal').value,
             ville: document.getElementById('modalVille').value,
             pays: document.getElementById('modalPays').value,
+            societe: document.getElementById('modalSociete').value,
+            categorie: document.getElementById('modalCategorie').value, // ⚡ ajouté
         };
 
         fetch(url, {
@@ -323,25 +353,29 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => response.json())
         .then(result => {
-            if (result.success && result.client) {
-                const updatedClient = result.client;
+            if (result.success && currentRow) {
+                // Mise à jour du tableau côté client
+                currentRow.cells[1].textContent = data.nom || '';
+                currentRow.cells[2].textContent = data.prenom || '';
+                currentRow.cells[3].textContent = data.ville || '';
+                currentRow.cells[4].textContent = data.pays || '';
+                currentRow.cells[5].textContent = data.societe || '';
+                
+                // Mettre à jour la catégorie
+                const categorieSelect = document.getElementById('modalCategorie');
+                const selectedOption = categorieSelect.options[categorieSelect.selectedIndex];
+                currentRow.cells[6].textContent = selectedOption ? selectedOption.text : 'Aucune';
 
-                if (currentRow) {
-                    // Mise à jour du texte des cellules
-                    currentRow.cells[1].textContent = updatedClient.nom || '';
-                    currentRow.cells[2].textContent = updatedClient.prenom || '';
-                    currentRow.cells[3].textContent = updatedClient.ville || '';
-                    currentRow.cells[4].textContent = updatedClient.pays || '';
-
-                    // Mise à jour des attributs data
-                    currentRow.dataset.clientNom = updatedClient.nom || '';
-                    currentRow.dataset.clientPrenom = updatedClient.prenom || '';
-                    currentRow.dataset.clientAdresse1 = updatedClient.adresse1 || '';
-                    currentRow.dataset.clientAdresse2 = updatedClient.adresse2 || '';
-                    currentRow.dataset.clientCodepostal = updatedClient.codePostal || '';
-                    currentRow.dataset.clientVille = updatedClient.ville || '';
-                    currentRow.dataset.clientPays = updatedClient.pays || '';
-                }
+                // Mise à jour des data-* pour les futures ouvertures de modale
+                currentRow.dataset.clientNom = data.nom || '';
+                currentRow.dataset.clientPrenom = data.prenom || '';
+                currentRow.dataset.clientAdresse1 = data.adresse1 || '';
+                currentRow.dataset.clientAdresse2 = data.adresse2 || '';
+                currentRow.dataset.clientCodepostal = data.codePostal || '';
+                currentRow.dataset.clientVille = data.ville || '';
+                currentRow.dataset.clientPays = data.pays || '';
+                currentRow.dataset.clientSociete = data.societe || '';
+                currentRow.dataset.clientCategorie = data.categorie || '';
 
                 // Fermer la modale
                 $('#addressModal').modal('hide');
@@ -350,7 +384,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
         .catch((error) => {
-            console.error('Erreur dans le traitement de la réponse:', error);
+            console.error('Erreur:', error);
             alert('Une erreur est survenue lors de la mise à jour de l\'affichage.');
         });
     });

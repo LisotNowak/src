@@ -224,60 +224,38 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
     }
 
     #[Route('/client/{id}/update-address', name: 'app_client_update_address', methods: ['POST'])]
-    public function updateAddress(Request $request, ManagerRegistry $doctrine, Client $client): Response
-    {
+    public function updateAddress(
+        Request $request,
+        ManagerRegistry $doctrine,
+        Client $client
+    ): JsonResponse {
         if (!$request->isXmlHttpRequest()) {
-            return new JsonResponse(['success' => false, 'error' => 'Requête non autorisée'], 400);
+            return new JsonResponse(['success' => false], 400);
         }
 
         $data = json_decode($request->getContent(), true);
-
-        // Mettre à jour Nom et Prénom
-        if (isset($data['nom'])) {
-            $client->setTriNom($data['nom']);
-        }
-        if (isset($data['prenom'])) {
-            $client->setTriPrenom($data['prenom']);
-        }
-
-        // Mettre à jour les champs de l'adresse
-        if (isset($data['adresse1'])) {
-            $client->setAdresse1($data['adresse1']);
-        }
-        if (isset($data['adresse2'])) {
-            $client->setAdresse2($data['adresse2']);
-        }
-        if (isset($data['codePostal'])) {
-            $client->setCodePostal($data['codePostal']);
-        }
-        if (isset($data['ville'])) {
-            $client->setVille($data['ville']);
-        }
-        if (isset($data['pays'])) {
-            $client->setPays($data['pays']);
-        }
-
         $em = $doctrine->getManager();
-        $em->persist($client);
+
+        $client->setTriNom($data['nom'] ?? '');
+        $client->setTriPrenom($data['prenom'] ?? '');
+        $client->setAdresse1($data['adresse1'] ?? '');
+        $client->setCodePostal($data['codePostal'] ?? '');
+        $client->setVille($data['ville'] ?? '');
+        $client->setPays($data['pays'] ?? '');
+        $client->setSocieteNom($data['societe'] ?? '');
+
+        if (!empty($data['categorie'])) {
+            $categorie = $em->getRepository(Categorie::class)->find($data['categorie']);
+            $client->setCategorieEntity($categorie);
+        } else {
+            $client->setCategorieEntity(null);
+        }
+
         $em->flush();
 
-        // Retourner les données mises à jour pour rafraîchir la vue
-        $responseData = [
-            'success' => true,
-            'client' => [
-                'id' => $client->getId(),
-                'nom' => $client->getTriNom(),
-                'prenom' => $client->getTriPrenom(),
-                'adresse1' => $client->getAdresse1(),
-                'adresse2' => $client->getAdresse2(),
-                'codePostal' => $client->getCodePostal(),
-                'ville' => $client->getVille(),
-                'pays' => $client->getPays(),
-            ]
-        ];
-
-        return new JsonResponse($responseData);
+        return new JsonResponse(['success' => true]);
     }
+
 
 
     #[Route('/clients/delete', name: 'app_client_delete_list')]
