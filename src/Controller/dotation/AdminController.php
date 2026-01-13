@@ -27,7 +27,7 @@ class AdminController extends AbstractController
             return $this->redirectToRoute('app_accueil');
         }
 
-        $listeArticles = $entityManager->getRepository(Article::class)->findAll();
+        $listeArticles = $entityManager->getRepository(Article::class)->findBy([], ['nomType' => 'ASC']);
         $listeCouleurs = $entityManager->getRepository(Couleur::class)->findAll();
 
         $listeAssociationTaillesArticle = $entityManager->getRepository(AssociationTaillesArticle::class)->findAll();
