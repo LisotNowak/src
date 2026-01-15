@@ -43,6 +43,9 @@ class OrderController extends AbstractController
             $targetUser = $entityManager->getRepository(User::class)->find($targetId);
         }
 
+        // Déterminer l'utilisateur dont les points doivent être déduits
+        $userToDeduct = $targetUser ?? $user;
+
         date_default_timezone_set('Europe/Paris');
 
         $commande = new Commande();
@@ -52,6 +55,9 @@ class OrderController extends AbstractController
 
         $entityManager->persist($commande);
         $entityManager->flush();
+
+        // Calculer le total des points du panier
+        $totalPoints = 0;
 
         foreach ($panier as $item) {
             $article = $entityManager->getRepository(Article::class)->find($item['id']);
@@ -68,9 +74,18 @@ class OrderController extends AbstractController
             $associationCommandeArticle->setCouleur($couleurEntity);
             $associationCommandeArticle->setNb($item['quantite']);
 
+            // Ajouter au total des points
+            $totalPoints += $article->getPoint() * $item['quantite'];
+
             $entityManager->persist($associationCommandeArticle);
         }
 
+        // Déduire les points du compte de l'utilisateur
+        $currentPoints = $userToDeduct->getPointDotation() ?? 0;
+        $newPoints = max(0, $currentPoints - $totalPoints);
+        $userToDeduct->setPointDotation($newPoints);
+
+        $entityManager->persist($userToDeduct);
         $entityManager->flush();
 
         $session->remove('cart');
