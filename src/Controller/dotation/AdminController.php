@@ -53,9 +53,9 @@ class AdminController extends AbstractController
             'listeAssociationCouleursArticle' => $listeAssociationCouleursArticle,
         ];
 
-        if ($this->isGranted('ROLE_ADMIN')) {
-            $params['listeUsers'] = $entityManager->getRepository(User::class)->findAll();
-        }
+        // if ($this->isGranted('ROLE_ADMIN')) {
+        //     $params['listeUsers'] = $entityManager->getRepository(User::class)->findAll();
+        // }
 
         return $this->render('dotation/index.html.twig', $params);
     }
@@ -84,9 +84,9 @@ class AdminController extends AbstractController
     {
         $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
 
-        if (!$this->isGranted('ROLE_ADMIN')) {
-            return new JsonResponse(['success' => false, 'message' => 'Accès refusé'], 403);
-        }
+        // if (!$this->isGranted('ROLE_ADMIN')) {
+        //     return new JsonResponse(['success' => false, 'message' => 'Accès refusé'], 403);
+        // }
 
         $data = json_decode($request->getContent(), true);
         $userId = $data['user_id'] ?? null;
@@ -146,9 +146,9 @@ class AdminController extends AbstractController
     {
         $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
 
-        if (!$this->isGranted('ROLE_ADMIN')) {
-            return new JsonResponse(['success' => false, 'message' => 'Accès refusé'], 403);
-        }
+        // if (!$this->isGranted('ROLE_ADMIN')) {
+        //     return new JsonResponse(['success' => false, 'message' => 'Accès refusé'], 403);
+        // }
 
         $data = json_decode($request->getContent(), true);
         $token = $data['_csrf_token'] ?? '';

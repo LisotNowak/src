@@ -44,9 +44,9 @@ class UserPointsController extends AbstractController
     {
         $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
 
-        if (!$this->isGranted('ROLE_ADMIN')) {
-            return new JsonResponse(['success' => false, 'message' => 'Accès refusé'], 403);
-        }
+        // if (!$this->isGranted('ROLE_ADMIN')) {
+        //     return new JsonResponse(['success' => false, 'message' => 'Accès refusé'], 403);
+        // }
 
         $data = json_decode($request->getContent(), true);
         $userId = $data['user_id'] ?? null;

@@ -21,10 +21,10 @@ class ExchangeController extends AbstractController
     {
         $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
 
-        if (!$this->isGranted('ROLE_ADMIN')) {
-            $this->addFlash('danger', 'Accès refusé.');
-            return $this->redirectToRoute('app_index_dota');
-        }
+        // if (!$this->isGranted('ROLE_ADMIN')) {
+        //     $this->addFlash('danger', 'Accès refusé.');
+        //     return $this->redirectToRoute('app_index_dota');
+        // }
 
         $demandes = $entityManager->getRepository(DemandeEchange::class)->findBy([], ['dateDemande' => 'DESC']);
 
@@ -53,10 +53,10 @@ class ExchangeController extends AbstractController
     {
         $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
 
-        if (!$this->isGranted('ROLE_ADMIN')) {
-            $this->addFlash('danger', 'Accès refusé.');
-            return $this->redirectToRoute('app_admin_manage_exchanges');
-        }
+        // if (!$this->isGranted('ROLE_ADMIN')) {
+        //     $this->addFlash('danger', 'Accès refusé.');
+        //     return $this->redirectToRoute('app_admin_manage_exchanges');
+        // }
 
         $demande = $entityManager->getRepository(DemandeEchange::class)->find($id);
         $status = $request->request->get('status');

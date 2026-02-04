@@ -394,10 +394,10 @@ class OrderController extends AbstractController
     {
         $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
 
-        if (!$this->isGranted('ROLE_ADMIN')) {
-            $this->addFlash('error', 'Accès non autorisé.');
-            return $this->redirectToRoute('app_gestion_commandes_dota');
-        }
+        // if (!$this->isGranted('ROLE_ADMIN')) {
+        //     $this->addFlash('error', 'Accès non autorisé.');
+        //     return $this->redirectToRoute('app_gestion_commandes_dota');
+        // }
 
         $commande = $entityManager->getRepository(Commande::class)->find($id);
         if (!$commande) {
