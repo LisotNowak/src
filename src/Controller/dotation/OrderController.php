@@ -219,9 +219,21 @@ class OrderController extends AbstractController
                     continue;
                 }
 
+                // Récupérer les informations de l'utilisateur via son email
+                $user = $entityManager->getRepository(User::class)->findOneBy(['email' => $commande->getUserMail()]);
+                $userName = '';
+                if ($user) {
+                    $nom = $user->getNom() ?? '';
+                    $prenom = $user->getPrenom() ?? '';
+                    $userName = trim($prenom . ' ' . $nom) ?: $commande->getUserMail();
+                } else {
+                    $userName = $commande->getUserMail();
+                }
+
                 $commandes[] = [
                     'commande' => $commande,
                     'items' => $items,
+                    'userName' => $userName,
                 ];
             }
 

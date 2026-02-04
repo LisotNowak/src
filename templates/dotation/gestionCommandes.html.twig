@@ -50,7 +50,7 @@
                     {% set commande = entry.commande %}
                     <div class="card mb-3">
                         <div class="card-header">
-                            <strong>Commande #{{ commande.id }} || {{ commande.userMail }}</strong>
+                            <strong data-user-name="{{ entry.userName }}">Commande #{{ commande.id }} || {{ commande.userMail }}</strong>
                             <span class="float-right">{{ commande.date }}</span>
                             <div class="small text-muted">État : {{ commande.nomEtat }}</div>
 
@@ -124,7 +124,7 @@
                     {% set commande = entry.commande %}
                     <div class="card mb-3">
                         <div class="card-header">
-                            <strong>Commande #{{ commande.id }} || {{ commande.userMail }}</strong>
+                            <strong data-user-name="{{ entry.userName }}">Commande #{{ commande.id }} || {{ commande.userMail }}</strong>
                             <span class="float-right">{{ commande.date }}</span>
                             <div class="small text-muted">État : {{ commande.nomEtat }}</div>
 
@@ -187,7 +187,7 @@
                     {% set commande = entry.commande %}
                     <div class="card mb-3">
                         <div class="card-header">
-                            <strong>Commande #{{ commande.id }} || {{ commande.userMail }}</strong>
+                            <strong data-user-name="{{ entry.userName }}">Commande #{{ commande.id }} || {{ commande.userMail }}</strong>
                             <span class="float-right">{{ commande.date }}</span>
                             <div class="small text-muted">État : {{ commande.nomEtat }}</div>
 
@@ -243,18 +243,18 @@
             if (!btn) return;
 
             btn.addEventListener('click', function () {
-                let rows = [['Commande', 'Email', 'Date', 'Réf', 'Nom', 'Taille', 'Couleur', 'Quantité', 'Dispo']]; // entêtes
+                let rows = [['Commande', 'Utilisateur', 'Date', 'Réf', 'Nom', 'Taille', 'Couleur', 'Quantité', 'Dispo']]; // entêtes
 
                 document.querySelectorAll('#surcommande .card').forEach(card => {
                     const commandeHeader = card.querySelector('.card-header strong').innerText.trim();
-                    // Extraction de l'id, email
+                    // Extraction de l'id, nom/prénom
                     const match = commandeHeader.match(/Commande #(\d+) \|\| (.+)/);
                     const commandeId = match ? match[1] : '';
-                    const email = match ? match[2] : '';
+                    const userName = card.querySelector('.card-header strong').dataset.userName || '';
                     const date = card.querySelector('.card-header .float-right')?.innerText.trim() || '';
 
                     card.querySelectorAll('table tbody tr').forEach(tr => {
-                        let row = [commandeId, email, date];
+                        let row = [commandeId, userName, date];
                         tr.querySelectorAll('td').forEach(td => row.push(td.innerText.trim()));
                         rows.push(row);
                     });
