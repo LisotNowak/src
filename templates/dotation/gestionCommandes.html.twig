@@ -245,6 +245,9 @@
             btn.addEventListener('click', function () {
                 let rows = [['Commande', 'Utilisateur', 'Date', 'Réf', 'Nom', 'Taille', 'Couleur', 'Quantité', 'Dispo']]; // entêtes
 
+                // Objet pour compter les articles par nom et taille
+                let articleTotals = {};
+
                 document.querySelectorAll('#surcommande .card').forEach(card => {
                     const commandeHeader = card.querySelector('.card-header strong').innerText.trim();
                     // Extraction de l'id, nom/prénom
@@ -255,9 +258,46 @@
 
                     card.querySelectorAll('table tbody tr').forEach(tr => {
                         let row = [commandeId, userName, date];
-                        tr.querySelectorAll('td').forEach(td => row.push(td.innerText.trim()));
+                        let tds = tr.querySelectorAll('td');
+                        let nom = '';
+                        let taille = '';
+                        let quantite = 0;
+                        
+                        tds.forEach((td, index) => {
+                            let value = td.innerText.trim();
+                            row.push(value);
+                            
+                            if (index === 1) nom = value; // Index 1 = Nom (après Réf)
+                            if (index === 2) taille = value; // Index 2 = Taille
+                            if (index === 3) quantite = parseInt(value) || 0; // Index 3 = Couleur, mais vraiment Quantité est à index 4
+                        });
+                        
+                        // Correction: Quantité est le 5e élément (index 4)
+                        quantite = parseInt(tds[4]?.innerText || 0) || 0;
+                        
                         rows.push(row);
+                        
+                        // Compter les articles par nom et taille
+                        let key = nom + '|' + taille;
+                        if (!articleTotals[key]) {
+                            articleTotals[key] = { nom: nom, taille: taille, quantite: 0 };
+                        }
+                        articleTotals[key].quantite += quantite;
                     });
+                });
+
+                // Ajouter une ligne vide et les totaux
+                rows.push([]);
+                rows.push(['TOTAL PAR ARTICLE ET TAILLE']);
+                rows.push(['', '', '', '', 'Nom', 'Taille', '', 'Quantité']);
+                
+                // Trier les totaux par nom
+                let sortedTotals = Object.values(articleTotals).sort((a, b) => {
+                    return a.nom.localeCompare(b.nom);
+                });
+                
+                sortedTotals.forEach(total => {
+                    rows.push(['', '', '', '', total.nom, total.taille, '', total.quantite]);
                 });
 
                 let csvContent = rows.map(e => e.join(",")).join("\n");
