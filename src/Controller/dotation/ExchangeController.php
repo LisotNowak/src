@@ -135,7 +135,9 @@ class ExchangeController extends AbstractController
     #[Route('/dota/mes-demandes-echange', name: 'app_mes_demandes_echange')]
     public function mesDemandesEchange(EntityManagerInterface $entityManager): Response
     {
-        $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
+        if (!$this->isGranted('ROLE_ADM_DOTA') && !$this->isGranted('ROLE_USER_DOTA')) {
+            return $this->redirectToRoute('app_accueil');
+        }
 
         $user = $this->getUser();
         if (!$user) {
@@ -169,7 +171,9 @@ class ExchangeController extends AbstractController
     #[Route('/dota/exchange', name: 'app_exchange_dota', methods: ['GET'])]
     public function exchange_dota(EntityManagerInterface $entityManager): Response
     {
-        $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
+        if (!$this->isGranted('ROLE_ADM_DOTA') && !$this->isGranted('ROLE_USER_DOTA')) {
+            return $this->redirectToRoute('app_accueil');
+        }
 
         if (!$this->getUser()) {
             return $this->redirectToRoute('app_accueil');
@@ -215,7 +219,9 @@ class ExchangeController extends AbstractController
     #[Route('/dota/exchange/request', name: 'app_exchange_request', methods: ['POST'])]
     public function handleExchangeRequest(Request $request, EntityManagerInterface $entityManager): Response
     {
-        $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
+        if (!$this->isGranted('ROLE_ADM_DOTA') && !$this->isGranted('ROLE_USER_DOTA')) {
+            return $this->redirectToRoute('app_accueil');
+        }
 
         $user = $this->getUser();
         if (!$user) {
