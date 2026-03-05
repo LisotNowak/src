@@ -19,7 +19,9 @@ class ArticleController extends AbstractController
     #[Route('/dota/article', name: 'get_article', methods: ['POST'])]
     public function getArticle(Request $request, EntityManagerInterface $entityManager): JsonResponse
     {
-        $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
+        if (!$this->isGranted('ROLE_ADM_DOTA') && !$this->isGranted('ROLE_USER_DOTA')) {
+            return new JsonResponse(['error' => 'Accès refusé'], 403);
+        }
 
         $id = $request->request->get('id');
         $article = $entityManager->getRepository(Article::class)->find($id);
@@ -168,7 +170,9 @@ class ArticleController extends AbstractController
     #[Route('/dota/article', name: 'app_article_dota')]
     public function article_dota(Request $request, EntityManagerInterface $entityManager, \Symfony\Component\HttpFoundation\Session\SessionInterface $session): Response
     {
-        $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
+        if (!$this->isGranted('ROLE_ADM_DOTA') && !$this->isGranted('ROLE_USER_DOTA')) {
+            return $this->redirectToRoute('app_accueil');
+        }
 
         if ($request->request->get('id') == "") {
             $id = $request->query->get('id');
