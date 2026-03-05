@@ -259,6 +259,7 @@
                     card.querySelectorAll('table tbody tr').forEach(tr => {
                         let row = [commandeId, userName, date];
                         let tds = tr.querySelectorAll('td');
+                        let reference = '';
                         let nom = '';
                         let taille = '';
                         let quantite = 0;
@@ -267,6 +268,7 @@
                             let value = td.innerText.trim();
                             row.push(value);
                             
+                            if (index === 0) reference = value; // Index 0 = Réf
                             if (index === 1) nom = value; // Index 1 = Nom (après Réf)
                             if (index === 2) taille = value; // Index 2 = Taille
                             if (index === 3) quantite = parseInt(value) || 0; // Index 3 = Couleur, mais vraiment Quantité est à index 4
@@ -277,10 +279,10 @@
                         
                         rows.push(row);
                         
-                        // Compter les articles par nom et taille
+                        // Compter les articles par nom et taille (avec référence)
                         let key = nom + '|' + taille;
                         if (!articleTotals[key]) {
-                            articleTotals[key] = { nom: nom, taille: taille, quantite: 0 };
+                            articleTotals[key] = { reference: reference, nom: nom, taille: taille, quantite: 0 };
                         }
                         articleTotals[key].quantite += quantite;
                     });
@@ -289,7 +291,7 @@
                 // Ajouter une ligne vide et les totaux
                 rows.push([]);
                 rows.push(['TOTAL PAR ARTICLE ET TAILLE']);
-                rows.push(['', '', '', '', 'Nom', 'Taille', '', 'Quantité']);
+                rows.push(['', '', '', 'Réf', 'Nom', 'Taille', '', 'Quantité']);
                 
                 // Trier les totaux par nom
                 let sortedTotals = Object.values(articleTotals).sort((a, b) => {
@@ -297,7 +299,7 @@
                 });
                 
                 sortedTotals.forEach(total => {
-                    rows.push(['', '', '', '', total.nom, total.taille, '', total.quantite]);
+                    rows.push(['', '', '', total.reference, total.nom, total.taille, '', total.quantite]);
                 });
 
                 let csvContent = rows.map(e => e.join(",")).join("\n");
