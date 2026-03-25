@@ -31,6 +31,12 @@ class RenderController extends AbstractController
         return $this->render('organigramme/organigramme.html.twig');
     }
 
+    #[Route('/calculette/libre', name: 'app_calculette_libre')]
+    public function calculetteLibre(): Response
+    {
+        return $this->render('calculette/libre.html.twig');
+    }
+
     #[Route('/calculette/user', name: 'app_calculette_user')]
     public function calculette(SqlServerService $sqlServerService): Response
     {

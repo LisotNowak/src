@@ -45,6 +45,7 @@ security:
         - { path: ^/login, roles: PUBLIC_ACCESS }
         - { path: ^/logout, roles: PUBLIC_ACCESS }
         - { path: ^/$, roles: PUBLIC_ACCESS }
+        - { path: ^/calculette/libre, roles: PUBLIC_ACCESS }
         # Routes protégées
         - { path: ^/calculette, roles: ROLE_MANAGER }
         - { path: ^/admin/users, roles: ROLE_ADMIN }
