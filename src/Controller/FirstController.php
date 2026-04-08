@@ -61,6 +61,7 @@ public function getAllEvents(Request $request): Response
             'Visite',
             'Déjeuner Pavillon',
             'Dégustation',
+            'Dégustation En Primeur',
             'Dîner Pavillon',
             'Dîner Château',
             'Déjeuner Extérieur',
