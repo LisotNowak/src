@@ -39,6 +39,15 @@ class DemandeEchange
     #[ORM\Column(length: 50)]
     private ?string $status = 'En attente'; // Valeur par défaut
 
+    #[ORM\Column(nullable: true)]
+    private ?int $quantite = 1;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $quantiteNew = 1;
+
+    #[ORM\Column(nullable: true)]
+    private ?int $pointsDeduits = 0;
+
     #[ORM\Column(type: "datetime")]
     private ?\DateTimeInterface $dateDemande = null;
 
@@ -128,6 +137,39 @@ class DemandeEchange
     public function setStatus(string $status): static
     {
         $this->status = $status;
+        return $this;
+    }
+
+    public function getQuantite(): ?int
+    {
+        return $this->quantite;
+    }
+
+    public function setQuantite(?int $quantite): static
+    {
+        $this->quantite = $quantite;
+        return $this;
+    }
+
+    public function getPointsDeduits(): ?int
+    {
+        return $this->pointsDeduits;
+    }
+
+    public function setPointsDeduits(?int $pointsDeduits): static
+    {
+        $this->pointsDeduits = $pointsDeduits;
+        return $this;
+    }
+
+    public function getQuantiteNew(): ?int
+    {
+        return $this->quantiteNew;
+    }
+
+    public function setQuantiteNew(?int $quantiteNew): static
+    {
+        $this->quantiteNew = $quantiteNew;
         return $this;
     }
 

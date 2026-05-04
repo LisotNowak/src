@@ -18,7 +18,12 @@
         {% endfor %}
     {% endfor %}
 
-    <h1>Demande d'échange d'article</h1>
+    <div class="d-flex align-items-center justify-content-between mb-2">
+        <h1 class="mb-0">Demande d'échange d'article</h1>
+        <span class="badge bg-info fs-6 px-3 py-2">
+            <i class="fa fa-coins me-1"></i> Points disponibles : {{ app.user.pointDotation ?? 0 }} P
+        </span>
+    </div>
     <p>Sélectionnez l'article que vous souhaitez retourner et choisissez un nouvel article en remplacement.</p>
     <hr>
 
@@ -39,8 +44,8 @@
                                 {% for commande in commandes %}
                                     <optgroup label="Commande du {{ commande.commande.date|date('d/m/Y') }}">
                                         {% for item in commande.items %}
-                                            <option value="{{ item.assoc.id }}">
-                                                {{ item.article.nom }} (Taille: {{ item.taille }}, Couleur: {{ item.couleur }})
+                                            <option value="{{ item.assoc.id }}" data-nb="{{ item.assoc.nb }}" data-point="{{ item.article.point }}">
+                                                [{{ item.article.reference }}] {{ item.article.nom }} — {{ item.taille }}, {{ item.couleur }} (x{{ item.assoc.nb }})
                                             </option>
                                         {% endfor %}
                                     </optgroup>
@@ -49,6 +54,13 @@
                                     <option disabled>Aucun article dans votre historique</option>
                                 {% endif %}
                             </select>
+                        </div>
+
+                        <div class="mb-3" id="quantite_wrapper" style="display:none;">
+                            <label for="quantite" class="form-label">Quantité à échanger :</label>
+                            <input type="number" class="form-control" id="quantite" name="quantite"
+                                   min="1" value="1" required>
+                            <div class="form-text text-muted" id="quantite_hint"></div>
                         </div>
 
                         <div class="mb-3">
@@ -71,9 +83,15 @@
                             <select class="form-select" id="new_article" name="new_article_id" required>
                                 <option value="" disabled selected>-- Sélectionnez un article --</option>
                                 {% for article in allArticles %}
-                                    <option value="{{ article.id }}">{{ article.nom }}</option>
+                                    <option value="{{ article.id }}" data-point="{{ article.point }}">{{ article.nom }}</option>
                                 {% endfor %}
                             </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="quantite_new" class="form-label">Quantité souhaitée :</label>
+                            <input type="number" class="form-control" id="quantite_new" name="quantite_new"
+                                   min="1" value="1" required>
                         </div>
 
                         <div class="mb-3">
@@ -94,6 +112,32 @@
             </div>
         </div>
 
+        <div id="bilan_points" class="card shadow-sm mb-4" style="display:none;">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <strong class="text-primary">Bilan de points</strong>
+                <span class="text-muted small">Disponibles : <strong id="pts_dispo_affich">{{ app.user.pointDotation ?? 0 }}</strong> P</span>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-4">
+                        <div class="text-muted small mb-1">Points rendus</div>
+                        <div class="fs-4 fw-bold text-success" id="pts_old">— P</div>
+                    </div>
+                    <div class="col-md-4 d-flex align-items-center justify-content-center">
+                        <div id="pts_diff_badge" class="badge fs-6 px-3 py-2">—</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-muted small mb-1">Points demandés</div>
+                        <div class="fs-4 fw-bold text-primary" id="pts_new">— P</div>
+                    </div>
+                </div>
+                <div id="pts_insuffisants" class="alert alert-danger mt-3 mb-0" style="display:none;">
+                    <i class="fas fa-exclamation-triangle me-1"></i>
+                    Points insuffisants : il vous manque <strong id="pts_manque"></strong> P pour envoyer cette demande.
+                </div>
+            </div>
+        </div>
+
         <div class="text-center mt-4">
             <button type="submit" class="btn btn-primary btn-lg" id="submitBtn" disabled>
                 <i class="fas fa-exchange-alt"></i> Envoyer la demande d'échange
@@ -104,13 +148,87 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const oldItemSelect = document.getElementById('old_item');
+    const quantiteInput = document.getElementById('quantite');
+    const quantiteNewInput = document.getElementById('quantite_new');
+    const quantiteWrapper = document.getElementById('quantite_wrapper');
+    const quantiteHint = document.getElementById('quantite_hint');
     const articleSelect = document.getElementById('new_article');
     const tailleSelect = document.getElementById('new_size');
     const couleurSelect = document.getElementById('new_color');
     const submitBtn = document.getElementById('submitBtn');
+    const bilanPoints = document.getElementById('bilan_points');
+    const ptsOld = document.getElementById('pts_old');
+    const ptsNew = document.getElementById('pts_new');
+    const ptsDiffBadge = document.getElementById('pts_diff_badge');
+    const ptsInsuffisants = document.getElementById('pts_insuffisants');
+    const ptsManque = document.getElementById('pts_manque');
+    const ptsDispo = {{ app.user.pointDotation ?? 0 }};
+    let pointsOk = true;
+
+    function updateBilan() {
+        const oldSelected = oldItemSelect.options[oldItemSelect.selectedIndex];
+        const newSelected = articleSelect.options[articleSelect.selectedIndex];
+        const qteOld = parseInt(quantiteInput.value) || 1;
+        const qteNew = parseInt(quantiteNewInput.value) || 1;
+
+        if (!oldItemSelect.value || !articleSelect.value) {
+            bilanPoints.style.display = 'none';
+            pointsOk = true;
+            toggleSubmitButton();
+            return;
+        }
+
+        const ptOld = (parseInt(oldSelected.dataset.point) || 0) * qteOld;
+        const ptNew = (parseInt(newSelected.dataset.point) || 0) * qteNew;
+        const delta = ptNew - ptOld;
+
+        ptsOld.textContent = ptOld + ' P';
+        ptsNew.textContent = ptNew + ' P';
+
+        if (delta > 0) {
+            ptsDiffBadge.className = 'badge fs-6 px-3 py-2 bg-danger';
+            ptsDiffBadge.textContent = '+' + delta + ' P à payer';
+            if (ptsDispo < delta) {
+                ptsInsuffisants.style.display = '';
+                ptsManque.textContent = delta - ptsDispo;
+                pointsOk = false;
+            } else {
+                ptsInsuffisants.style.display = 'none';
+                pointsOk = true;
+            }
+        } else if (delta < 0) {
+            ptsDiffBadge.className = 'badge fs-6 px-3 py-2 bg-success';
+            ptsDiffBadge.textContent = '+' + Math.abs(delta) + ' P récupérés';
+            ptsInsuffisants.style.display = 'none';
+            pointsOk = true;
+        } else {
+            ptsDiffBadge.className = 'badge fs-6 px-3 py-2 bg-secondary';
+            ptsDiffBadge.textContent = 'Échange neutre';
+            ptsInsuffisants.style.display = 'none';
+            pointsOk = true;
+        }
+
+        bilanPoints.style.display = '';
+        toggleSubmitButton();
+    }
+
+    oldItemSelect.addEventListener('change', function() {
+        const selected = this.options[this.selectedIndex];
+        const nb = parseInt(selected.dataset.nb) || 1;
+        quantiteInput.max = nb;
+        quantiteInput.value = 1;
+        quantiteHint.textContent = 'Quantité commandée : ' + nb + '. Vous pouvez en échanger jusqu\'à ' + nb + '.';
+        quantiteWrapper.style.display = '';
+        updateBilan();
+        toggleSubmitButton();
+    });
+
+    quantiteInput.addEventListener('input', updateBilan);
+    quantiteNewInput.addEventListener('input', updateBilan);
 
     function toggleSubmitButton() {
-        submitBtn.disabled = !(articleSelect.value && tailleSelect.value && couleurSelect.value);
+        submitBtn.disabled = !(oldItemSelect.value && articleSelect.value && tailleSelect.value && couleurSelect.value && pointsOk);
     }
 
     articleSelect.addEventListener('change', function() {
@@ -118,6 +236,7 @@ document.addEventListener('DOMContentLoaded', function() {
         tailleSelect.disabled = true;
         couleurSelect.innerHTML = '<option value="">-- Choisissez une couleur --</option>';
         couleurSelect.disabled = true;
+        updateBilan();
         toggleSubmitButton();
 
         if (!this.value) return;
@@ -132,7 +251,6 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => response.json())
         .then(data => {
-            // On récupère bien les noms renvoyés par le backend
             if (data.tableauTailles && data.tableauTailles.length > 0) {
                 data.tableauTailles.forEach(taille => tailleSelect.add(new Option(taille, taille)));
                 tailleSelect.disabled = false;
@@ -148,7 +266,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             toggleSubmitButton();
         });
-
     });
 
     tailleSelect.addEventListener('change', toggleSubmitButton);

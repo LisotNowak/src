@@ -37,6 +37,7 @@
                             <th>Article retourné</th>
                             <th>Article souhaité</th>
                             <th>Motif</th>
+                            <th class="text-center">Bilan points</th>
                             <th class="text-center">Statut</th>
                             <th class="text-center">Actions</th>
                         </tr>
@@ -51,18 +52,37 @@
                                 <td>
                                     {% if oldArticle %}
                                         {{ oldArticle.nom }}<br>
-                                        <small class="text-muted">Taille: {{ demande.oldAssociationCommandeArticle.taille.nom|default('') }}, Couleur: {{ demande.oldAssociationCommandeArticle.couleur.nom|default('') }}</small>
+                                        <small class="text-muted">[{{ oldArticle.reference }}] Taille: {{ demande.oldAssociationCommandeArticle.taille.nom|default('') }}, Couleur: {{ demande.oldAssociationCommandeArticle.couleur.nom|default('') }}</small><br>
+                                        <small class="text-muted">Qté : {{ demande.quantite ?? 1 }}</small>
                                     {% else %}
                                         Article non trouvé
                                     {% endif %}
                                 </td>
                                 <td>
                                     {{ demande.newArticle.nom }}<br>
-                                    <small class="text-muted">Taille: {{ demande.newTaille }}, Couleur: {{ demande.newCouleur }}</small>
+                                    <small class="text-muted">[{{ demande.newArticle.reference }}] Taille: {{ demande.newTaille }}, Couleur: {{ demande.newCouleur }}</small><br>
+                                    <small class="text-muted">Qté : {{ demande.quantiteNew ?? 1 }}</small>
                                 </td>
                                 <td>{{ demande.reason }}</td>
                                 <td class="text-center">
-                                    <span class="badge 
+                                    {% if oldArticle and demande.newArticle %}
+                                        {% set ptOld = (oldArticle.point ?? 0) * (demande.quantite ?? 1) %}
+                                        {% set ptNew = (demande.newArticle.point ?? 0) * (demande.quantiteNew ?? 1) %}
+                                        {% set result = ptOld - ptNew %}
+                                        <small class="text-muted d-block">{{ ptOld }} P − {{ ptNew }} P</small>
+                                        {% if result > 0 %}
+                                            <span class="badge bg-success">+{{ result }} P crédités</span>
+                                        {% elseif result < 0 %}
+                                            <span class="badge bg-danger">{{ result }} P retirés</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Neutre</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge status-badge
                                         {% if demande.status == 'Approuvée' %}bg-success
                                         {% elseif demande.status == 'Refusée' %}bg-danger
                                         {% else %}bg-warning text-dark{% endif %}">
@@ -90,7 +110,7 @@
                             </tr>
                         {% else %}
                             <tr>
-                                <td colspan="7" class="text-center">Aucune demande d'échange pour le moment.</td>
+                                <td colspan="8" class="text-center">Aucune demande d'échange pour le moment.</td>
                             </tr>
                         {% endfor %}
                     </tbody>
@@ -109,7 +129,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function hideApproved() {
         rows.forEach(row => {
-            const status = row.querySelector('td span.badge');
+            const status = row.querySelector('span.status-badge');
             if (status && status.textContent.trim() === 'Approuvée') {
                 row.style.display = 'none';
             } else {

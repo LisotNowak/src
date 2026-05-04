@@ -70,6 +70,8 @@ class ExchangeController extends AbstractController
             $newArticle = $demande->getNewArticle();
             $newTaille = $demande->getNewTaille();
             $newCouleur = $demande->getNewCouleur();
+            $quantite    = $demande->getQuantite() ?? 1;
+            $quantiteNew = $demande->getQuantiteNew() ?? 1;
 
             $stockNewItem = $entityManager->getRepository(Stock::class)->findOneBy([
                 'referenceArticle' => $newArticle->getReference(),
@@ -77,25 +79,25 @@ class ExchangeController extends AbstractController
                 'nomCouleur' => $newCouleur,
             ]);
 
-            if (!$stockNewItem || $stockNewItem->getStock() <= 0) {
-                $this->addFlash('danger', 'Stock insuffisant pour l\'article ' . $newArticle->getNom() . ' (Taille: ' . $newTaille . ', Couleur: ' . $newCouleur . '). L\'échange ne peut pas être approuvé.');
+            if (!$stockNewItem || $stockNewItem->getStock() < $quantiteNew) {
+                $this->addFlash('danger', 'Stock insuffisant pour l\'article ' . $newArticle->getNom() . ' (Taille: ' . $newTaille . ', Couleur: ' . $newCouleur . '). Quantité disponible : ' . ($stockNewItem ? $stockNewItem->getStock() : 0) . '.');
                 return $this->redirectToRoute('app_admin_manage_exchanges');
             }
-            $stockNewItem->setStock($stockNewItem->getStock() - 1);
+            $stockNewItem->setStock($stockNewItem->getStock() - $quantiteNew);
             $entityManager->persist($stockNewItem);
 
             $oldAssoc = $demande->getOldAssociationCommandeArticle();
             $oldArticle = $oldAssoc ? $oldAssoc->getArticle() : null;
-            
+
             if ($oldArticle) {
                 $stockOldItem = $entityManager->getRepository(Stock::class)->findOneBy([
                     'referenceArticle' => $oldArticle->getReference(),
                     'nomTaille' => $oldAssoc->getTaille()?->getNom(),
                     'nomCouleur' => $oldAssoc->getCouleur()?->getNom(),
                 ]);
-    
+
                 if ($stockOldItem) {
-                    $stockOldItem->setStock($stockOldItem->getStock() + 1);
+                    $stockOldItem->setStock($stockOldItem->getStock() + $quantite);
                     $entityManager->persist($stockOldItem);
                 }
             }
@@ -109,13 +111,12 @@ class ExchangeController extends AbstractController
             $entityManager->flush();
 
             $assocEchange = new AssociationCommandeArticle();
-            $newArticleEntity = $newArticle;
             $tailleEntity = $entityManager->getRepository(\App\Entity\dotation\Taille::class)->findOneBy(['nom' => $newTaille]);
             $couleurEntity = $entityManager->getRepository(\App\Entity\dotation\Couleur::class)->findOneBy(['nom' => $newCouleur]);
 
             $assocEchange->setCommande($commandeEchange);
-            $assocEchange->setArticle($newArticleEntity);
-            $assocEchange->setNb(1);
+            $assocEchange->setArticle($newArticle);
+            $assocEchange->setNb($quantiteNew);
             $assocEchange->setTaille($tailleEntity);
             $assocEchange->setCouleur($couleurEntity);
             $entityManager->persist($assocEchange);
@@ -123,7 +124,20 @@ class ExchangeController extends AbstractController
             $this->addFlash('success', 'L\'échange a été approuvé. Le stock a été mis à jour et une commande a été créée.');
 
         } else {
-            $this->addFlash('info', 'La demande d\'échange a été refusée.');
+            $pointsDeduits = $demande->getPointsDeduits() ?? 0;
+            if ($pointsDeduits !== 0) {
+                $userDemande = $demande->getUser();
+                $userDemande->setPointDotation(($userDemande->getPointDotation() ?? 0) + $pointsDeduits);
+                $entityManager->persist($userDemande);
+            }
+            if ($pointsDeduits > 0) {
+                $msg = ' ' . $pointsDeduits . ' P ont été recrédités.';
+            } elseif ($pointsDeduits < 0) {
+                $msg = ' ' . abs($pointsDeduits) . ' P ont été repris.';
+            } else {
+                $msg = '';
+            }
+            $this->addFlash('info', 'La demande d\'échange a été refusée.' . $msg);
         }
 
         $demande->setStatus($status);
@@ -233,6 +247,8 @@ class ExchangeController extends AbstractController
         $newSize = $request->request->get('new_size');
         $newColor = $request->request->get('new_color');
         $reason = $request->request->get('reason');
+        $quantite = (int) $request->request->get('quantite', 1);
+        $quantiteNew = (int) $request->request->get('quantite_new', 1);
 
         if (!$oldAssocId || !$newArticleId || !$newSize || !$newColor || !$reason) {
             $this->addFlash('danger', 'Tous les champs sont obligatoires.');
@@ -247,6 +263,32 @@ class ExchangeController extends AbstractController
             return $this->redirectToRoute('app_exchange_dota');
         }
 
+        $maxQte = $oldAssociation->getNb() ?? 1;
+        if ($quantite < 1 || $quantite > $maxQte) {
+            $this->addFlash('danger', 'Quantité invalide (doit être entre 1 et ' . $maxQte . ').');
+            return $this->redirectToRoute('app_exchange_dota');
+        }
+        if ($quantiteNew < 1) {
+            $this->addFlash('danger', 'La quantité souhaitée doit être au moins 1.');
+            return $this->redirectToRoute('app_exchange_dota');
+        }
+
+        $ptOld = ($oldAssociation->getArticle()->getPoint() ?? 0) * $quantite;
+        $ptNew = ($newArticle->getPoint() ?? 0) * $quantiteNew;
+        $delta = $ptNew - $ptOld;
+
+        $pointsDispo = $user->getPointDotation() ?? 0;
+        if ($delta > 0 && $pointsDispo < $delta) {
+            $this->addFlash('danger', 'Points insuffisants : il vous faut ' . $delta . ' P pour cet échange, vous en avez ' . $pointsDispo . ' P.');
+            return $this->redirectToRoute('app_exchange_dota');
+        }
+
+        if ($delta !== 0) {
+            $user->setPointDotation($pointsDispo - $delta);
+            $entityManager->persist($user);
+        }
+        $pointsDeduits = $delta;
+
         $demande = new DemandeEchange();
         $demande->setUser($user);
         $demande->setOldAssociationCommandeArticle($oldAssociation);
@@ -254,6 +296,9 @@ class ExchangeController extends AbstractController
         $demande->setNewTaille($newSize);
         $demande->setNewCouleur($newColor);
         $demande->setReason($reason);
+        $demande->setQuantite($quantite);
+        $demande->setQuantiteNew($quantiteNew);
+        $demande->setPointsDeduits($pointsDeduits);
         $demande->setStatus('En attente');
 
         $entityManager->persist($demande);

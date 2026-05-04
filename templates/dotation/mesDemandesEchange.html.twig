@@ -34,7 +34,7 @@
 
                 </div>
                 <div class="card-body">
-                    <table class="table table-sm">
+                    <table class="table table-sm mb-3">
                         <thead>
                             <tr>
                                 <th>Ancien article</th>
@@ -46,18 +46,22 @@
                             <tr>
                                 <td>
                                     {% if entry.oldArticle %}
-                                        {{ entry.oldArticle.nom }}<br>
+                                        <strong>{{ entry.oldArticle.nom }}</strong><br>
+                                        <span class="text-muted small">[{{ entry.oldArticle.reference }}]</span><br>
                                         Taille : {{ entry.oldAssoc.taille.nom|default('') }}<br>
-                                        Couleur : {{ entry.oldAssoc.couleur.nom|default('') }}
+                                        Couleur : {{ entry.oldAssoc.couleur.nom|default('') }}<br>
+                                        Qté retournée : {{ demande.quantite ?? 1 }}
                                     {% else %}
                                         Article supprimé
                                     {% endif %}
                                 </td>
                                 <td>
                                     {% if entry.newArticle %}
-                                        {{ entry.newArticle.nom }}<br>
+                                        <strong>{{ entry.newArticle.nom }}</strong><br>
+                                        <span class="text-muted small">[{{ entry.newArticle.reference }}]</span><br>
                                         Taille : {{ demande.newTaille }}<br>
-                                        Couleur : {{ demande.newCouleur }}
+                                        Couleur : {{ demande.newCouleur }}<br>
+                                        Qté souhaitée : {{ demande.quantiteNew ?? 1 }}
                                     {% else %}
                                         Article supprimé
                                     {% endif %}
@@ -66,6 +70,42 @@
                             </tr>
                         </tbody>
                     </table>
+
+                    {# Bilan de points #}
+                    {% if entry.oldArticle and entry.newArticle %}
+                        {% set ptOld = (entry.oldArticle.point ?? 0) * (demande.quantite ?? 1) %}
+                        {% set ptNew = (entry.newArticle.point ?? 0) * (demande.quantiteNew ?? 1) %}
+                        {% set result = ptOld - ptNew %}
+                        <div class="d-flex align-items-center gap-3 flex-wrap border-top pt-3">
+                            <div class="text-center">
+                                <div class="text-muted small">Points rendus</div>
+                                <div class="fw-bold text-success fs-5">{{ ptOld }} P</div>
+                            </div>
+                            <div class="text-muted fs-4">−</div>
+                            <div class="text-center">
+                                <div class="text-muted small">Points demandés</div>
+                                <div class="fw-bold text-primary fs-5">{{ ptNew }} P</div>
+                            </div>
+                            <div class="text-muted fs-4">=</div>
+                            <div class="text-center">
+                                {% if result > 0 %}
+                                    <div class="text-muted small">Crédités</div>
+                                    <span class="badge bg-success fs-6">+{{ result }} P</span>
+                                {% elseif result < 0 %}
+                                    <div class="text-muted small">Retirés</div>
+                                    <span class="badge bg-danger fs-6">{{ result }} P</span>
+                                {% else %}
+                                    <div class="text-muted small">&nbsp;</div>
+                                    <span class="badge bg-secondary fs-6">Échange neutre</span>
+                                {% endif %}
+                                {% if demande.status == 'Refusée' and result != 0 %}
+                                    <div class="small text-muted mt-1">
+                                        {% if result > 0 %}({{ result }} P repris){% else %}({{ result|abs }} P recrédités){% endif %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         {% endfor %}
