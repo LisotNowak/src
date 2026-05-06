@@ -262,27 +262,24 @@
                         let reference = '';
                         let nom = '';
                         let taille = '';
+                        let couleur = '';
                         let quantite = 0;
-                        
+
                         tds.forEach((td, index) => {
                             let value = td.innerText.trim();
                             row.push(value);
-                            
-                            if (index === 0) reference = value; // Index 0 = Réf
-                            if (index === 1) nom = value; // Index 1 = Nom (après Réf)
-                            if (index === 2) taille = value; // Index 2 = Taille
-                            if (index === 3) quantite = parseInt(value) || 0; // Index 3 = Couleur, mais vraiment Quantité est à index 4
+                            if (index === 0) reference = value;
+                            if (index === 1) nom = value;
+                            if (index === 2) taille = value;
+                            if (index === 3) couleur = value;
+                            if (index === 4) quantite = parseInt(value) || 0;
                         });
-                        
-                        // Correction: Quantité est le 5e élément (index 4)
-                        quantite = parseInt(tds[4]?.innerText || 0) || 0;
-                        
+
                         rows.push(row);
-                        
-                        // Compter les articles par nom et taille (avec référence)
-                        let key = nom + '|' + taille;
+
+                        let key = reference + '|' + taille + '|' + couleur;
                         if (!articleTotals[key]) {
-                            articleTotals[key] = { reference: reference, nom: nom, taille: taille, quantite: 0 };
+                            articleTotals[key] = { reference, nom, taille, couleur, quantite: 0 };
                         }
                         articleTotals[key].quantite += quantite;
                     });
@@ -291,15 +288,14 @@
                 // Ajouter une ligne vide et les totaux
                 rows.push([]);
                 rows.push(['TOTAL PAR ARTICLE ET TAILLE']);
-                rows.push(['', '', '', 'Réf', 'Nom', 'Taille', '', 'Quantité']);
-                
-                // Trier les totaux par nom
+                rows.push(['', '', '', 'Réf', 'Nom', 'Taille', 'Couleur', 'Quantité']);
+
                 let sortedTotals = Object.values(articleTotals).sort((a, b) => {
-                    return a.nom.localeCompare(b.nom);
+                    return a.nom.localeCompare(b.nom) || a.taille.localeCompare(b.taille) || a.couleur.localeCompare(b.couleur);
                 });
-                
+
                 sortedTotals.forEach(total => {
-                    rows.push(['', '', '', total.reference, total.nom, total.taille, '', total.quantite]);
+                    rows.push(['', '', '', total.reference, total.nom, total.taille, total.couleur, total.quantite]);
                 });
 
                 let csvContent = rows.map(e => e.join(",")).join("\n");
