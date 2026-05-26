@@ -151,14 +151,20 @@
                         {% endif %}
                     {% endfor %}
                     {% if hasTaille %}
+                      {% set taillesArticle = [] %}
+                      {% for assoc in listeAssociationTaillesArticle %}
+                        {% if assoc.article and assoc.article.id == product.id %}
+                          {% set taillesArticle = taillesArticle|merge([assoc.taille.nom]) %}
+                        {% endif %}
+                      {% endfor %}
                       <div class="form-group mb-2">
                         <select name="size_{{ product.id }}" id="size_{{ product.id }}"
                                 class="form-select form-select-sm w-auto d-inline-block">
-                          <option value="">Taille...</option>
-                          {% for assoc in listeAssociationTaillesArticle %}
-                            {% if assoc.article and assoc.article.id == product.id %}
-                              <option value="{{ assoc.taille.nom }}">{{ assoc.taille.nom }}</option>
-                            {% endif %}
+                          {% if taillesArticle|length > 1 %}
+                            <option value="">Taille...</option>
+                          {% endif %}
+                          {% for taille in taillesArticle %}
+                            <option value="{{ taille }}"{% if taillesArticle|length == 1 %} selected{% endif %}>{{ taille }}</option>
                           {% endfor %}
                         </select>
                       </div>
@@ -174,16 +180,20 @@
                 <small class="text-muted">Couleur :</small>
                 <div class="mt-1 d-flex align-items-center">
                   {% set hasColor = false %}
+                  {% set couleursArticle = [] %}
                   {% for assoc in listeAssociationCouleursArticle %}
                     {% if assoc.article and assoc.article.id == product.id %}
-                      {% set hasColor = true %}
-                      {% set colorCode = assoc.couleur ? assoc.couleur.codeCouleur : '' %}
-                      <label class="me-2 color-option" title="{{ assoc.couleur ? assoc.couleur.nom : '' }}" role="button" aria-label="Couleur {{ assoc.couleur ? assoc.couleur.nom : '' }}">
-                        <input type="radio" name="color_{{ product.id }}" value="{{ assoc.couleur ? assoc.couleur.nom : '' }}">
-                        <span class="color-swatch" style="background:{{ colorCode ?: '#ffffff' }};"></span>
-                        <span class="color-label visually-hidden">{{ assoc.couleur ? assoc.couleur.nom : '' }}</span>
-                      </label>
+                      {% set couleursArticle = couleursArticle|merge([assoc]) %}
                     {% endif %}
+                  {% endfor %}
+                  {% for assoc in couleursArticle %}
+                    {% set hasColor = true %}
+                    {% set colorCode = assoc.couleur ? assoc.couleur.codeCouleur : '' %}
+                    <label class="me-2 color-option" title="{{ assoc.couleur ? assoc.couleur.nom : '' }}" role="button" aria-label="Couleur {{ assoc.couleur ? assoc.couleur.nom : '' }}">
+                      <input type="radio" name="color_{{ product.id }}" value="{{ assoc.couleur ? assoc.couleur.nom : '' }}"{% if couleursArticle|length == 1 %} checked{% endif %}>
+                      <span class="color-swatch" style="background:{{ colorCode ?: '#ffffff' }};"></span>
+                      <span class="color-label visually-hidden">{{ assoc.couleur ? assoc.couleur.nom : '' }}</span>
+                    </label>
                   {% endfor %}
                   {% if not hasColor %}
                     <input type="hidden" name="color_{{ product.id }}" value="">
