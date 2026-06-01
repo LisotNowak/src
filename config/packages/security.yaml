@@ -47,6 +47,8 @@ security:
         - { path: ^/$, roles: PUBLIC_ACCESS }
         - { path: ^/calculette/libre, roles: PUBLIC_ACCESS }
         # Routes protégées
+        - { path: ^/dev/, roles: ROLE_ADMIN }
+        - { path: ^/files, roles: IS_AUTHENTICATED_FULLY }
         - { path: ^/calculette, roles: ROLE_MANAGER }
         - { path: ^/admin/users, roles: ROLE_ADMIN }
         - { path: ^/profil, roles: ROLE_USER }

@@ -87,6 +87,7 @@ class MicrosoftAuthenticator extends OAuth2Authenticator
 
     public function onAuthenticationFailure(Request $request, AuthenticationException $exception): ?Response
     {
-        return new Response('Authentication failed: '.$exception->getMessage(), Response::HTTP_FORBIDDEN);
+        $this->logger->warning('Microsoft authentication failure', ['message' => $exception->getMessage()]);
+        return new Response('Échec de l\'authentification. Veuillez réessayer.', Response::HTTP_FORBIDDEN);
     }
 }

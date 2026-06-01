@@ -9,23 +9,21 @@ class SqlServerService
 {
     private PDO $pdo;
 
-    public function __construct()
-    {
-        $host = "SRVAPP2";
-        $port = 1433;
-        $db = "nic";
-        $user = "sa";
-        $pass = "#NicLatour!";
-
-        // Modifie la chaîne de connexion pour ajouter TrustServerCertificate=YES
-        $dsn = "sqlsrv:Server=$host,$port;Database=$db;TrustServerCertificate=YES";
+    public function __construct(
+        string $sqlserverHost,
+        int $sqlserverPort,
+        string $sqlserverDb,
+        string $sqlserverUser,
+        string $sqlserverPassword,
+    ) {
+        $dsn = "sqlsrv:Server=$sqlserverHost,$sqlserverPort;Database=$sqlserverDb";
 
         try {
-            $this->pdo = new PDO($dsn, $user, $pass, [
+            $this->pdo = new PDO($dsn, $sqlserverUser, $sqlserverPassword, [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
             ]);
         } catch (PDOException $e) {
-            echo "Connection failed: " . $e->getMessage();
+            throw new \RuntimeException('Connexion à la base de données impossible.');
         }
     }
 
@@ -43,7 +41,7 @@ class SqlServerService
             $stmt->execute($params);
         } catch (PDOException $e) {
             error_log("Erreur SQL : " . $e->getMessage());
-            throw new \RuntimeException("Erreur SQL : " . $e->getMessage());
+            throw new \RuntimeException("Une erreur est survenue lors de l'exécution de la requête.");
         }
     }
 

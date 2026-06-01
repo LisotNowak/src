@@ -53,6 +53,7 @@ class FileUploadController extends AbstractController
     #[Route('/files', name: 'app_file_list')]
     public function listFiles(): Response
     {
+        $this->denyAccessUnlessGranted('IS_AUTHENTICATED_FULLY');
         $uploadDir = $this->getParameter('uploads_directory');
         $files = [];
 

@@ -16,6 +16,7 @@ class DebugController extends AbstractController
     #[Route('/dev/routes', name: 'dev_routes_list')]
     public function listRenderRoutes(RouterInterface $router, MaintenanceService $maintenanceService): Response
     {
+        $this->denyAccessUnlessGranted('ROLE_ADMIN');
         $allRoutes = $router->getRouteCollection()->all();
         $categorizedRoutes = [];
 
@@ -91,6 +92,7 @@ class DebugController extends AbstractController
     #[Route('/dev/maintenance/activate/{category}', name: 'dev_maintenance_activate', methods: ['POST'])]
     public function activateMaintenance(string $category, Request $request, MaintenanceService $maintenanceService): Response
     {
+        $this->denyAccessUnlessGranted('ROLE_ADMIN');
         $message = $request->request->get('message');
         $mode = $request->request->get('mode', 'block');
         $maintenanceService->activate($category, $message, $mode);
@@ -103,6 +105,7 @@ class DebugController extends AbstractController
     #[Route('/dev/maintenance/deactivate/{category}', name: 'dev_maintenance_deactivate', methods: ['POST'])]
     public function deactivateMaintenance(string $category, MaintenanceService $maintenanceService): Response
     {
+        $this->denyAccessUnlessGranted('ROLE_ADMIN');
         $maintenanceService->deactivate($category);
         $this->addFlash('success', "Le mode maintenance a été désactivé pour la catégorie '{$category}'.");
         return $this->redirectToRoute('dev_routes_list');

@@ -213,7 +213,7 @@
                                                                         {{ event.du|date('H:i') }} - {{ event.au|date('H:i') }}
                                                                     {% endif %}
                                                                 </p>
-                                                                <p><strong>Description :</strong><br /> {{ event.description|nl2br|raw }}</p>
+                                                                <p><strong>Description :</strong><br /> {{ event.description|e|nl2br }}</p>
 
                                                                 {% if event.langues is not empty %}
                                                                     <p><strong>Langues :</strong> 

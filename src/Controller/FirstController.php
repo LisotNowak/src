@@ -301,9 +301,7 @@ public function getSemaine(Request $request): Response
             ];
 
             // Créer le client HTTP pour la requête
-            $client = new Client([
-                'verify' => false, // Désactiver la vérification SSL
-            ]);
+            $client = new Client();
             $response = $client->post(
                 'https://artemis-domaines.oenomanager.com/api/public/evenements', 
                 [
@@ -330,8 +328,7 @@ public function getSemaine(Request $request): Response
 
         } catch (Exception $ex) {
             error_log($ex->getMessage());
-            http_response_code(400);
-            echo json_encode(['error' => $ex->getMessage()]);
+            $allEvents = [];
         }
 
         return $this->render('formation.html.twig', [

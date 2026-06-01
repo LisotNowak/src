@@ -14,6 +14,8 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\JsonResponse; // <-- Ajoutez cette ligne
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
+use Symfony\Component\Security\Csrf\CsrfToken;
 
 class ClientController extends AbstractController
 {
@@ -173,10 +175,15 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
 
 
     #[Route('/clients/update-field', name: 'app_clients_update_field', methods: ['POST'])]
-    public function updateField(Request $request, ManagerRegistry $doctrine): Response
+    public function updateField(Request $request, ManagerRegistry $doctrine, CsrfTokenManagerInterface $csrfTokenManager): Response
     {
         if (!$request->isXmlHttpRequest()) {
             return $this->json(['success' => false, 'error' => 'Requête non autorisée'], 400);
+        }
+
+        $csrfToken = $request->headers->get('X-CSRF-TOKEN');
+        if (!$csrfTokenManager->isTokenValid(new CsrfToken('update_client_field', $csrfToken))) {
+            return $this->json(['success' => false, 'error' => 'Token CSRF invalide'], 403);
         }
 
         $data = json_decode($request->getContent(), true);
@@ -227,10 +234,16 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
     public function updateAddress(
         Request $request,
         ManagerRegistry $doctrine,
-        Client $client
+        Client $client,
+        CsrfTokenManagerInterface $csrfTokenManager
     ): JsonResponse {
         if (!$request->isXmlHttpRequest()) {
             return new JsonResponse(['success' => false], 400);
+        }
+
+        $csrfToken = $request->headers->get('X-CSRF-TOKEN');
+        if (!$csrfTokenManager->isTokenValid(new CsrfToken('update_client_address', $csrfToken))) {
+            return new JsonResponse(['success' => false, 'error' => 'Token CSRF invalide'], 403);
         }
 
         $data = json_decode($request->getContent(), true);

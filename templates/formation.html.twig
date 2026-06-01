@@ -97,7 +97,7 @@
                                                     <p><strong>Heure :</strong> 
                                                         {{ event.du|date_modify('+1 hour')|date('H:i') }} - {{ event.au|date_modify('+1 hour')|date('H:i') }}
                                                     </p>
-                                                    <p><strong>Description :</strong><br /> {{ event.description|nl2br|raw }}</p>
+                                                    <p><strong>Description :</strong><br /> {{ event.description|e|nl2br }}</p>
                                                 </div>
                                                 <div class="modal-footer">
                                                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>

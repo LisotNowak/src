@@ -4,7 +4,7 @@
 # Put parameters here that don't need to change on each machine where the app is deployed
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
-    oenomanager_token: 'D#FGHD3$57FG=H2D4F(GH#DFGS6£QS5D@68F7$¤¤'
+    oenomanager_token: '%env(OENOMANAGER_TOKEN)%'
     uploads_directory: '%kernel.project_dir%/public/uploads/organigramme'
     images_directory: '%kernel.project_dir%/public/uploads/images'
 
@@ -31,5 +31,13 @@ services:
         arguments:
             $client: '@Symfony\Contracts\HttpClient\HttpClientInterface'
             $token: '%oenomanager_token%'
+
+    App\Service\SqlServerService:
+        arguments:
+            $sqlserverHost: '%env(SQLSERVER_HOST)%'
+            $sqlserverPort: '%env(int:SQLSERVER_PORT)%'
+            $sqlserverDb: '%env(SQLSERVER_DB)%'
+            $sqlserverUser: '%env(SQLSERVER_USER)%'
+            $sqlserverPassword: '%env(SQLSERVER_PASSWORD)%'
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

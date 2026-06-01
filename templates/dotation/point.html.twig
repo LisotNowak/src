@@ -26,7 +26,7 @@
                 <option value="">-- Tous les services --</option>
                 {% for service in services %}
                     {% if service %}
-                        <option value="{{ service }}">{{ service|raw }}</option>
+                        <option value="{{ service }}">{{ service }}</option>
                     {% endif %}
                 {% endfor %}
             </select>

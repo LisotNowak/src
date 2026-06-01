@@ -51,7 +51,6 @@ class EventService
                         'Content-Type' => 'application/json',
                     ],
                     'json' => $postData,
-                    'verify_peer' => false, // Désactiver la vérification SSL
                 ]
             );
 

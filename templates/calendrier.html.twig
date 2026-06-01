@@ -366,7 +366,7 @@ document.querySelector('select[name="mois"]').addEventListener('change', functio
                                                                             {{ event.du|date('H:i') }} - {{ event.au|date('H:i') }}
                                                                         {% endif %}
                                                                     </p>
-                                                                    <p><strong>Description :</strong><br /> {{ event.description|nl2br|raw }}</p>
+                                                                    <p><strong>Description :</strong><br /> {{ event.description|e|nl2br }}</p>
 
                                                                     <!-- Affichage des langues -->
                                                                     {% if event.langues is not empty %}
