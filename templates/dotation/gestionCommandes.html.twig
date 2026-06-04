@@ -177,7 +177,14 @@
                 <div class="alert alert-info">Aucune commande "Sur commande".</div>
             {% else %}
 
-            <div class="d-flex justify-content-end mb-2">
+            <div class="d-flex justify-content-end mb-2 gap-2">
+                <form method="post" action="{{ path('app_commandes_archiver_sur_commande') }}" style="display:inline-block;">
+                    <input type="hidden" name="_token" value="{{ csrf_token('archiver_sur_commande') }}">
+                    <button type="submit" class="btn btn-sm btn-outline-secondary"
+                        onclick="return confirm('Archiver toutes les commandes \"Sur commande\" ? Cette action est irréversible.');">
+                        Archiver toutes
+                    </button>
+                </form>
                 <button class="btn btn-sm btn-outline-primary" id="exportExcelBtn">
                     Exporter Excel
                 </button>

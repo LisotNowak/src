@@ -510,6 +510,29 @@ class OrderController extends AbstractController
         ]);
     }
 
+    #[Route('/dota/commandes/archiver-sur-commande', name: 'app_commandes_archiver_sur_commande', methods: ['POST'])]
+    public function archiverToutesSurCommande(Request $request, EntityManagerInterface $entityManager): Response
+    {
+        $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
+
+        if (!$this->isCsrfTokenValid('archiver_sur_commande', $request->request->get('_token'))) {
+            $this->addFlash('error', 'Token CSRF invalide.');
+            return $this->redirectToRoute('app_gestion_commandes_dota');
+        }
+
+        $commandes = $entityManager->getRepository(Commande::class)->findBy(['nomEtat' => 'Sur commande']);
+
+        foreach ($commandes as $commande) {
+            $commande->setNomEtat('Archivé');
+        }
+
+        $entityManager->flush();
+
+        $count = count($commandes);
+        $this->addFlash('success', sprintf('%d commande(s) passée(s) en "Archivé".', $count));
+        return $this->redirectToRoute('app_gestion_commandes_dota');
+    }
+
     #[Route('/commande/{id}/attente', name: 'app_commande_mettre_en_attente', methods: ['POST'])]
     public function mettreEnAttente(Commande $commande, EntityManagerInterface $em, Request $request): Response
     {
