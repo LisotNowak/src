@@ -20,10 +20,10 @@ class UserPointsController extends AbstractController
         $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
 
         $listeUsers = $entityManager->getRepository(User::class)->findBy([], ['nom' => 'ASC']);
-            
+
         $services = array_unique(array_map(fn($u) => $u->getService(), $listeUsers));
         sort($services);
-        
+
         $servicesSections = [];
         foreach ($services as $service) {
             $usersInService = array_filter($listeUsers, fn($u) => $u->getService() === $service);
@@ -31,11 +31,17 @@ class UserPointsController extends AbstractController
             sort($sections);
             $servicesSections[$service] = $sections;
         }
-        
+
+        $usersJamaisConnectes = array_values(array_filter(
+            $listeUsers,
+            fn($u) => !$u->isPasswordChanged() && in_array('ROLE_USER_DOTA', $u->getRoles())
+        ));
+
         return $this->render('dotation/point.html.twig', [
             'listeUsers' => $listeUsers,
             'services' => $services,
             'servicesSections' => $servicesSections,
+            'usersJamaisConnectes' => $usersJamaisConnectes,
         ]);
     }
 

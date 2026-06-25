@@ -11,7 +11,61 @@
         .legend-box { display:inline-block; width:14px; height:14px; margin-right:6px; border:1px solid #ccc; vertical-align:middle; }
     </style>
 
-    <h2 class="mb-4">Gestion des points utilisateurs</h2>
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <h2 class="mb-0">Gestion des points utilisateurs</h2>
+        <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#modalJamaisConnectes">
+            <i class="bi bi-person-exclamation me-1"></i>
+            Jamais connectés ({{ usersJamaisConnectes|length }})
+        </button>
+    </div>
+
+    <!-- Modal : utilisateurs jamais connectés avec ROLE_USER_DOTA -->
+    <div class="modal fade" id="modalJamaisConnectes" tabindex="-1" aria-labelledby="modalJamaisConnectesLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalJamaisConnectesLabel">
+                        Utilisateurs jamais connectés avec droit de commande
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                </div>
+                <div class="modal-body">
+                    {% if usersJamaisConnectes is empty %}
+                        <div class="alert alert-success mb-0">Tous les utilisateurs se sont déjà connectés.</div>
+                    {% else %}
+                        <p class="text-muted small">Ces utilisateurs possèdent <strong>ROLE_USER_DOTA</strong> mais n'ont jamais changé leur mot de passe (première connexion non effectuée).</p>
+                        <table class="table table-sm table-bordered align-middle">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Nom</th>
+                                    <th>Prénom</th>
+                                    <th>Email</th>
+                                    <th>Service</th>
+                                    <th>Section</th>
+                                    <th>Points</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for u in usersJamaisConnectes %}
+                                    <tr>
+                                        <td>{{ u.nom }}</td>
+                                        <td>{{ u.prenom }}</td>
+                                        <td>{{ u.email }}</td>
+                                        <td>{{ u.service }}</td>
+                                        <td>{{ u.section }}</td>
+                                        <td class="text-center">{{ u.pointDotation ?? 0 }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Légende -->
     <div class="mb-3">
