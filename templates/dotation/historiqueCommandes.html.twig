@@ -1,0 +1,53 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Historique des commandes{% endblock %}
+
+{% block sidebar %}
+    {% include 'dotation/sidebar.html.twig' with {'active_link': 'historique_commandes'} %}
+{% endblock %}
+
+{% block body %}
+<div class="container mt-4">
+    <h1>Historique des commandes</h1>
+    <p class="text-muted">100 dernières commandes archivées.</p>
+
+    {% if commandes is empty %}
+        <div class="alert alert-info">Aucune commande archivée.</div>
+    {% else %}
+        {% for entry in commandes %}
+            {% set commande = entry.commande %}
+            <div class="card mb-3 border-secondary">
+                <div class="card-header bg-light">
+                    <strong>Commande #{{ commande.id }} — {{ entry.userName }}</strong>
+                    <span class="float-right text-muted">{{ commande.date }}</span>
+                    <div class="small text-muted">{{ commande.userMail }} &nbsp;|&nbsp; <span class="badge bg-secondary">{{ commande.nomEtat }}</span></div>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Réf</th>
+                                <th>Nom</th>
+                                <th>Taille</th>
+                                <th>Couleur</th>
+                                <th>Quantité</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for it in entry.items %}
+                                <tr>
+                                    <td>{{ it.article ? it.article.reference : '—' }}</td>
+                                    <td>{{ it.article ? it.article.nom : 'Article supprimé' }}</td>
+                                    <td>{{ it.taille }}</td>
+                                    <td>{{ it.couleur }}</td>
+                                    <td>{{ it.quantite }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% endfor %}
+    {% endif %}
+</div>
+{% endblock %}

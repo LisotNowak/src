@@ -533,6 +533,53 @@ class OrderController extends AbstractController
         return $this->redirectToRoute('app_gestion_commandes_dota');
     }
 
+    #[Route('/dota/historique-commandes', name: 'app_historique_commandes_dota')]
+    public function historiqueCommandes(EntityManagerInterface $entityManager): Response
+    {
+        $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
+
+        $commandesEntities = $entityManager->getRepository(Commande::class)
+            ->findBy(['nomEtat' => 'Archivé'], ['date' => 'DESC'], 100);
+
+        $commandes = [];
+        foreach ($commandesEntities as $commande) {
+            $assocs = $entityManager->getRepository(AssociationCommandeArticle::class)
+                ->findBy(['commande' => $commande]);
+
+            $items = [];
+            foreach ($assocs as $assoc) {
+                $article = $assoc->getArticle();
+                $items[] = [
+                    'article' => $article,
+                    'taille' => $assoc->getTaille()?->getNom(),
+                    'couleur' => $assoc->getCouleur()?->getNom(),
+                    'quantite' => $assoc->getNb(),
+                ];
+            }
+
+            if (count($items) === 0) {
+                continue;
+            }
+
+            $user = $entityManager->getRepository(User::class)->findOneBy(['email' => $commande->getUserMail()]);
+            if ($user) {
+                $userName = trim(($user->getPrenom() ?? '') . ' ' . ($user->getNom() ?? '')) ?: $commande->getUserMail();
+            } else {
+                $userName = $commande->getUserMail();
+            }
+
+            $commandes[] = [
+                'commande' => $commande,
+                'items' => $items,
+                'userName' => $userName,
+            ];
+        }
+
+        return $this->render('dotation/historiqueCommandes.html.twig', [
+            'commandes' => $commandes,
+        ]);
+    }
+
     #[Route('/commande/{id}/attente', name: 'app_commande_mettre_en_attente', methods: ['POST'])]
     public function mettreEnAttente(Commande $commande, EntityManagerInterface $em, Request $request): Response
     {
