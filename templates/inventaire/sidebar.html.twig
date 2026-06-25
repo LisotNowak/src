@@ -1,0 +1,157 @@
+<style>
+    /* ── Sidebar desktop ── */
+    .sidebar-inventaire {
+        width: 220px;
+        min-height: calc(100vh - 56px);
+        background-color: #f8f9fa;
+        border-right: 1px solid #dee2e6;
+        padding: 1rem 0;
+        flex-shrink: 0;
+    }
+    .sidebar-inventaire .sidebar-title {
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        color: #6c757d;
+        text-transform: uppercase;
+        padding: 0.5rem 1.2rem 0.25rem;
+    }
+    .sidebar-inventaire .nav-link {
+        color: #343a40;
+        padding: 0.5rem 1.2rem;
+        border-radius: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        font-size: 0.9rem;
+    }
+    .sidebar-inventaire .nav-link:hover { background-color: #e9ecef; color: #800000; }
+    .sidebar-inventaire .nav-link.active { background-color: #800000; color: #fff; font-weight: 600; }
+    .sidebar-inventaire .nav-link.active i { color: #fff; }
+    .sidebar-inventaire i { width: 16px; text-align: center; color: #800000; }
+
+    /* ── Offcanvas mobile : même style que sidebar ── */
+    .offcanvas-inventaire .sidebar-title {
+        font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em;
+        color: #6c757d; text-transform: uppercase;
+        padding: 0.5rem 1.2rem 0.25rem;
+    }
+    .offcanvas-inventaire .nav-link {
+        color: #343a40; padding: 0.6rem 1.2rem;
+        display: flex; align-items: center; gap: 0.6rem; font-size: 1rem;
+    }
+    .offcanvas-inventaire .nav-link:hover { background-color: #e9ecef; color: #800000; }
+    .offcanvas-inventaire .nav-link.active { background-color: #800000; color: #fff; font-weight: 600; }
+    .offcanvas-inventaire .nav-link.active i { color: #fff; }
+    .offcanvas-inventaire i { width: 18px; text-align: center; color: #800000; }
+
+    /* ── Barre mobile fixe en bas ── */
+    .mobile-bottombar {
+        display: none;
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        background: #800000;
+        z-index: 1030;
+        padding: 6px 0;
+        box-shadow: 0 -2px 8px rgba(0,0,0,0.2);
+    }
+    .mobile-bottombar a {
+        color: rgba(255,255,255,0.7);
+        text-decoration: none;
+        font-size: 0.7rem;
+        display: flex; flex-direction: column; align-items: center; gap: 2px;
+        flex: 1;
+        padding: 4px 0;
+    }
+    .mobile-bottombar a.active { color: #fff; }
+    .mobile-bottombar a i { font-size: 1.2rem; }
+
+    @media (max-width: 991px) {
+        .sidebar-inventaire { display: none !important; }
+        .mobile-bottombar   { display: flex !important; }
+        /* Espace pour la barre bottom */
+        body { padding-bottom: 70px; }
+    }
+</style>
+
+{# ── Sidebar desktop ────────────────────────────────────────────────────── #}
+<div class="sidebar-inventaire d-none d-lg-flex flex-column">
+    <div class="sidebar-title mt-2">Inventaire</div>
+
+    <a href="{{ path('app_inventaire_index') }}"
+       class="nav-link {{ active_link == 'stock' ? 'active' : '' }}">
+        <i class="fas fa-boxes"></i> Stock articles
+    </a>
+
+    <a href="{{ path('app_inventaire_comptage') }}"
+       class="nav-link {{ active_link == 'comptage' ? 'active' : '' }}">
+        <i class="fas fa-clipboard-check"></i> Comptage
+    </a>
+
+    {% if is_granted('ROLE_ADMIN') %}
+    <a href="{{ path('app_inventaire_import') }}"
+       class="nav-link {{ active_link == 'import' ? 'active' : '' }}">
+        <i class="fas fa-file-excel"></i> Importer Excel
+    </a>
+    {% endif %}
+
+    {% if emplacements|default([])|length > 0 %}
+    <hr class="mx-3 my-2">
+    <div class="sidebar-title">Emplacements</div>
+
+    <a href="{{ path('app_inventaire_index') }}"
+       class="nav-link {{ filtreEmpl is null or filtreEmpl == '' ? 'active' : '' }}">
+        <i class="fas fa-th-list"></i> Tous
+    </a>
+
+    {% for empl in emplacements %}
+        <a href="{{ path('app_inventaire_index', {emplacement: empl}) }}"
+           class="nav-link {{ filtreEmpl == empl ? 'active' : '' }}">
+            <i class="fas fa-map-marker-alt"></i> {{ empl }}
+        </a>
+    {% endfor %}
+    {% endif %}
+</div>
+
+{# ── Barre de navigation fixe en bas (mobile) ───────────────────────────── #}
+<nav class="mobile-bottombar">
+    <a href="{{ path('app_inventaire_index') }}" class="{{ active_link == 'stock' ? 'active' : '' }}">
+        <i class="fas fa-boxes"></i>Stock
+    </a>
+    <a href="{{ path('app_inventaire_comptage') }}" class="{{ active_link == 'comptage' ? 'active' : '' }}">
+        <i class="fas fa-clipboard-check"></i>Comptage
+    </a>
+    {% if is_granted('ROLE_ADMIN') %}
+    <a href="{{ path('app_inventaire_import') }}" class="{{ active_link == 'import' ? 'active' : '' }}">
+        <i class="fas fa-file-excel"></i>Import
+    </a>
+    {% endif %}
+    <a href="#" data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas">
+        <i class="fas fa-filter"></i>Filtres
+    </a>
+</nav>
+
+{# ── Offcanvas filtres emplacements (mobile) ─────────────────────────────── #}
+<div class="offcanvas offcanvas-start offcanvas-inventaire" tabindex="-1" id="sidebarOffcanvas">
+    <div class="offcanvas-header" style="background:#800000; color:#fff;">
+        <h6 class="offcanvas-title fw-bold mb-0"><i class="fas fa-warehouse me-2"></i>Emplacements</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+    </div>
+    <div class="offcanvas-body p-0">
+        {% if emplacements|default([])|length > 0 %}
+        <div class="sidebar-title mt-2">Filtres rapides</div>
+        <a href="{{ path('app_inventaire_index') }}"
+           class="nav-link {{ filtreEmpl is null or filtreEmpl == '' ? 'active' : '' }}"
+           data-bs-dismiss="offcanvas">
+            <i class="fas fa-th-list"></i> Tous les emplacements
+        </a>
+        {% for empl in emplacements %}
+            <a href="{{ path('app_inventaire_index', {emplacement: empl}) }}"
+               class="nav-link {{ filtreEmpl == empl ? 'active' : '' }}"
+               data-bs-dismiss="offcanvas">
+                <i class="fas fa-map-marker-alt"></i> {{ empl }}
+            </a>
+        {% endfor %}
+        {% endif %}
+    </div>
+</div>

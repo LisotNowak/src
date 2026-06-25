@@ -1,0 +1,352 @@
+{% extends 'base.html.twig' %}
+{% block title %}Inventaire — Comptage{% endblock %}
+
+{% block sidebar %}
+    {% include 'inventaire/sidebar.html.twig' with {
+        active_link:  'comptage',
+        emplacements: emplacements,
+        filtreEmpl:   filtreEmpl
+    } %}
+{% endblock %}
+
+{% block body %}
+<style>
+    .inv-header {
+        background: linear-gradient(135deg, #800000 0%, #a00000 100%);
+        color: #fff; padding: 1rem 1.25rem; margin-bottom: 1rem;
+    }
+    .inv-header h1 { font-size: 1.25rem; margin: 0; font-weight: 600; }
+    .inv-header p  { margin: 0.15rem 0 0; font-size: 0.82rem; opacity: 0.85; }
+
+    .filter-bar { background: #fff; padding: 0.85rem 1rem; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); margin-bottom: 1rem; }
+
+    /* ── Tableau desktop ── */
+    .table-inv thead th {
+        background-color: #800000; color: #fff;
+        font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em;
+        white-space: nowrap; position: sticky; top: 0; z-index: 1;
+    }
+    .table-inv td { font-size: 0.85rem; vertical-align: middle; }
+    .table-wrapper { overflow-x: auto; max-height: 65vh; overflow-y: auto; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+    tr.match    > td { background-color: #d1e7dd !important; }
+    tr.mismatch > td { background-color: #f8d7da !important; }
+
+    .input-comptage {
+        width: 110px; text-align: right;
+        border: 1px solid #dee2e6; border-radius: 4px; padding: 2px 6px; font-size: 0.85rem;
+    }
+    .input-comptage:focus { border-color: #800000; outline: none; box-shadow: 0 0 0 2px rgba(128,0,0,0.15); }
+    .input-commentaire {
+        width: 100%; min-width: 160px; border: 1px solid #dee2e6;
+        border-radius: 4px; padding: 2px 6px; font-size: 0.85rem; resize: none;
+    }
+    .input-commentaire:focus { border-color: #800000; outline: none; box-shadow: 0 0 0 2px rgba(128,0,0,0.15); }
+
+    .btn-save {
+        background: #800000; color: #fff; border: none;
+        border-radius: 4px; padding: 3px 10px; font-size: 0.8rem; cursor: pointer; white-space: nowrap;
+    }
+    .btn-save:hover { background: #a00000; }
+    .btn-save:disabled { background: #ccc; cursor: default; }
+    .save-status { font-size: 0.75rem; margin-left: 4px; }
+    .save-status.ok  { color: #198754; }
+    .save-status.err { color: #dc3545; }
+
+    /* ── Cartes mobile ── */
+    .comptage-card {
+        background: #fff;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        border-left: 5px solid #dee2e6;
+        transition: border-color 0.2s;
+    }
+    .comptage-card.match    { border-left-color: #198754; background-color: #f0faf4; }
+    .comptage-card.mismatch { border-left-color: #dc3545; background-color: #fdf3f4; }
+
+    .comptage-card-nom   { font-weight: 700; font-size: 1rem; color: #212529; margin-bottom: 2px; }
+    .comptage-card-empl  { font-size: 0.8rem; color: #6c757d; margin-bottom: 0.6rem; }
+    .comptage-card-stock { font-size: 0.82rem; color: #495057; margin-bottom: 0.5rem; }
+    .comptage-card-stock strong { color: #800000; font-size: 1.1rem; }
+
+    .comptage-card label { font-size: 0.78rem; font-weight: 600; color: #495057; margin-bottom: 2px; display: block; }
+    .input-comptage-mobile {
+        width: 100%; border: 2px solid #dee2e6; border-radius: 6px;
+        padding: 8px 10px; font-size: 1.1rem; text-align: right; font-weight: 600;
+        transition: border-color 0.2s;
+    }
+    .input-comptage-mobile:focus { border-color: #800000; outline: none; }
+    .input-commentaire-mobile {
+        width: 100%; border: 1px solid #dee2e6; border-radius: 6px;
+        padding: 7px 10px; font-size: 0.9rem; resize: none;
+        transition: border-color 0.2s;
+    }
+    .input-commentaire-mobile:focus { border-color: #800000; outline: none; }
+
+    .btn-save-mobile {
+        background: #800000; color: #fff; border: none;
+        border-radius: 6px; padding: 9px 16px; font-size: 0.9rem;
+        width: 100%; font-weight: 600; cursor: pointer; margin-top: 0.5rem;
+    }
+    .btn-save-mobile:disabled { background: #ccc; cursor: default; }
+    .save-status-mobile { text-align: center; font-size: 0.82rem; margin-top: 4px; min-height: 1.2em; }
+    .save-status-mobile.ok  { color: #198754; }
+    .save-status-mobile.err { color: #dc3545; }
+
+    .pagination .page-link { color: #800000; }
+    .pagination .page-item.active .page-link { background-color: #800000; border-color: #800000; color: #fff; }
+</style>
+
+<div class="inv-header">
+    <h1><i class="fas fa-clipboard-check me-2"></i>Comptage du stock</h1>
+    <p>{{ total }} article{{ total > 1 ? 's' : '' }}</p>
+</div>
+
+<div class="container-fluid px-2 px-md-3">
+
+    {# ── Filtres ── #}
+    <form method="GET" action="{{ path('app_inventaire_comptage') }}" class="filter-bar">
+        <div class="row g-2 align-items-end">
+            <div class="col-12 col-md-5">
+                <input type="text" name="q" class="form-control form-control-sm"
+                       placeholder="Recherche par nom…" value="{{ filtreQ }}">
+            </div>
+            <div class="col-8 col-md-4">
+                <select name="emplacement" class="form-select form-select-sm">
+                    <option value="">Tous les emplacements</option>
+                    {% for e in emplacements %}
+                        <option value="{{ e }}" {{ filtreEmpl == e ? 'selected' : '' }}>{{ e }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-4 col-md-3 d-flex gap-1">
+                <button type="submit" class="btn btn-sm btn-danger w-100"><i class="fas fa-filter"></i></button>
+                <a href="{{ path('app_inventaire_comptage') }}" class="btn btn-sm btn-outline-secondary w-100"><i class="fas fa-times"></i></a>
+            </div>
+        </div>
+    </form>
+
+    {% if articles is empty %}
+        <div class="alert alert-info"><i class="fas fa-info-circle me-2"></i>Aucun article trouvé.</div>
+    {% else %}
+
+        {# ════════════════════════════════════════
+           TABLEAU — desktop (≥ md)
+           ════════════════════════════════════════ #}
+        <div class="table-wrapper d-none d-md-block">
+            <table class="table table-sm table-bordered table-hover table-inv mb-0">
+                <thead>
+                    <tr>
+                        <th>Nom</th>
+                        <th>Emplacement</th>
+                        <th class="text-end">Stock dispo</th>
+                        <th class="text-end">Comptage</th>
+                        <th class="text-center">Statut</th>
+                        <th>Commentaire</th>
+                        <th class="text-center">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for article in articles %}
+                    <tr data-id="{{ article.id }}" data-stock="{{ article.stockDisponible }}">
+                        <td>{{ article.nom }}</td>
+                        <td>{{ article.emplacement }}</td>
+                        <td class="text-end fw-semibold">
+                            {% if article.stockDisponible is not null %}{{ article.stockDisponible|number_format(2, ',', ' ') }}{% endif %}
+                        </td>
+                        <td>
+                            <input type="number" step="0.0001" class="input-comptage"
+                                   value="{{ article.comptage }}" data-original="{{ article.comptage }}" placeholder="—">
+                        </td>
+                        <td class="text-center">
+                            {% if article.statut == 2 %}
+                                <span class="badge bg-success">OK</span>
+                            {% elseif article.statut == 3 and (article.attributPrincipal1 is not null or article.attributPrincipal2 is not null) %}
+                                <span class="badge bg-danger me-1">Défaut</span>
+                                <span class="text-muted small">{{ [article.attributPrincipal1, article.attributPrincipal2]|filter(v => v is not null and v != '')|join(' · ') }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <textarea class="input-commentaire" rows="1"
+                                      data-original="{{ article.commentaire }}"
+                                      placeholder="Commentaire…">{{ article.commentaire }}</textarea>
+                        </td>
+                        <td class="text-center" style="white-space:nowrap;">
+                            <button class="btn-save" data-id="{{ article.id }}" disabled>
+                                <i class="fas fa-save me-1"></i>Sauvegarder
+                            </button>
+                            <span class="save-status"></span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {# ════════════════════════════════════════
+           CARTES — mobile (< md)
+           ════════════════════════════════════════ #}
+        <div class="d-block d-md-none">
+            {% for article in articles %}
+            <div class="comptage-card"
+                 data-id="{{ article.id }}"
+                 data-stock="{{ article.stockDisponible }}">
+
+                <div class="comptage-card-nom">{{ article.nom }}</div>
+                <div class="comptage-card-empl">
+                    <i class="fas fa-map-marker-alt me-1"></i>{{ article.emplacement }}
+                    {% if article.statut == 2 %}<span class="badge bg-success ms-2">OK</span>{% endif %}
+                    {% if article.statut == 3 and (article.attributPrincipal1 is not null or article.attributPrincipal2 is not null) %}
+                        <span class="badge bg-danger ms-2">Défaut</span>
+                    {% endif %}
+                </div>
+
+                <div class="comptage-card-stock">
+                    Stock disponible : <strong>
+                        {% if article.stockDisponible is not null %}{{ article.stockDisponible|number_format(2, ',', ' ') }}{% else %}—{% endif %}
+                    </strong>
+                </div>
+
+                <label>Comptage</label>
+                <input type="number" step="0.0001"
+                       class="input-comptage-mobile"
+                       value="{{ article.comptage }}"
+                       data-original="{{ article.comptage }}"
+                       placeholder="Saisir le comptage…">
+
+                <label class="mt-2">Commentaire</label>
+                <textarea class="input-commentaire-mobile" rows="2"
+                          data-original="{{ article.commentaire }}"
+                          placeholder="Ajouter un commentaire…">{{ article.commentaire }}</textarea>
+
+                <button class="btn-save-mobile" data-id="{{ article.id }}" disabled>
+                    <i class="fas fa-save me-1"></i>Sauvegarder
+                </button>
+                <div class="save-status-mobile"></div>
+            </div>
+            {% endfor %}
+        </div>
+
+        {# ── Pagination ── #}
+        {% if totalPages > 1 %}
+        <nav class="mt-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <small class="text-muted">{{ ((page - 1) * limit) + 1 }}–{{ min(page * limit, total) }} / {{ total }}</small>
+            <ul class="pagination pagination-sm mb-0">
+                <li class="page-item {{ page == 1 ? 'disabled' : '' }}">
+                    <a class="page-link" href="{{ path('app_inventaire_comptage', app.request.query.all|merge({page: page - 1})) }}"><i class="fas fa-chevron-left"></i></a>
+                </li>
+                {% for p in max(1, page - 2)..min(totalPages, page + 2) %}
+                    <li class="page-item {{ p == page ? 'active' : '' }}">
+                        <a class="page-link" href="{{ path('app_inventaire_comptage', app.request.query.all|merge({page: p})) }}">{{ p }}</a>
+                    </li>
+                {% endfor %}
+                <li class="page-item {{ page == totalPages ? 'disabled' : '' }}">
+                    <a class="page-link" href="{{ path('app_inventaire_comptage', app.request.query.all|merge({page: page + 1})) }}"><i class="fas fa-chevron-right"></i></a>
+                </li>
+            </ul>
+        </nav>
+        {% endif %}
+
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var CSRF_TOKEN = '{{ csrf_token }}';
+    var SAVE_URL   = '{{ path('app_inventaire_comptage_save', {id: '__ID__'}) }}';
+
+    function toNum(str) {
+        if (str === null || str === undefined) return NaN;
+        var s = String(str).trim().replace(',', '.');
+        if (s === '') return NaN;
+        return parseFloat(s);
+    }
+
+    // ── Gestion couleur carte mobile ──
+    function applyCardColor(card, inputCompt) {
+        var comptage = toNum(inputCompt.value);
+        var stock    = toNum(card.getAttribute('data-stock'));
+        card.classList.remove('match', 'mismatch');
+        if (isNaN(comptage) || isNaN(stock)) return;
+        card.classList.add(comptage.toFixed(4) === stock.toFixed(4) ? 'match' : 'mismatch');
+    }
+
+    // ── Gestion couleur ligne tableau ──
+    function applyRowColor(row, inputCompt) {
+        var comptage = toNum(inputCompt.value);
+        var stock    = toNum(row.getAttribute('data-stock'));
+        row.classList.remove('match', 'mismatch');
+        if (isNaN(comptage) || isNaN(stock)) return;
+        row.classList.add(comptage.toFixed(4) === stock.toFixed(4) ? 'match' : 'mismatch');
+    }
+
+    function setupRow(container, isCard) {
+        var id         = container.getAttribute('data-id');
+        var inputCompt = container.querySelector(isCard ? '.input-comptage-mobile' : '.input-comptage');
+        var inputComm  = container.querySelector(isCard ? '.input-commentaire-mobile' : '.input-commentaire');
+        var btnSave    = container.querySelector(isCard ? '.btn-save-mobile' : '.btn-save');
+        var statusEl   = container.querySelector(isCard ? '.save-status-mobile' : '.save-status');
+        var applyColor = isCard
+            ? function () { applyCardColor(container, inputCompt); }
+            : function () { applyRowColor(container, inputCompt); };
+
+        applyColor();
+
+        function checkDirty() {
+            var changed = inputCompt.value !== (inputCompt.getAttribute('data-original') ?? '')
+                       || inputComm.value  !== (inputComm.getAttribute('data-original')  ?? '');
+            btnSave.disabled = !changed;
+            statusEl.textContent = '';
+            statusEl.className = isCard ? 'save-status-mobile' : 'save-status';
+        }
+
+        inputCompt.addEventListener('input', function () { applyColor(); checkDirty(); });
+        inputComm.addEventListener('input', checkDirty);
+
+        btnSave.addEventListener('click', function () {
+            btnSave.disabled = true;
+            statusEl.textContent = '';
+
+            fetch(SAVE_URL.replace('__ID__', id), {
+                method:  'POST',
+                headers: {
+                    'Content-Type':     'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN':     CSRF_TOKEN,
+                },
+                body: JSON.stringify({
+                    comptage:    inputCompt.value,
+                    commentaire: inputComm.value,
+                }),
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.success) {
+                    inputCompt.setAttribute('data-original', inputCompt.value);
+                    inputComm.setAttribute('data-original',  inputComm.value);
+                    applyColor();
+                    statusEl.textContent = '✓ Sauvegardé';
+                    statusEl.className   = (isCard ? 'save-status-mobile' : 'save-status') + ' ok';
+                    setTimeout(function () { statusEl.textContent = ''; }, 2500);
+                } else {
+                    statusEl.textContent = '✗ Erreur';
+                    statusEl.className   = (isCard ? 'save-status-mobile' : 'save-status') + ' err';
+                    btnSave.disabled     = false;
+                }
+            })
+            .catch(function () {
+                statusEl.textContent = '✗ Erreur réseau';
+                statusEl.className   = (isCard ? 'save-status-mobile' : 'save-status') + ' err';
+                btnSave.disabled     = false;
+            });
+        });
+    }
+
+    // Tableau desktop
+    document.querySelectorAll('tbody tr[data-id]').forEach(function (row)  { setupRow(row,  false); });
+    // Cartes mobile
+    document.querySelectorAll('.comptage-card').forEach(function (card) { setupRow(card, true); });
+});
+</script>
+{% endblock %}

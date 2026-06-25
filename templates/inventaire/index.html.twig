@@ -1,0 +1,232 @@
+{% extends 'base.html.twig' %}
+{% block title %}Inventaire — Stock articles{% endblock %}
+
+{% block sidebar %}
+    {% include 'inventaire/sidebar.html.twig' with {
+        active_link:  'stock',
+        emplacements: emplacements,
+        filtreEmpl:   filtreEmpl
+    } %}
+{% endblock %}
+
+{% block body %}
+<style>
+    .inv-header {
+        background: linear-gradient(135deg, #800000 0%, #a00000 100%);
+        color: #fff;
+        padding: 1rem 1.25rem;
+        margin-bottom: 1rem;
+    }
+    .inv-header h1 { font-size: 1.25rem; margin: 0; font-weight: 600; }
+    .inv-header p  { margin: 0.15rem 0 0; font-size: 0.82rem; opacity: 0.85; }
+
+    .stat-card {
+        border-left: 4px solid #800000;
+        background: #fff;
+        border-radius: 6px;
+        padding: 0.6rem 0.85rem;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+    }
+    .stat-card .stat-value { font-size: 1.3rem; font-weight: 700; color: #800000; }
+    .stat-card .stat-label { font-size: 0.7rem; color: #6c757d; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    .filter-bar { background: #fff; padding: 0.85rem 1rem; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); margin-bottom: 1rem; }
+
+    /* ── Tableau desktop ── */
+    .table-inv thead th {
+        background-color: #800000; color: #fff;
+        font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em;
+        white-space: nowrap; position: sticky; top: 0; z-index: 1;
+    }
+    .table-inv tbody tr:hover { background-color: #fff5f5; }
+    .table-inv td { font-size: 0.85rem; vertical-align: middle; white-space: nowrap; }
+    .badge-um { background: #800000; color: #fff; font-size: 0.7rem; padding: 2px 6px; border-radius: 3px; }
+    .table-wrapper { overflow-x: auto; max-height: 60vh; overflow-y: auto; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+
+    /* ── Cartes mobile ── */
+    .article-card {
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 1px 5px rgba(0,0,0,0.09);
+        padding: 0.85rem 1rem;
+        margin-bottom: 0.65rem;
+        border-left: 4px solid #dee2e6;
+    }
+    .article-card.statut-ok      { border-left-color: #198754; }
+    .article-card.statut-defaut  { border-left-color: #dc3545; }
+    .article-card-nom { font-weight: 600; font-size: 0.95rem; color: #212529; }
+    .article-card-code { font-size: 0.75rem; color: #6c757d; font-family: monospace; }
+    .article-card-row { display: flex; justify-content: space-between; align-items: center; margin-top: 0.35rem; font-size: 0.82rem; }
+    .article-card-stock { font-weight: 700; font-size: 1rem; color: #800000; }
+
+    .pagination .page-link { color: #800000; }
+    .pagination .page-item.active .page-link { background-color: #800000; border-color: #800000; color: #fff; }
+</style>
+
+{# ── En-tête ── #}
+<div class="inv-header">
+    <h1><i class="fas fa-boxes me-2"></i>Stock articles</h1>
+    <p>{{ total }} ligne{{ total > 1 ? 's' : '' }} trouvée{{ total > 1 ? 's' : '' }}</p>
+</div>
+
+<div class="container-fluid px-2 px-md-3">
+
+    {# ── Stats (masquées sur mobile petit) ── #}
+    <div class="row g-2 mb-3 d-none d-sm-flex">
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-value">{{ total }}</div>
+                <div class="stat-label">Articles</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-value">{{ depots|length }}</div>
+                <div class="stat-label">Dépôts</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-value">{{ emplacements|length }}</div>
+                <div class="stat-label">Emplacements</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-value">{{ page }} / {{ totalPages }}</div>
+                <div class="stat-label">Page</div>
+            </div>
+        </div>
+    </div>
+
+    {# ── Filtres ── #}
+    <form method="GET" action="{{ path('app_inventaire_index') }}" class="filter-bar">
+        <div class="row g-2 align-items-end">
+            <div class="col-12 col-md-4">
+                <input type="text" name="q" class="form-control form-control-sm"
+                       placeholder="Recherche…" value="{{ filtreQ }}">
+            </div>
+            <div class="col-6 col-md-2">
+                <select name="depot" class="form-select form-select-sm">
+                    <option value="">Tous dépôts</option>
+                    {% for d in depots %}
+                        <option value="{{ d }}" {{ filtreDepot == d ? 'selected' : '' }}>{{ d }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-6 col-md-3">
+                <select name="emplacement" class="form-select form-select-sm">
+                    <option value="">Tous emplacements</option>
+                    {% for e in emplacements %}
+                        <option value="{{ e }}" {{ filtreEmpl == e ? 'selected' : '' }}>{{ e }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <select name="unite" class="form-select form-select-sm">
+                    <option value="">Toutes unités</option>
+                    {% for u in unites %}
+                        <option value="{{ u }}" {{ filtreUnite == u ? 'selected' : '' }}>{{ u }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-6 col-md-1 d-flex gap-1">
+                <button type="submit" class="btn btn-sm btn-danger w-100"><i class="fas fa-filter"></i></button>
+                <a href="{{ path('app_inventaire_index') }}" class="btn btn-sm btn-outline-secondary w-100"><i class="fas fa-times"></i></a>
+            </div>
+        </div>
+    </form>
+
+    {% if articles is empty %}
+        <div class="alert alert-info"><i class="fas fa-info-circle me-2"></i>Aucun article ne correspond aux filtres.</div>
+    {% else %}
+
+        {# ── Tableau (≥ md) ── #}
+        <div class="table-wrapper d-none d-md-block">
+            <table class="table table-sm table-bordered table-hover table-inv mb-0">
+                <thead>
+                    <tr>
+                        <th>Code article</th>
+                        <th>Nom</th>
+                        <th>N° lot</th>
+                        <th>Emplacement</th>
+                        <th class="text-end">Stock dispo</th>
+                        <th class="text-end">Comptage</th>
+                        <th class="text-center">Statut</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for article in articles %}
+                        <tr>
+                            <td><code>{{ article.codeArticle }}</code></td>
+                            <td>{{ article.nom }}</td>
+                            <td class="text-muted">{{ article.numeroLot }}</td>
+                            <td>{{ article.emplacement }}</td>
+                            <td class="text-end fw-semibold">
+                                {% if article.stockDisponible is not null %}{{ article.stockDisponible|number_format(2, ',', ' ') }}{% endif %}
+                            </td>
+                            <td class="text-end">
+                                {% if article.comptage is not null %}{{ article.comptage|number_format(2, ',', ' ') }}{% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if article.statut == 2 %}
+                                    <span class="badge bg-success">OK</span>
+                                {% elseif article.statut == 3 and (article.attributPrincipal1 is not null or article.attributPrincipal2 is not null) %}
+                                    <span class="badge bg-danger me-1">Défaut</span>
+                                    <span class="text-muted small">{{ [article.attributPrincipal1, article.attributPrincipal2]|filter(v => v is not null and v != '')|join(' · ') }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {# ── Cartes (< md) ── #}
+        <div class="d-block d-md-none">
+            {% for article in articles %}
+                {% set isOk     = article.statut == 2 %}
+                {% set isDefaut = article.statut == 3 and (article.attributPrincipal1 is not null or article.attributPrincipal2 is not null) %}
+                <div class="article-card {{ isOk ? 'statut-ok' : (isDefaut ? 'statut-defaut' : '') }}">
+                    <div class="article-card-nom">{{ article.nom }}</div>
+                    <div class="article-card-code">{{ article.codeArticle }}{% if article.numeroLot %} · lot {{ article.numeroLot }}{% endif %}</div>
+                    <div class="article-card-row">
+                        <span class="text-muted"><i class="fas fa-map-marker-alt me-1"></i>{{ article.emplacement }}</span>
+                        <span class="article-card-stock">
+                            {% if article.stockDisponible is not null %}{{ article.stockDisponible|number_format(2, ',', ' ') }}{% endif %}
+                        </span>
+                    </div>
+                    {% if isOk %}<div class="mt-1"><span class="badge bg-success">OK</span></div>{% endif %}
+                    {% if isDefaut %}
+                        <div class="mt-1">
+                            <span class="badge bg-danger me-1">Défaut</span>
+                            <span class="text-muted small">{{ [article.attributPrincipal1, article.attributPrincipal2]|filter(v => v is not null and v != '')|join(' · ') }}</span>
+                        </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+
+        {# ── Pagination ── #}
+        {% if totalPages > 1 %}
+        <nav class="mt-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <small class="text-muted">{{ ((page - 1) * limit) + 1 }}–{{ min(page * limit, total) }} / {{ total }}</small>
+            <ul class="pagination pagination-sm mb-0">
+                <li class="page-item {{ page == 1 ? 'disabled' : '' }}">
+                    <a class="page-link" href="{{ path('app_inventaire_index', app.request.query.all|merge({page: page - 1})) }}"><i class="fas fa-chevron-left"></i></a>
+                </li>
+                {% for p in max(1, page - 2)..min(totalPages, page + 2) %}
+                    <li class="page-item {{ p == page ? 'active' : '' }}">
+                        <a class="page-link" href="{{ path('app_inventaire_index', app.request.query.all|merge({page: p})) }}">{{ p }}</a>
+                    </li>
+                {% endfor %}
+                <li class="page-item {{ page == totalPages ? 'disabled' : '' }}">
+                    <a class="page-link" href="{{ path('app_inventaire_index', app.request.query.all|merge({page: page + 1})) }}"><i class="fas fa-chevron-right"></i></a>
+                </li>
+            </ul>
+        </nav>
+        {% endif %}
+
+    {% endif %}
+</div>
+{% endblock %}

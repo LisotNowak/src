@@ -1,0 +1,261 @@
+{% extends 'base.html.twig' %}
+{% block title %}Inventaire — Import Excel{% endblock %}
+
+{% block sidebar %}
+    {% include 'inventaire/sidebar.html.twig' with {
+        active_link:  'import',
+        emplacements: [],
+        filtreEmpl:   null
+    } %}
+{% endblock %}
+
+{% block body %}
+<style>
+    .inv-header {
+        background: linear-gradient(135deg, #800000 0%, #a00000 100%);
+        color: #fff;
+        padding: 1.25rem 1.5rem;
+        margin-bottom: 1.25rem;
+    }
+    .inv-header h1 { font-size: 1.4rem; margin: 0; font-weight: 600; }
+    .inv-header p  { margin: 0.2rem 0 0; font-size: 0.85rem; opacity: 0.85; }
+
+    .import-card {
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        padding: 2rem;
+        max-width: 680px;
+    }
+
+    .drop-zone {
+        border: 2px dashed #c0392b;
+        border-radius: 8px;
+        padding: 2.5rem 1rem;
+        text-align: center;
+        cursor: pointer;
+        transition: background 0.2s;
+        background: #fff9f9;
+    }
+    .drop-zone:hover, .drop-zone.dragover { background: #fdecea; }
+    .drop-zone i { font-size: 2.5rem; color: #800000; margin-bottom: 0.75rem; }
+    .drop-zone .drop-label { color: #6c757d; font-size: 0.9rem; }
+    .drop-zone .drop-file-name { font-weight: 600; color: #800000; margin-top: 0.5rem; }
+
+    .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+    .stat-box {
+        flex: 1;
+        min-width: 120px;
+        border-radius: 8px;
+        padding: 1rem;
+        text-align: center;
+    }
+    .stat-box .val { font-size: 2rem; font-weight: 700; }
+    .stat-box .lbl { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .stat-box.ins  { background: #d4edda; color: #155724; }
+    .stat-box.upd  { background: #cce5ff; color: #004085; }
+    .stat-box.skp  { background: #fff3cd; color: #856404; }
+    .stat-box.err  { background: #f8d7da; color: #721c24; }
+
+    .error-table { font-size: 0.82rem; }
+    .col-map { font-size: 0.82rem; }
+    .col-map td, .col-map th { padding: 0.3rem 0.6rem; }
+    .col-map thead th { background: #800000; color: #fff; }
+    .btn-vin { background: #800000; color: #fff; border: none; }
+    .btn-vin:hover { background: #a00000; color: #fff; }
+</style>
+
+<div class="inv-header">
+    <h1><i class="fas fa-file-excel me-2"></i>Import des stocks depuis Excel</h1>
+    <p>Importez un fichier .xlsx au format standard de l'ERP</p>
+</div>
+
+<div class="container-fluid px-3">
+<div class="row">
+<div class="col-lg-7">
+
+    {# ── Flashs ── #}
+    {% for msg in app.flashes('danger') %}
+        <div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>{{ msg }}</div>
+    {% endfor %}
+
+    {# ── Résultats d'import ── #}
+    {% if stats is defined %}
+        <div class="mb-4">
+            <h5 class="fw-bold mb-3"><i class="fas fa-check-circle text-success me-2"></i>Import terminé</h5>
+
+            <div class="stat-row">
+                <div class="stat-box ins">
+                    <div class="val">{{ stats.inserted }}</div>
+                    <div class="lbl">Insérés</div>
+                </div>
+                <div class="stat-box upd">
+                    <div class="val">{{ stats.updated }}</div>
+                    <div class="lbl">Mis à jour</div>
+                </div>
+                <div class="stat-box skp">
+                    <div class="val">{{ stats.skipped }}</div>
+                    <div class="lbl">Ignorés</div>
+                </div>
+                <div class="stat-box err">
+                    <div class="val">{{ stats.errors|length }}</div>
+                    <div class="lbl">Erreurs</div>
+                </div>
+            </div>
+
+            {% if stats.errors|length > 0 %}
+                <div class="alert alert-warning">
+                    <strong>{{ stats.errors|length }} ligne(s) en erreur :</strong>
+                    <table class="table table-sm table-bordered error-table mt-2 mb-0">
+                        <thead><tr><th>Ligne</th><th>Message</th></tr></thead>
+                        <tbody>
+                            {% for ligne, msg in stats.errors %}
+                                <tr>
+                                    <td class="text-center">{{ ligne }}</td>
+                                    <td>{{ msg }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+
+            <a href="{{ path('app_inventaire_index') }}" class="btn btn-vin">
+                <i class="fas fa-table me-1"></i>Voir le stock
+            </a>
+            <a href="{{ path('app_inventaire_import') }}" class="btn btn-outline-secondary ms-2">
+                <i class="fas fa-redo me-1"></i>Nouvel import
+            </a>
+        </div>
+    {% endif %}
+
+    {# ── Formulaire d'upload ── #}
+    {% if stats is not defined %}
+    <div class="import-card">
+        <form method="POST" action="{{ path('app_inventaire_import_process') }}" enctype="multipart/form-data" id="importForm">
+
+            <div class="drop-zone mb-3" id="dropZone" onclick="document.getElementById('fichier_excel').click()">
+                <i class="fas fa-cloud-upload-alt d-block mx-auto"></i>
+                <div class="drop-label">Glissez-déposez votre fichier ici ou <u>cliquez pour parcourir</u></div>
+                <div class="drop-file-name" id="fileName"></div>
+            </div>
+
+            <input type="file" name="fichier_excel" id="fichier_excel"
+                   accept=".xlsx,.xls" class="d-none" required>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold" style="font-size:0.85rem;">Mode d'import</label>
+                <div class="d-flex flex-column gap-2">
+                    <div class="form-check border rounded p-2 ps-4 bg-light">
+                        <input class="form-check-input" type="radio" name="mode" id="modeTruncate" value="truncate" checked>
+                        <label class="form-check-label w-100" for="modeTruncate">
+                            <strong>Remplacement complet</strong>
+                            <span class="badge bg-success ms-1">Recommandé — Rapide</span>
+                            <div class="text-muted" style="font-size:0.8rem;">Vide le stock existant puis réinsère toutes les lignes du fichier.</div>
+                        </label>
+                    </div>
+                    <div class="form-check border rounded p-2 ps-4">
+                        <input class="form-check-input" type="radio" name="mode" id="modeUpsert" value="upsert">
+                        <label class="form-check-label w-100" for="modeUpsert">
+                            <strong>Mise à jour intelligente</strong>
+                            <div class="text-muted" style="font-size:0.8rem;">Conserve les lignes absentes du fichier. Met à jour les lignes existantes.</div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-vin w-100" id="submitBtn" disabled>
+                <i class="fas fa-upload me-2"></i>Lancer l'import
+            </button>
+        </form>
+
+        {# Barre de progression (visible après soumission) #}
+        <div id="progressDiv" class="mt-3" style="display:none;">
+            <div class="d-flex align-items-center gap-2 text-muted">
+                <div class="spinner-border spinner-border-sm text-danger" role="status"></div>
+                <span>Import en cours, veuillez patienter…</span>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+<div class="col-lg-5 mt-4 mt-lg-0">
+    <div class="import-card">
+        <h6 class="fw-bold mb-3"><i class="fas fa-columns me-2 text-danger"></i>Structure attendue du fichier</h6>
+        <p class="text-muted" style="font-size:0.82rem;">La ligne 1 doit être l'en-tête. Les données commencent ligne 2.</p>
+        <table class="table table-sm table-bordered col-map">
+            <thead>
+                <tr><th>Colonne</th><th>Champ</th><th>Obligatoire</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>A</td><td>Dép (dépôt)</td><td class="text-center"><i class="fas fa-check text-success"></i></td></tr>
+                <tr><td>B</td><td>Code article</td><td class="text-center"><i class="fas fa-check text-success"></i></td></tr>
+                <tr><td>C</td><td>Nom</td><td class="text-center"><i class="fas fa-check text-success"></i></td></tr>
+                <tr><td>D</td><td>N° de lot</td><td class="text-center text-muted">—</td></tr>
+                <tr><td>E</td><td>Emplacement</td><td class="text-center text-muted">—</td></tr>
+                <tr><td>F</td><td>Stock disponible (SkD)</td><td class="text-center text-muted">—</td></tr>
+                <tr><td>G</td><td>Qté affectée</td><td class="text-center text-muted">—</td></tr>
+                <tr><td>H</td><td>Stock affecté</td><td class="text-center text-muted">—</td></tr>
+                <tr><td>I</td><td>U/M (HL, UN…)</td><td class="text-center text-muted">—</td></tr>
+                <tr><td>J</td><td>Affecté (1 = oui)</td><td class="text-center text-muted">—</td></tr>
+                <tr><td>K</td><td>Statut (1 ou 2)</td><td class="text-center text-muted">—</td></tr>
+                <tr><td>L</td><td>Attribut principal 1</td><td class="text-center text-muted">—</td></tr>
+                <tr><td>M</td><td>Attribut principal 2</td><td class="text-center text-muted">—</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+</div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const input     = document.getElementById('fichier_excel');
+    const dropZone  = document.getElementById('dropZone');
+    const fileName  = document.getElementById('fileName');
+    const submitBtn = document.getElementById('submitBtn');
+    const form      = document.getElementById('importForm');
+    const progress  = document.getElementById('progressDiv');
+
+    function setFile(file) {
+        if (!file) return;
+        fileName.textContent = file.name;
+        submitBtn.disabled = false;
+    }
+
+    if (input) {
+        input.addEventListener('change', function () { setFile(this.files[0]); });
+    }
+
+    if (dropZone) {
+        dropZone.addEventListener('dragover', function (e) {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+        dropZone.addEventListener('dragleave', function () {
+            dropZone.classList.remove('dragover');
+        });
+        dropZone.addEventListener('drop', function (e) {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && input) {
+                const dt = new DataTransfer();
+                dt.items.add(file);
+                input.files = dt.files;
+                setFile(file);
+            }
+        });
+    }
+
+    if (form) {
+        form.addEventListener('submit', function () {
+            if (submitBtn) submitBtn.disabled = true;
+            if (progress) progress.style.display = 'block';
+        });
+    }
+});
+</script>
+{% endblock %}

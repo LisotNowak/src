@@ -85,6 +85,10 @@
                     <a class="nav-item nav-link text-white" href="/dota">Dotation vestimentaire</a>
                 {% endif %}
 
+                {% if app.user and (is_granted('ROLE_ADMIN') or is_granted('ROLE_INVENTAIRE')) %}
+                    <a class="nav-item nav-link text-white" href="{{ path('app_inventaire_index') }}">Inventaire</a>
+                {% endif %}
+
 
             </div>
             <div class="ms-auto d-flex align-items-center"> 
