@@ -534,12 +534,39 @@ class OrderController extends AbstractController
     }
 
     #[Route('/dota/historique-commandes', name: 'app_historique_commandes_dota')]
-    public function historiqueCommandes(EntityManagerInterface $entityManager): Response
+    public function historiqueCommandes(Request $request, EntityManagerInterface $entityManager): Response
     {
         $this->denyAccessUnlessGranted('ROLE_ADM_DOTA');
 
-        $commandesEntities = $entityManager->getRepository(Commande::class)
-            ->findBy(['nomEtat' => 'Archivé'], ['date' => 'DESC'], 100);
+        $search = trim($request->query->get('search', ''));
+
+        $qb = $entityManager->createQueryBuilder();
+        $qb->select('c')
+           ->from(Commande::class, 'c')
+           ->orderBy('c.date', 'DESC')
+           ->setMaxResults(200);
+
+        if ($search !== '') {
+            $userQb = $entityManager->createQueryBuilder();
+            $userQb->select('u.email')
+                   ->from(User::class, 'u')
+                   ->where('LOWER(u.nom) LIKE :search OR LOWER(u.prenom) LIKE :search OR LOWER(CONCAT(u.prenom, \' \', u.nom)) LIKE :search OR LOWER(CONCAT(u.nom, \' \', u.prenom)) LIKE :search')
+                   ->setParameter('search', '%' . mb_strtolower($search) . '%');
+
+            $matchingEmails = array_column($userQb->getQuery()->getArrayResult(), 'email');
+
+            if (empty($matchingEmails)) {
+                return $this->render('dotation/historiqueCommandes.html.twig', [
+                    'commandes' => [],
+                    'search' => $search,
+                ]);
+            }
+
+            $qb->andWhere('c.userMail IN (:emails)')
+               ->setParameter('emails', $matchingEmails);
+        }
+
+        $commandesEntities = $qb->getQuery()->getResult();
 
         $commandes = [];
         foreach ($commandesEntities as $commande) {
@@ -577,6 +604,7 @@ class OrderController extends AbstractController
 
         return $this->render('dotation/historiqueCommandes.html.twig', [
             'commandes' => $commandes,
+            'search' => $search,
         ]);
     }
 

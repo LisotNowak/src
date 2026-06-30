@@ -9,10 +9,17 @@
 {% block body %}
 <div class="container mt-4">
     <h1>Historique des commandes</h1>
-    <p class="text-muted">100 dernières commandes archivées.</p>
+
+    <form method="get" class="mb-3 d-flex gap-2 align-items-center">
+        <input type="text" name="search" class="form-control" style="max-width:300px;" placeholder="Rechercher par nom ou prénom..." value="{{ search }}">
+        <button type="submit" class="btn btn-primary">Rechercher</button>
+        {% if search %}
+            <a href="{{ path('app_historique_commandes_dota') }}" class="btn btn-secondary">Effacer</a>
+        {% endif %}
+    </form>
 
     {% if commandes is empty %}
-        <div class="alert alert-info">Aucune commande archivée.</div>
+        <div class="alert alert-info">Aucune commande trouvée{% if search %} pour « {{ search }} »{% endif %}.</div>
     {% else %}
         {% for entry in commandes %}
             {% set commande = entry.commande %}

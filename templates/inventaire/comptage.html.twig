@@ -1,4 +1,4 @@
-{% extends 'base.html.twig' %}
+{% extends 'inventaire/layout.html.twig' %}
 {% block title %}Inventaire — Comptage{% endblock %}
 
 {% block sidebar %}
@@ -199,6 +199,7 @@
                     {% if article.statut == 2 %}<span class="badge bg-success ms-2">OK</span>{% endif %}
                     {% if article.statut == 3 and (article.attributPrincipal1 is not null or article.attributPrincipal2 is not null) %}
                         <span class="badge bg-danger ms-2">Défaut</span>
+                        <span class="text-muted small ms-1">{{ [article.attributPrincipal1, article.attributPrincipal2]|filter(v => v is not null and v != '')|join(' · ') }}</span>
                     {% endif %}
                 </div>
 
