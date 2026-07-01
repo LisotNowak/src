@@ -1,0 +1,154 @@
+{% extends 'tracabilite/layout.html.twig' %}
+
+{% block title %}Tracabilité – Journal{% endblock %}
+
+{% block body %}
+<div class="p-3 p-lg-4">
+
+    <div class="d-flex flex-wrap align-items-center justify-content-between mb-3 gap-2">
+        <h4 class="mb-0 fw-bold" style="color:#800000;">
+            <i class="fas fa-history me-2"></i>Journal des modifications
+        </h4>
+    </div>
+
+    {# Stats rapides #}
+    {% if stats|length > 0 %}
+    <div class="d-flex flex-wrap gap-2 mb-3">
+        {% for s in stats %}
+        <span class="badge fs-6
+            {% if s.action == 'Création' %}text-bg-success
+            {% elseif s.action == 'Modification' %}text-bg-warning
+            {% else %}text-bg-danger{% endif %}">
+            {{ s.action }} : {{ s.nb }}
+        </span>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {# Filtres #}
+    <form method="get" class="card border-0 shadow-sm mb-3">
+        <div class="card-body py-2">
+            <div class="row g-2 align-items-end">
+                <div class="col-sm-3">
+                    <label class="form-label mb-1 small fw-semibold">Mois</label>
+                    <input type="month" name="mois" value="{{ mois }}" class="form-control form-control-sm">
+                </div>
+                <div class="col-sm-4">
+                    <label class="form-label mb-1 small fw-semibold">Chef (filtre par mois)</label>
+                    <select name="chef" class="form-select form-select-sm">
+                        <option value="">Tous les chefs</option>
+                        {% for e in equipes %}
+                            <option value="{{ e.nom }}" {{ chef == e.nom ? 'selected' : '' }}>{{ e.nom }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-sm-2">
+                    <button type="submit" class="btn btn-sm btn-primary w-100">
+                        <i class="fas fa-filter me-1"></i>Filtrer
+                    </button>
+                </div>
+                <div class="col-sm-3">
+                    <a href="{{ path('app_tracabilite_journal') }}" class="btn btn-sm btn-outline-secondary w-100">
+                        <i class="fas fa-undo me-1"></i>Tout afficher
+                    </a>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    {# Tableau journal #}
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white d-flex justify-content-between">
+            <span class="fw-semibold"><i class="fas fa-list me-2" style="color:#800000;"></i>Entrées du journal</span>
+            <span class="text-muted small">{{ entrees|length }} entrée(s)</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Date</th>
+                        <th class="text-center">Action</th>
+                        <th class="d-none d-sm-table-cell">Chef</th>
+                        <th class="d-none d-md-table-cell">Personnel</th>
+                        <th class="d-none d-sm-table-cell">Tâche</th>
+                        <th class="d-none d-md-table-cell">Parcelle</th>
+                        <th class="d-none d-lg-table-cell">Saisie</th>
+                        <th class="text-center">Détail</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for e in entrees %}
+                    <tr>
+                        <td class="text-nowrap small">
+                            {{ e.effectueA|date('d/m/Y') }}
+                            <div class="text-muted" style="font-size:0.7rem;">{{ e.effectueA|date('H:i') }}</div>
+                            <div class="d-sm-none text-muted" style="font-size:0.7rem;">{{ e.chefNom ?? '' }}</div>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge
+                                {% if e.action == 'Création' %}text-bg-success
+                                {% elseif e.action == 'Modification' %}text-bg-warning
+                                {% else %}text-bg-danger{% endif %}">
+                                {{ e.action }}
+                            </span>
+                        </td>
+                        <td class="small d-none d-sm-table-cell"><span class="badge text-bg-secondary">{{ e.chefNom ?? '—' }}</span></td>
+                        <td class="small d-none d-md-table-cell">{{ e.personnelNom ?? '—' }}</td>
+                        <td class="small text-truncate d-none d-sm-table-cell" style="max-width:120px;">{{ e.tacheNom ?? '—' }}</td>
+                        <td class="small text-muted d-none d-md-table-cell">{{ e.parcelleNom ?? '—' }}</td>
+                        <td class="small text-muted d-none d-lg-table-cell">{{ e.saisieDate ?? '—' }}</td>
+                        <td class="text-center">
+                            {% if e.avant or e.apres %}
+                            <button type="button" class="btn btn-xs btn-outline-secondary"
+                                    style="padding:1px 6px; font-size:0.7rem;"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#journalDetail{{ loop.index }}">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+
+                    {% if e.avant or e.apres %}
+                    <div class="modal fade" id="journalDetail{{ loop.index }}" tabindex="-1">
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header py-2" style="background:#800000; color:#fff;">
+                                    <h6 class="modal-title">
+                                        {{ e.action }} – {{ e.saisieDate }} – {{ e.personnelNom }}
+                                    </h6>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="row g-2">
+                                        {% if e.avant %}
+                                        <div class="col-md-6">
+                                            <div class="fw-semibold small text-danger mb-1">Avant</div>
+                                            <pre class="bg-light p-2 rounded small" style="max-height:200px; overflow-y:auto;">{{ e.avant }}</pre>
+                                        </div>
+                                        {% endif %}
+                                        {% if e.apres %}
+                                        <div class="col-md-6">
+                                            <div class="fw-semibold small text-success mb-1">Après</div>
+                                            <pre class="bg-light p-2 rounded small" style="max-height:200px; overflow-y:auto;">{{ e.apres }}</pre>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    {% if e.note %}
+                                    <div class="alert alert-info py-1 small mt-2">{{ e.note }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% else %}
+                    <tr><td colspan="8" class="text-center text-muted py-4">Aucune entrée dans le journal</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

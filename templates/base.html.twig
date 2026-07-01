@@ -151,13 +151,13 @@
 
         {% block navbar %}{% include 'navbar.html.twig' %}{% endblock %}
 
-        <div class="d-flex">
+        <div class="d-flex" id="app-wrapper">
             <!-- Sidebar incluse ici -->
             {% block sidebar %}
             {% endblock %}
-            
+
             <!-- Contenu principal -->
-            <div class="flex-grow-1 ">
+            <div class="flex-grow-1" id="main-content">
                 {% block body %}
                     <h1>Welcome to Symfony!</h1>
                 {% endblock %}

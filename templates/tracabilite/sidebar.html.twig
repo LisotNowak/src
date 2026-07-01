@@ -1,0 +1,180 @@
+<style>
+    /* ── Layout plein-écran sans scrollbar navigateur ────────────────────── */
+    html, body {
+        height: 100%;
+        overflow: hidden;
+    }
+    body {
+        display: flex !important;
+        flex-direction: column;
+    }
+    #app-wrapper {
+        flex: 1;
+        min-height: 0;        /* permet à flex de réduire sous son contenu */
+        overflow: hidden;
+        display: flex !important;
+    }
+    #main-content {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+    /* ─────────────────────────────────────────────────────────────────────── */
+
+    .sidebar-tracabilite {
+        width: 220px;
+        background-color: #f8f9fa;
+        border-right: 1px solid #dee2e6;
+        padding: 1rem 0;
+        flex-shrink: 0;
+        overflow-y: auto;   /* scroll interne si beaucoup d'items */
+    }
+    .sidebar-tracabilite .sidebar-title {
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        color: #6c757d;
+        text-transform: uppercase;
+        padding: 0.5rem 1.2rem 0.25rem;
+    }
+    .sidebar-tracabilite .nav-link {
+        color: #343a40;
+        padding: 0.5rem 1.2rem;
+        border-radius: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        font-size: 0.9rem;
+    }
+    .sidebar-tracabilite .nav-link:hover { background-color: #e9ecef; color: #800000; }
+    .sidebar-tracabilite .nav-link.active { background-color: #800000; color: #fff; font-weight: 600; }
+    .sidebar-tracabilite .nav-link.active i { color: #fff; }
+    .sidebar-tracabilite i { width: 16px; text-align: center; color: #800000; }
+
+    .offcanvas-tracabilite .sidebar-title {
+        font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em;
+        color: #6c757d; text-transform: uppercase;
+        padding: 0.5rem 1.2rem 0.25rem;
+    }
+    .offcanvas-tracabilite .nav-link {
+        color: #343a40; padding: 0.6rem 1.2rem;
+        display: flex; align-items: center; gap: 0.6rem; font-size: 1rem;
+    }
+    .offcanvas-tracabilite .nav-link:hover { background-color: #e9ecef; color: #800000; }
+    .offcanvas-tracabilite .nav-link.active { background-color: #800000; color: #fff; font-weight: 600; }
+    .offcanvas-tracabilite .nav-link.active i { color: #fff; }
+    .offcanvas-tracabilite i { width: 18px; text-align: center; color: #800000; }
+
+    .mobile-bottombar-trac {
+        display: none;
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        background: #800000;
+        z-index: 1030;
+        padding: 6px 0;
+        box-shadow: 0 -2px 8px rgba(0,0,0,0.2);
+    }
+    .mobile-bottombar-trac a {
+        color: rgba(255,255,255,0.7);
+        text-decoration: none;
+        font-size: 0.7rem;
+        display: flex; flex-direction: column; align-items: center; gap: 2px;
+        flex: 1;
+        padding: 4px 0;
+    }
+    .mobile-bottombar-trac a.active { color: #fff; }
+    .mobile-bottombar-trac a i { font-size: 1.2rem; }
+
+    @media (max-width: 991px) {
+        .sidebar-tracabilite    { display: none !important; }
+        .mobile-bottombar-trac  { display: flex !important; }
+        /* Le padding va sur #main-content pour que le scroll interne l'inclue */
+        body { padding-bottom: 0 !important; }
+        #main-content { padding-bottom: 70px; }
+    }
+</style>
+
+{# ── Sidebar desktop ── #}
+<div class="sidebar-tracabilite d-none d-lg-flex flex-column">
+    <div class="sidebar-title mt-2">Tracabilité Vigne</div>
+
+    <a href="{{ path('app_tracabilite_dashboard') }}"
+       class="nav-link {{ active_link == 'dashboard' ? 'active' : '' }}">
+        <i class="fas fa-tachometer-alt"></i> Tableau de bord
+    </a>
+
+    <a href="{{ path('app_tracabilite_saisie_index') }}"
+       class="nav-link {{ active_link == 'saisie' ? 'active' : '' }}">
+        <i class="fas fa-pen-square"></i> Saisies
+    </a>
+
+    <a href="{{ path('app_tracabilite_avancement') }}"
+       class="nav-link {{ active_link == 'avancement' ? 'active' : '' }}">
+        <i class="fas fa-tasks"></i> Avancement
+    </a>
+
+    <a href="{{ path('app_tracabilite_rendement') }}"
+       class="nav-link {{ active_link == 'rendement' ? 'active' : '' }}">
+        <i class="fas fa-chart-bar"></i> Rendement
+    </a>
+
+    <a href="{{ path('app_tracabilite_carte') }}"
+       class="nav-link {{ active_link == 'carte' ? 'active' : '' }}">
+        <i class="fas fa-map-marked-alt"></i> Carte
+    </a>
+
+    <hr class="mx-3 my-2">
+    <div class="sidebar-title">Administration</div>
+
+    <a href="{{ path('app_tracabilite_referentiel_index') }}"
+       class="nav-link {{ active_link == 'referentiel' ? 'active' : '' }}">
+        <i class="fas fa-sliders-h"></i> Référentiels
+    </a>
+
+    <a href="{{ path('app_tracabilite_journal') }}"
+       class="nav-link {{ active_link == 'journal' ? 'active' : '' }}">
+        <i class="fas fa-history"></i> Journal
+    </a>
+</div>
+
+{# ── Barre mobile bas ── #}
+<nav class="mobile-bottombar-trac">
+    <a href="{{ path('app_tracabilite_dashboard') }}" class="{{ active_link == 'dashboard' ? 'active' : '' }}">
+        <i class="fas fa-tachometer-alt"></i>Bord
+    </a>
+    <a href="{{ path('app_tracabilite_saisie_index') }}" class="{{ active_link == 'saisie' ? 'active' : '' }}">
+        <i class="fas fa-pen-square"></i>Saisies
+    </a>
+    <a href="{{ path('app_tracabilite_avancement') }}" class="{{ active_link == 'avancement' ? 'active' : '' }}">
+        <i class="fas fa-tasks"></i>Avanc.
+    </a>
+    <a href="{{ path('app_tracabilite_rendement') }}" class="{{ active_link == 'rendement' ? 'active' : '' }}">
+        <i class="fas fa-chart-bar"></i>Rend.
+    </a>
+    <a href="#" data-bs-toggle="offcanvas" data-bs-target="#tracabiliteOffcanvas">
+        <i class="fas fa-ellipsis-h"></i>Plus
+    </a>
+</nav>
+
+{# ── Offcanvas mobile ── #}
+<div class="offcanvas offcanvas-start offcanvas-tracabilite" tabindex="-1" id="tracabiliteOffcanvas">
+    <div class="offcanvas-header" style="background:#800000; color:#fff;">
+        <h6 class="offcanvas-title fw-bold mb-0"><i class="fas fa-leaf me-2"></i>Tracabilité Vigne</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+    </div>
+    <div class="offcanvas-body p-0">
+        <div class="sidebar-title mt-2">Navigation</div>
+        <a href="{{ path('app_tracabilite_carte') }}" class="nav-link {{ active_link == 'carte' ? 'active' : '' }}" data-bs-dismiss="offcanvas">
+            <i class="fas fa-map-marked-alt"></i> Carte
+        </a>
+        <hr class="mx-3 my-1">
+        <div class="sidebar-title">Administration</div>
+        <a href="{{ path('app_tracabilite_referentiel_index') }}" class="nav-link {{ active_link == 'referentiel' ? 'active' : '' }}" data-bs-dismiss="offcanvas">
+            <i class="fas fa-sliders-h"></i> Référentiels
+        </a>
+        <a href="{{ path('app_tracabilite_journal') }}" class="nav-link {{ active_link == 'journal' ? 'active' : '' }}" data-bs-dismiss="offcanvas">
+            <i class="fas fa-history"></i> Journal
+        </a>
+    </div>
+</div>

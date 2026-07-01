@@ -1,0 +1,130 @@
+{% extends 'tracabilite/layout.html.twig' %}
+
+{% block title %}Tracabilité – Avancement{% endblock %}
+
+{% block body %}
+<div class="p-3 p-lg-4">
+
+    <div class="d-flex flex-wrap align-items-center justify-content-between mb-3 gap-2">
+        <h4 class="mb-0 fw-bold" style="color:#800000;">
+            <i class="fas fa-tasks me-2"></i>Avancement des travaux
+        </h4>
+    </div>
+
+    {# Filtres #}
+    <form method="get" class="card border-0 shadow-sm mb-4">
+        <div class="card-body py-2">
+            <div class="row g-2 align-items-end">
+                <div class="col-sm-4">
+                    <label class="form-label mb-1 small fw-semibold">Mois</label>
+                    <input type="month" name="mois" value="{{ mois }}" class="form-control form-control-sm" onchange="this.form.submit()">
+                </div>
+                <div class="col-sm-4">
+                    <label class="form-label mb-1 small fw-semibold">Équipe</label>
+                    <select name="chef" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <option value="">Toutes les équipes</option>
+                        {% for e in equipes %}
+                            <option value="{{ e.nom }}" {{ chef == e.nom ? 'selected' : '' }}>{{ e.nom }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-sm-2">
+                    <button type="submit" class="btn btn-sm btn-primary w-100">
+                        <i class="fas fa-filter me-1"></i>Filtrer
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    {# Alerte parcelles non terminées #}
+    {% if nonTerminees|length > 0 %}
+    <div class="alert alert-warning py-2 small mb-3">
+        <i class="fas fa-exclamation-triangle me-1"></i>
+        <strong>{{ nonTerminees|length }}</strong> travaux en cours non terminés
+    </div>
+    {% endif %}
+
+    {# Tableau avancement #}
+    {% if avancements|length > 0 %}
+
+    {# Résumé par tâche #}
+    {% set tacheGroups = {} %}
+    {% for a in avancements %}
+        {% set tnom = a.tacheNom %}
+        {% if tacheGroups[tnom] is not defined %}
+            {% set tacheGroups = tacheGroups|merge({(tnom): []}) %}
+        {% endif %}
+    {% endfor %}
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white d-flex justify-content-between">
+            <span class="fw-semibold"><i class="fas fa-list me-2" style="color:#800000;"></i>Avancement par parcelle</span>
+            <span class="text-muted small">{{ avancements|length }} ligne(s)</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Parcelle</th>
+                        <th class="d-none d-sm-table-cell">Tâche</th>
+                        <th style="min-width:100px;">Avancement</th>
+                        <th class="text-center">%</th>
+                        <th class="text-center d-none d-md-table-cell">Heures</th>
+                        <th class="d-none d-md-table-cell">Dernière saisie</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for a in avancements %}
+                    {% set adv = a.maxAdv|number_format(0) %}
+                    <tr>
+                        <td class="fw-semibold small">
+                            {{ a.parcelleNom }}
+                            <div class="d-sm-none text-muted fw-normal" style="font-size:0.7rem;">{{ a.tacheNom }}</div>
+                        </td>
+                        <td class="small text-muted d-none d-sm-table-cell">{{ a.tacheNom }}</td>
+                        <td>
+                            <div class="progress" style="height:16px;">
+                                <div class="progress-bar
+                                    {% if adv >= 100 %}bg-success
+                                    {% elseif adv >= 75 %}bg-info
+                                    {% elseif adv >= 50 %}bg-warning
+                                    {% else %}bg-danger{% endif %}"
+                                     style="width:{{ adv }}%;"
+                                     title="{{ adv }}%">
+                                    {% if adv > 15 %}{{ adv }}%{% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge
+                                {% if adv >= 100 %}text-bg-success
+                                {% elseif adv >= 75 %}text-bg-info
+                                {% elseif adv >= 50 %}text-bg-warning
+                                {% else %}text-bg-danger{% endif %}">
+                                {{ adv }}%
+                            </span>
+                        </td>
+                        <td class="text-center small d-none d-md-table-cell">{{ a.totalHeures ? a.totalHeures|number_format(1, ',') ~ 'h' : '—' }}</td>
+                        <td class="small text-muted d-none d-md-table-cell">{{ a.dernierDate ? a.dernierDate|date('d/m/Y') : '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% else %}
+    <div class="card border-0 shadow-sm">
+        <div class="card-body text-center text-muted py-5">
+            <i class="fas fa-seedling fa-3x mb-3" style="color:#dee2e6;"></i>
+            <div>Aucune donnée d'avancement pour ce mois</div>
+            <a href="{{ path('app_tracabilite_saisie_new') }}" class="btn btn-sm btn-outline-success mt-2">
+                <i class="fas fa-plus me-1"></i>Créer une saisie
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

@@ -1,0 +1,307 @@
+{% extends 'tracabilite/layout.html.twig' %}
+
+{% block title %}Nouvelle saisie{% endblock %}
+
+{% block body %}
+<div class="p-2 p-md-3 p-lg-4" style="max-width:900px;">
+
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+        <a href="{{ path('app_tracabilite_saisie_index') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        <h4 class="mb-0 fw-bold" style="color:#800000;">
+            <i class="fas fa-plus-circle me-2"></i>Nouvelle saisie
+        </h4>
+    </div>
+
+    {{ form_start(form, {attr: {novalidate: 'novalidate'}}) }}
+
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white fw-semibold">
+            <i class="fas fa-calendar-alt me-2" style="color:#800000;"></i>Date &amp; Équipe
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    {{ form_label(form.dateTravail) }}
+                    {{ form_widget(form.dateTravail) }}
+                    {{ form_errors(form.dateTravail) }}
+                </div>
+                <div class="col-md-4">
+                    {{ form_label(form.chefNom) }}
+                    {{ form_widget(form.chefNom) }}
+                    {{ form_errors(form.chefNom) }}
+                </div>
+                <div class="col-md-4">
+                    {{ form_label(form.personnelNom) }}
+                    {{ form_widget(form.personnelNom) }}
+                    {{ form_errors(form.personnelNom) }}
+                    <div class="form-text" id="contrat-info"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white fw-semibold">
+            <i class="fas fa-tools me-2" style="color:#800000;"></i>Tâche &amp; Parcelle
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    {{ form_label(form.tacheNom) }}
+                    {{ form_widget(form.tacheNom) }}
+                    {{ form_errors(form.tacheNom) }}
+                </div>
+                <div class="col-md-6" id="parcelleBlock">
+                    {{ form_label(form.parcelleNom) }}
+                    {{ form_widget(form.parcelleNom) }}
+                    {{ form_errors(form.parcelleNom) }}
+                    <div class="form-text" id="parcelle-info"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white fw-semibold">
+            <i class="fas fa-clock me-2" style="color:#800000;"></i>Heures &amp; Pause
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-6 col-md-3">
+                    {{ form_label(form.heures) }}
+                    {{ form_widget(form.heures) }}
+                </div>
+                <div class="col-6 col-md-3">
+                    {{ form_label(form.effectif) }}
+                    {{ form_widget(form.effectif) }}
+                </div>
+                <div class="col-md-3">
+                    {{ form_label(form.modePause) }}
+                    {{ form_widget(form.modePause) }}
+                </div>
+                <div class="col-md-3" id="minutesPauseBlock">
+                    {{ form_label(form.minutesPause) }}
+                    {{ form_widget(form.minutesPause) }}
+                </div>
+            </div>
+            <div class="mt-2">
+                <small class="text-muted">Heures nettes estimées : <strong id="heuresNettesInfo">—</strong></small>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white fw-semibold">
+            <i class="fas fa-seedling me-2" style="color:#800000;"></i>Avancement &amp; Pieds
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    {{ form_label(form.avancement) }}
+                    <div class="d-flex align-items-center gap-2">
+                        {{ form_widget(form.avancement, {attr: {type: 'range', class: 'form-range'}}) }}
+                        <span id="avancement-display" class="badge text-bg-secondary" style="min-width:48px;">0%</span>
+                    </div>
+                </div>
+                <div class="col-md-4" id="piedsBlock">
+                    {{ form_label(form.pieds) }}
+                    {{ form_widget(form.pieds) }}
+                </div>
+                <div class="col-md-4" id="piedsTotalBlock">
+                    {{ form_label(form.piedsTotal) }}
+                    {{ form_widget(form.piedsTotal) }}
+                    <div class="form-text" id="pieds-info"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            {{ form_label(form.commentaire) }}
+            {{ form_widget(form.commentaire) }}
+            {{ form_widget(form.type) }}
+        </div>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-success px-4">
+            <i class="fas fa-save me-1"></i>Enregistrer
+        </button>
+        <a href="{{ path('app_tracabilite_saisie_index') }}" class="btn btn-outline-secondary">Annuler</a>
+    </div>
+
+    {{ form_end(form) }}
+
+</div>
+
+<script>
+const TACHES    = {{ tachesJson|raw }};
+const PARCELLES = {{ parcellesJson|raw }};
+const EQUIPES   = {{ equipesJson|raw }};
+
+const selChef           = document.getElementById('saisie_chefNom');
+const selPersonnel      = document.getElementById('saisie_personnelNom');
+const selTache          = document.getElementById('saisie_tacheNom');
+const selParcelle       = document.getElementById('saisie_parcelleNom');
+const heuresInput       = document.getElementById('saisie_heures');
+const modePauseInput    = document.getElementById('saisie_modePause');
+const minutesPauseInput = document.getElementById('saisie_minutesPause');
+const parcelleBlock     = document.getElementById('parcelleBlock');
+const minutesPauseBlock = document.getElementById('minutesPauseBlock');
+const avancementRange   = document.getElementById('saisie_avancement');
+const advDisplay        = document.getElementById('avancement-display');
+const piedsInput        = document.getElementById('saisie_pieds');
+const piedsTotalInput   = document.getElementById('saisie_piedsTotal');
+let _sync = false;
+
+// ── Calcul bidirectionnel avancement ↔ pieds ──────────────────────────────
+
+function syncPiedsFromAdv() {
+    if (_sync || !piedsInput || !piedsTotalInput) return;
+    const total = parseFloat(piedsTotalInput.value) || 0;
+    if (total > 0) {
+        _sync = true;
+        piedsInput.value = Math.round(parseFloat(avancementRange.value) / 100 * total);
+        _sync = false;
+    }
+}
+
+function syncAdvFromPieds() {
+    if (_sync || !avancementRange || !piedsTotalInput) return;
+    const total = parseFloat(piedsTotalInput.value) || 0;
+    if (total > 0) {
+        _sync = true;
+        const adv = Math.min(100, Math.round(parseFloat(piedsInput.value) / total * 100));
+        avancementRange.value = adv;
+        if (advDisplay) advDisplay.textContent = adv + '%';
+        _sync = false;
+    }
+}
+
+// ── Fonctions de filtrage / mise à jour ───────────────────────────────────
+
+function filterPersonnel(equipeNom) {
+    const ouvriers = EQUIPES[equipeNom] || [];
+    const current = selPersonnel.value;
+    selPersonnel.innerHTML = '<option value="">— Sélectionner le personnel —</option>';
+    ouvriers.forEach(o => {
+        const opt = document.createElement('option');
+        opt.value = o.nom;
+        opt.text  = o.nom + (o.contrat !== 'Permanent' ? ' (' + o.contrat + ')' : '');
+        if (o.nom === current) opt.selected = true;
+        selPersonnel.appendChild(opt);
+    });
+    const opt = document.createElement('option');
+    opt.value = 'Saisonniers non nominatifs';
+    opt.text  = 'Saisonniers non nominatifs (CDD/Saison)';
+    selPersonnel.appendChild(opt);
+    updateContratInfo();
+}
+
+function updateContratInfo() {
+    const nom = selPersonnel.value;
+    if (!selChef.value) return;
+    const ouvriers = EQUIPES[selChef.value] || [];
+    const o = ouvriers.find(x => x.nom === nom);
+    const info = document.getElementById('contrat-info');
+    info.textContent = o ? 'Contrat : ' + o.contrat : '';
+}
+
+function updateParcelleVisibility() {
+    const tache = TACHES[selTache.value];
+    if (tache && tache.sansParcel) {
+        parcelleBlock.style.display = 'none';
+        selParcelle.value = '';
+        document.getElementById('piedsBlock').style.display = 'none';
+        document.getElementById('piedsTotalBlock').style.display = 'none';
+    } else {
+        parcelleBlock.style.display = '';
+        document.getElementById('piedsBlock').style.display = '';
+        document.getElementById('piedsTotalBlock').style.display = '';
+    }
+}
+
+function updateParcelleInfo() {
+    const slug = selParcelle.value;
+    const info = document.getElementById('parcelle-info');
+    const pInfo = document.getElementById('pieds-info');
+    if (slug && PARCELLES[slug]) {
+        const p = PARCELLES[slug];
+        info.textContent = (p.cepage || '') + (p.nombrePieds ? ' – ' + p.nombrePieds + ' pieds' : '');
+        if (p.nombrePieds && piedsTotalInput) {
+            piedsTotalInput.value = p.nombrePieds;
+            pInfo.textContent = 'Total parcelle : ' + p.nombrePieds + ' pieds';
+            syncPiedsFromAdv();
+        }
+    } else {
+        info.textContent = '';
+        pInfo.textContent = '';
+    }
+}
+
+function updatePause() {
+    minutesPauseBlock.style.display = (modePauseInput.value === 'manuel') ? '' : 'none';
+}
+
+function updateHeuresNettes() {
+    const h = parseFloat(heuresInput.value) || 0;
+    let m = 0;
+    const mode = modePauseInput.value;
+    if (mode === 'hiver') m = 15;
+    else if (mode === 'ete') m = 20;
+    else if (mode === 'manuel') m = parseInt(minutesPauseInput.value) || 0;
+    else if (mode === 'aucune') m = 0;
+    else { const mn = new Date().getMonth() + 1; m = (mn >= 4 && mn <= 9) ? 20 : 15; }
+    document.getElementById('heuresNettesInfo').textContent = Math.max(0, h - m / 60).toFixed(2) + 'h';
+}
+
+// ── Setup slider avancement ───────────────────────────────────────────────
+
+if (avancementRange) {
+    avancementRange.type = 'range';
+    avancementRange.min  = 0;
+    avancementRange.max  = 100;
+    avancementRange.step = 5;
+    avancementRange.addEventListener('input', () => {
+        if (advDisplay) advDisplay.textContent = avancementRange.value + '%';
+        syncPiedsFromAdv();
+    });
+    if (advDisplay) advDisplay.textContent = (avancementRange.value || '0') + '%';
+}
+
+if (piedsInput) {
+    piedsInput.addEventListener('input', syncAdvFromPieds);
+}
+
+if (piedsTotalInput) {
+    piedsTotalInput.addEventListener('input', () => {
+        const total = parseFloat(piedsTotalInput.value) || 0;
+        if (total > 0) {
+            const pieds = parseFloat(piedsInput ? piedsInput.value : 0) || 0;
+            if (pieds > 0) syncAdvFromPieds();
+            else syncPiedsFromAdv();
+        }
+    });
+}
+
+// ── Événements ────────────────────────────────────────────────────────────
+
+selChef.addEventListener('change', () => filterPersonnel(selChef.value));
+selPersonnel.addEventListener('change', updateContratInfo);
+selTache.addEventListener('change', updateParcelleVisibility);
+selParcelle.addEventListener('change', updateParcelleInfo);
+modePauseInput.addEventListener('change', () => { updatePause(); updateHeuresNettes(); });
+heuresInput.addEventListener('input', updateHeuresNettes);
+minutesPauseInput.addEventListener('input', updateHeuresNettes);
+
+// Init
+if (selChef.value) filterPersonnel(selChef.value);
+updateParcelleVisibility();
+updateParcelleInfo();
+updatePause();
+updateHeuresNettes();
+</script>
+{% endblock %}

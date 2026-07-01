@@ -1,0 +1,244 @@
+{% extends 'tracabilite/layout.html.twig' %}
+
+{% block title %}Tracabilité – Référentiels{% endblock %}
+
+{% block body %}
+<div class="p-3 p-lg-4">
+
+    {% for label, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="alert alert-{{ label == 'success' ? 'success' : (label == 'danger' ? 'danger' : 'info') }} alert-dismissible fade show">
+                {{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endfor %}
+
+    <h4 class="fw-bold mb-4" style="color:#800000;">
+        <i class="fas fa-sliders-h me-2"></i>Référentiels
+    </h4>
+
+    {# Onglets #}
+    <ul class="nav nav-tabs mb-3" id="refTabs">
+        <li class="nav-item">
+            <a class="nav-link active" data-bs-toggle="tab" href="#tabEquipes">
+                <i class="fas fa-users me-1"></i>Équipes <span class="badge text-bg-secondary ms-1">{{ equipes|length }}</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#tabTaches">
+                <i class="fas fa-tools me-1"></i>Tâches <span class="badge text-bg-secondary ms-1">{{ taches|length }}</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#tabParcelles">
+                <i class="fas fa-leaf me-1"></i>Parcelles <span class="badge text-bg-secondary ms-1">{{ parcelles|length }}</span>
+            </a>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+
+        {# ─── Équipes & Ouvriers ─── #}
+        <div class="tab-pane fade show active" id="tabEquipes">
+            <div class="row g-3">
+                {% for equipe in equipes %}
+                <div class="col-md-6 col-lg-4">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-header d-flex justify-content-between align-items-center py-2"
+                             style="background:#800000; color:#fff;">
+                            <span class="fw-semibold"><i class="fas fa-users me-2"></i>{{ equipe.nom }}</span>
+                            <div class="d-flex gap-1">
+                                <span class="badge bg-light text-dark">{{ equipe.ouvriers|length }} ouvrier(s)</span>
+                                <form action="{{ path('app_tracabilite_referentiel_equipe_delete', {id: equipe.id}) }}" method="post" class="d-inline">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('equipe_delete_' ~ equipe.id) }}">
+                                    <button type="submit" class="btn btn-sm btn-light py-0 px-1"
+                                            onclick="return confirm('Supprimer cette équipe ?')"
+                                            title="Supprimer l\'équipe">
+                                        <i class="fas fa-times text-danger"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        <ul class="list-group list-group-flush" style="max-height:240px; overflow-y:auto;">
+                            {% for ouvrier in equipe.ouvriers %}
+                            <li class="list-group-item py-1 px-3 d-flex justify-content-between align-items-center small">
+                                <span>
+                                    {{ ouvrier.nomComplet }}
+                                    <span class="badge {% if ouvrier.contrat == 'Permanent' %}text-bg-success{% else %}text-bg-warning{% endif %} ms-1" style="font-size:0.65rem;">
+                                        {{ ouvrier.contrat }}
+                                    </span>
+                                </span>
+                                <form action="{{ path('app_tracabilite_referentiel_ouvrier_delete', {id: ouvrier.id}) }}" method="post">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('ouvrier_delete_' ~ ouvrier.id) }}">
+                                    <button type="submit" class="btn btn-link btn-sm p-0 text-danger" title="Retirer">
+                                        <i class="fas fa-minus-circle"></i>
+                                    </button>
+                                </form>
+                            </li>
+                            {% endfor %}
+                            {# Ajouter un ouvrier #}
+                            <li class="list-group-item py-2 px-3">
+                                <form action="{{ path('app_tracabilite_referentiel_ouvrier_new') }}" method="post" class="d-flex flex-wrap gap-1">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('ouvrier_new') }}">
+                                    <input type="hidden" name="equipe_id" value="{{ equipe.id }}">
+                                    <input type="text" name="nom" class="form-control form-control-sm flex-grow-1" placeholder="Nom complet" required style="min-width:120px;">
+                                    <select name="contrat" class="form-select form-select-sm" style="width:100px;">
+                                        <option value="Permanent">Permanent</option>
+                                        <option value="CDD">CDD</option>
+                                        <option value="Saisonnier">Saison.</option>
+                                    </select>
+                                    <button type="submit" class="btn btn-sm btn-success" title="Ajouter">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                {% endfor %}
+
+                {# Ajouter une équipe #}
+                <div class="col-md-6 col-lg-4">
+                    <div class="card border-0 border-dashed h-100 d-flex align-items-center justify-content-center"
+                         style="border:2px dashed #dee2e6 !important; min-height:120px;">
+                        <form action="{{ path('app_tracabilite_referentiel_equipe_new') }}" method="post" class="p-3 w-100">
+                            <input type="hidden" name="_token" value="{{ csrf_token('equipe_new') }}">
+                            <div class="text-center text-muted mb-2 small">
+                                <i class="fas fa-plus-circle fa-2x mb-1" style="color:#800000;"></i><br>Nouvelle équipe
+                            </div>
+                            <div class="d-flex gap-2">
+                                <input type="text" name="nom" class="form-control form-control-sm" placeholder="Nom de l'équipe" required>
+                                <button type="submit" class="btn btn-sm btn-success">Créer</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# ─── Tâches ─── #}
+        <div class="tab-pane fade" id="tabTaches">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-tools me-2" style="color:#800000;"></i>Liste des tâches</span>
+                    <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#modalNewTache">
+                        <i class="fas fa-plus me-1"></i>Nouvelle tâche
+                    </button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Nom</th>
+                                <th class="text-center">Type</th>
+                                <th class="text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for t in taches %}
+                            <tr>
+                                <td class="small">{{ t.nom }}</td>
+                                <td class="text-center">
+                                    <span class="badge {% if t.sansParcel %}text-bg-warning{% else %}text-bg-info{% endif %}">
+                                        {{ t.sansParcel ? 'RH / Admin' : 'Terrain' }}
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    <form action="{{ path('app_tracabilite_referentiel_tache_delete', {id: t.id}) }}" method="post" class="d-inline">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('tache_delete_' ~ t.id) }}">
+                                        <button type="submit" class="btn btn-xs btn-outline-danger"
+                                                style="padding:2px 7px; font-size:0.75rem;"
+                                                onclick="return confirm('Supprimer cette tâche ?')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        {# ─── Parcelles ─── #}
+        <div class="tab-pane fade" id="tabParcelles">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white fw-semibold">
+                    <i class="fas fa-leaf me-2" style="color:#800000;"></i>Liste des parcelles
+                    <span class="text-muted small ms-2">(lecture seule – contacter administrateur pour modifier)</span>
+                </div>
+                <div class="table-responsive" style="max-height:500px; overflow-y:auto;">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>Slug</th>
+                                <th>Cépage</th>
+                                <th class="d-none d-md-table-cell">Gamme</th>
+                                <th class="text-end">Pieds</th>
+                                <th class="text-end d-none d-md-table-cell">Surface (ha)</th>
+                                <th class="text-center">Géom.</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in parcelles %}
+                            <tr>
+                                <td class="small fw-semibold">{{ p.slug }}</td>
+                                <td class="small">{{ p.cepage ?? '—' }}</td>
+                                <td class="small d-none d-md-table-cell">
+                                    {% if p.gamme %}
+                                        <span class="badge text-bg-secondary">{{ p.gamme }}</span>
+                                    {% else %}—{% endif %}
+                                </td>
+                                <td class="text-end small">{{ p.nombrePieds ? p.nombrePieds|number_format(0, ',', ' ') : '—' }}</td>
+                                <td class="text-end small d-none d-md-table-cell">{{ p.surface ?? '—' }}</td>
+                                <td class="text-center">
+                                    {% if p.geometrie %}
+                                        <i class="fas fa-check-circle text-success" title="Géométrie disponible"></i>
+                                    {% else %}
+                                        <i class="fas fa-times-circle text-muted" title="Pas de géométrie"></i>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>{# /tab-content #}
+
+</div>
+
+{# Modal nouvelle tâche #}
+<div class="modal fade" id="modalNewTache" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header" style="background:#800000; color:#fff;">
+                <h6 class="modal-title"><i class="fas fa-plus me-1"></i>Nouvelle tâche</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ path('app_tracabilite_referentiel_tache_new') }}" method="post">
+                <input type="hidden" name="_token" value="{{ csrf_token('tache_new') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Nom de la tâche</label>
+                        <input type="text" name="nom" class="form-control" required>
+                    </div>
+                    <div class="form-check">
+                        <input type="checkbox" name="sans_parcel" value="1" class="form-check-input" id="sansParcelCheck">
+                        <label class="form-check-label small" for="sansParcelCheck">
+                            Tâche RH / administrative (sans parcelle)
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-sm btn-success">Créer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

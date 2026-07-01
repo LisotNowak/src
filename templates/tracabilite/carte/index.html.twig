@@ -1,0 +1,386 @@
+{% extends 'tracabilite/layout.html.twig' %}
+
+{% block title %}Tracabilité – Carte{% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+{% endblock %}
+
+{% block body %}
+<div class="p-2 p-md-3">
+
+    <div class="d-flex flex-wrap align-items-center justify-content-between mb-2 gap-2">
+        <h4 class="mb-0 fw-bold" style="color:#800000;">
+            <i class="fas fa-map-marked-alt me-2"></i>Carte des parcelles
+        </h4>
+        <div class="d-flex flex-wrap gap-1 align-items-center">
+            <span class="badge text-bg-light border"><span class="d-inline-block me-1" style="width:10px;height:10px;background:#198754;border-radius:2px;"></span>100%</span>
+            <span class="badge text-bg-light border"><span class="d-inline-block me-1" style="width:10px;height:10px;background:#0dcaf0;border-radius:2px;"></span>≥75%</span>
+            <span class="badge text-bg-light border"><span class="d-inline-block me-1" style="width:10px;height:10px;background:#ffc107;border-radius:2px;"></span>≥50%</span>
+            <span class="badge text-bg-light border"><span class="d-inline-block me-1" style="width:10px;height:10px;background:#dc3545;border-radius:2px;"></span>&lt;50%</span>
+            <span class="badge text-bg-light border"><span class="d-inline-block me-1" style="width:10px;height:10px;background:#adb5bd;border-radius:2px;"></span>—</span>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm" style="position:relative;" id="map-print-zone">
+        <div class="card-body p-0">
+            <div id="map" style="height:calc(100vh - 160px); min-height:400px; border-radius:0.375rem;"></div>
+        </div>
+
+        {# ── Contrôle fond de carte ── #}
+        <div id="basemap-ctrl" style="
+            position:absolute; top:10px; right:10px; z-index:1000;
+            border-radius:6px; overflow:hidden;
+            box-shadow:0 2px 8px rgba(0,0,0,0.3); min-width:110px;
+        ">
+            <button id="btn-osm"   onclick="setBasemap('osm')"   class="bm-btn active-bm">🗺 Plan</button>
+            <button id="btn-sat"   onclick="setBasemap('sat')"   class="bm-btn">🛰 Satellite</button>
+            <div style="height:1px; background:#ccc; margin:2px 0;"></div>
+            <div style="font-size:0.65rem; color:#888; padding:2px 10px; background:#f8f9fa; text-align:center; letter-spacing:.05em;">IMPRESSION</div>
+            <button id="btn-blanc" onclick="setBasemap('blanc')" class="bm-btn">⬜ Blanc</button>
+            <button id="btn-gris"  onclick="setBasemap('gris')"  class="bm-btn">▭ Gris</button>
+            <div style="height:1px; background:#ccc;"></div>
+            <button onclick="printCarte()" class="bm-btn" style="color:#800000; font-weight:700;">🖨 Imprimer</button>
+        </div>
+
+        {# ── Bulle d'info parcelle ── #}
+        <div id="parcelleInfo" style="
+            display:none;
+            position:absolute;
+            bottom:1.2rem; left:1.2rem;
+            z-index:1000;
+            min-width:240px; max-width:300px;
+            animation: fadeInUp 0.18s ease;
+        ">
+            <div class="card border-0 shadow-lg" style="border-radius:0.5rem; overflow:hidden;">
+                <div class="d-flex justify-content-between align-items-center px-3 py-2"
+                     style="background:#800000; color:#fff;">
+                    <span class="fw-bold" id="infoSlug" style="font-size:0.95rem;">—</span>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge fs-6" id="infoAdv">—</span>
+                        <button type="button" id="infoClose"
+                                style="background:none;border:none;color:rgba(255,255,255,0.8);
+                                       font-size:1.3rem;line-height:1;padding:0;cursor:pointer;"
+                                title="Fermer">&times;</button>
+                    </div>
+                </div>
+                <div class="card-body py-2 px-3 bg-white small">
+                    <table style="width:100%; border-collapse:collapse;">
+                        <tr>
+                            <td class="text-muted py-1" style="width:40%;">Cépage</td>
+                            <td class="fw-semibold" id="infoCepage">—</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted py-1">Gamme</td>
+                            <td class="fw-semibold" id="infoGamme">—</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted py-1">Pieds</td>
+                            <td class="fw-semibold" id="infoPieds">—</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted py-1">Surface</td>
+                            <td class="fw-semibold"><span id="infoSurface">—</span> ha</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted py-1">Coordonnées</td>
+                            <td class="text-muted" id="infoCoords" style="font-size:0.72rem;">—</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
+<script>
+// ── Projection Lambert 93 ────────────────────────────────────────────────────
+proj4.defs('EPSG:2154', '+proj=lcc +lat_0=46.5 +lon_0=3 +lat_1=49 +lat_2=44 +x_0=700000 +y_0=6600000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs +type=crs');
+
+// ── Carte ────────────────────────────────────────────────────────────────────
+const map = L.map('map', { zoomControl: true }).setView([45.20, -0.77], 14);
+
+// Fond de carte plan (OSM)
+const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://openstreetmap.org" target="_blank">OpenStreetMap</a>',
+    maxZoom: 20
+});
+
+// Fond satellite (ESRI World Imagery – gratuit, sans clé API)
+const satLayer = L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles © Esri — Source: Esri, DigitalGlobe, GeoEye, USDA, USGS',
+    maxZoom: 20
+});
+
+// Fond gris clair sans labels (CartoDB – gratuit, sans clé API)
+const grisLayer = L.tileLayer(
+    'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+    attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a> © <a href="https://carto.com">CARTO</a>',
+    maxZoom: 20
+});
+
+const baseLayers = { osm: osmLayer, sat: satLayer, gris: grisLayer };
+osmLayer.addTo(map);
+let currentBase = 'osm';
+
+function setBasemap(type) {
+    if (type === currentBase) return;
+    // Retire le fond actuel
+    if (currentBase !== 'blanc' && baseLayers[currentBase]) {
+        map.removeLayer(baseLayers[currentBase]);
+    }
+    // Couleur de fond du div carte
+    const mapEl = document.getElementById('map');
+    mapEl.style.background = (type === 'gris') ? '#d6d6d6' : '#ffffff';
+    // Ajoute le nouveau fond
+    if (type !== 'blanc' && baseLayers[type]) {
+        baseLayers[type].addTo(map);
+    }
+    // Met à jour l'apparence des boutons
+    ['osm', 'sat', 'blanc', 'gris'].forEach(t => {
+        const btn = document.getElementById('btn-' + t);
+        if (!btn) return;
+        if (t === type) { btn.classList.add('active-bm'); }
+        else            { btn.classList.remove('active-bm'); }
+    });
+    currentBase = type;
+}
+
+// ── Helpers géométrie ────────────────────────────────────────────────────────
+function convertGeom(geom) {
+    if (geom.type === 'MultiPolygon') {
+        return {
+            type: 'MultiPolygon',
+            coordinates: geom.coordinates.map(poly =>
+                poly.map(ring => ring.map(pt => {
+                    const [lng, lat] = proj4('EPSG:2154', 'WGS84', pt);
+                    return [lng, lat];
+                }))
+            )
+        };
+    }
+    if (geom.type === 'Polygon') {
+        return {
+            type: 'Polygon',
+            coordinates: geom.coordinates.map(ring =>
+                ring.map(pt => {
+                    const [lng, lat] = proj4('EPSG:2154', 'WGS84', pt);
+                    return [lng, lat];
+                })
+            )
+        };
+    }
+    return geom;
+}
+
+function advColor(adv) {
+    if (adv <= 0)   return '#adb5bd';
+    if (adv >= 100) return '#198754';
+    if (adv >= 75)  return '#0dcaf0';
+    if (adv >= 50)  return '#ffc107';
+    return '#dc3545';
+}
+
+// ── Pane de surbrillance au-dessus des polygones ─────────────────────────────
+map.createPane('highlight');
+map.getPane('highlight').style.zIndex = 450;       // au-dessus des overlays (400)
+map.getPane('highlight').style.pointerEvents = 'none'; // ne capte pas les clics
+
+let highlightLayer = null;   // calque de contour séparé
+let selectedLayer  = null;   // calque polygon original sélectionné
+let selectedOriginalColor = null;
+let globalBounds = null;
+
+fetch('{{ path("app_tracabilite_carte_geojson") }}')
+    .then(r => r.json())
+    .then(data => {
+        data.features.forEach(f => {
+            try {
+                const geomWgs        = convertGeom(f.geometry);
+                const p              = f.properties;
+                const originalColor  = advColor(p.avancement || 0);
+
+                const layer = L.geoJSON(geomWgs, {
+                    style: {
+                        color: '#fff',
+                        weight: 1.5,
+                        fillColor: originalColor,
+                        fillOpacity: 0.72
+                    }
+                }).addTo(map);
+
+                // Tooltip au survol
+                layer.bindTooltip(p.slug, {
+                    permanent: false,
+                    direction: 'center',
+                    className: 'leaflet-tooltip-parcel'
+                });
+
+                // Clic → bulle d'info + contour de surbrillance
+                layer.on('click', () => {
+                    // Supprime l'ancien contour de surbrillance
+                    if (highlightLayer) { map.removeLayer(highlightLayer); highlightLayer = null; }
+                    // Remet le style d'origine sur l'ancien polygone sélectionné
+                    if (selectedLayer && selectedLayer !== layer) {
+                        selectedLayer.setStyle({
+                            color: '#fff', weight: 1.5,
+                            fillColor: selectedOriginalColor, fillOpacity: 0.72
+                        });
+                    }
+                    selectedLayer         = layer;
+                    selectedOriginalColor = originalColor;
+
+                    // Calque de contour noir épais dans le pane highlight (par-dessus tout)
+                    highlightLayer = L.geoJSON(geomWgs, {
+                        pane: 'highlight',
+                        style: { color: '#000', weight: 4, opacity: 1, fill: false }
+                    }).addTo(map);
+
+                    // Coordonnées du centre
+                    const center = layer.getBounds().getCenter();
+                    const latStr = center.lat.toFixed(5) + '°N';
+                    const lngStr = Math.abs(center.lng).toFixed(5) + (center.lng >= 0 ? '°E' : '°O');
+
+                    // Remplit la bulle
+                    document.getElementById('infoSlug').textContent   = p.slug;
+                    document.getElementById('infoCepage').textContent  = p.cepage    || '—';
+                    document.getElementById('infoGamme').textContent   = p.gamme     || '—';
+                    document.getElementById('infoPieds').textContent   = p.nombrePieds ? p.nombrePieds.toLocaleString('fr') : '—';
+                    document.getElementById('infoSurface').textContent = p.surface   || '—';
+                    document.getElementById('infoCoords').textContent  = latStr + '  ' + lngStr;
+
+                    const advEl = document.getElementById('infoAdv');
+                    advEl.textContent = (p.avancement || 0) + '%';
+                    advEl.className   = 'badge fs-6 ' + (
+                        p.avancement >= 100 ? 'text-bg-success' :
+                        p.avancement >= 75  ? 'text-bg-info'    :
+                        p.avancement >= 50  ? 'text-bg-warning' :
+                        p.avancement >  0   ? 'text-bg-danger'  : 'text-bg-secondary'
+                    );
+
+                    // Anime la bulle
+                    const panel = document.getElementById('parcelleInfo');
+                    panel.style.display = 'none';
+                    requestAnimationFrame(() => { panel.style.display = 'block'; });
+                });
+
+                // Accumule les bounds globales
+                try {
+                    const lb = layer.getBounds();
+                    globalBounds = globalBounds ? globalBounds.extend(lb) : lb;
+                } catch(e) {}
+
+            } catch(e) {
+                console.warn('Parcelle ignorée :', f.properties?.slug, e.message);
+            }
+        });
+
+        // Zoom initial sur toutes les parcelles
+        if (globalBounds) {
+            map.fitBounds(globalBounds, { padding: [20, 20] });
+        }
+    })
+    .catch(e => console.error('Erreur chargement GeoJSON', e));
+
+// ── Impression ───────────────────────────────────────────────────────────────
+function printCarte() {
+    map.invalidateSize();          // recalcule les tuiles si la fenêtre a changé
+    setTimeout(() => window.print(), 250);
+}
+
+// ── Fermer la bulle ──────────────────────────────────────────────────────────
+document.getElementById('infoClose').addEventListener('click', () => {
+    document.getElementById('parcelleInfo').style.display = 'none';
+    if (highlightLayer) { map.removeLayer(highlightLayer); highlightLayer = null; }
+    if (selectedLayer) {
+        selectedLayer.setStyle({
+            color: '#fff', weight: 1.5,
+            fillColor: selectedOriginalColor, fillOpacity: 0.72
+        });
+        selectedLayer = null;
+    }
+});
+</script>
+
+<style>
+/* Boutons fond de carte */
+.bm-btn {
+    display: block;
+    width: 100%;
+    padding: 5px 12px;
+    border: none;
+    cursor: pointer;
+    font-size: 0.78rem;
+    font-weight: 600;
+    background: #fff;
+    color: #333;
+    text-align: left;
+    transition: background 0.12s;
+}
+.bm-btn:hover  { background: #f0f0f0; }
+.bm-btn.active-bm { background: #800000 !important; color: #fff !important; }
+
+/* ── Impression paysage – carte seule ─────────────────────────────────────── */
+@page {
+    size: A4 landscape;
+    margin: 0;
+}
+@media print {
+    /* Masque tout le reste de la page */
+    body > *           { visibility: hidden !important; }
+    body               { overflow: visible !important; background: #fff !important; }
+
+    /* Seule la zone carte est visible, plein écran */
+    #map-print-zone,
+    #map-print-zone *  { visibility: visible !important; }
+
+    #map-print-zone {
+        position: fixed !important;
+        inset: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+        border: none !important;
+    }
+    #map {
+        width: 100% !important;
+        height: 100% !important;
+        min-height: unset !important;
+        border-radius: 0 !important;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+    }
+    /* Masque les contrôles à l'intérieur de la zone carte */
+    #basemap-ctrl,
+    #parcelleInfo,
+    .leaflet-control-zoom,
+    .leaflet-control-attribution { visibility: hidden !important; }
+}
+
+.leaflet-tooltip-parcel {
+    font-size: 0.72rem;
+    padding: 2px 6px;
+    background: rgba(0,0,0,0.65);
+    color: #fff;
+    border: none;
+    border-radius: 3px;
+}
+.leaflet-tooltip-parcel::before { display: none; }
+
+/* Supprime le rectangle de focus navigateur sur les polygones SVG Leaflet */
+.leaflet-interactive:focus {
+    outline: none !important;
+}
+
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+</style>
+{% endblock %}
