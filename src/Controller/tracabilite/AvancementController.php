@@ -31,7 +31,7 @@ class AvancementController extends AbstractController
             'avancements'  => $this->saisieRepo->getAvancementParParcelle($mois, $chef),
             'equipes'      => $this->equipeRepo->findAllSorted(),
             'taches'       => $this->tacheRepo->findTachesTerrain(),
-            'nonTerminees' => $this->saisieRepo->findParcellesNonTerminees($mois),
+            'nonTerminees' => $this->saisieRepo->findParcellesNonTerminees(),
         ]);
     }
 }

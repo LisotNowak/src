@@ -42,8 +42,9 @@ class SaisieController extends AbstractController
         return $this->render('tracabilite/saisie/index.html.twig', [
             'active_link' => 'saisie',
             'saisies'     => $this->saisieRepo->findFiltered($filtres),
-            'equipes'     => $this->equipeRepo->findAllSorted(),
-            'taches'      => $this->tacheRepo->findAllSorted(),
+            'equipes'     => $this->saisieRepo->findDistinctChefs(),
+            'taches'      => $this->saisieRepo->findDistinctTaches(),
+            'parcelles'   => $this->saisieRepo->findDistinctParcelles(),
             'filtres'     => $filtres,
         ]);
     }

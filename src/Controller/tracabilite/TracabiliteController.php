@@ -28,7 +28,7 @@ class TracabiliteController extends AbstractController
             'kpis'          => $this->saisieRepo->getKpis($mois),
             'recentes'      => $this->saisieRepo->findRecentes(15),
             'equipes'       => $this->equipeRepo->findAllSorted(),
-            'nonTerminees'  => $this->saisieRepo->findParcellesNonTerminees($mois),
+            'nonTerminees'  => $this->saisieRepo->findParcellesNonTerminees(),
         ]);
     }
 }

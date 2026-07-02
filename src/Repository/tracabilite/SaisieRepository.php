@@ -34,8 +34,8 @@ class SaisieRepository extends ServiceEntityRepository
             $qb->andWhere('s.tacheNom = :tache')->setParameter('tache', $filtres['tache']);
         }
         if (!empty($filtres['parcel'])) {
-            $qb->andWhere('s.parcelleNom LIKE :parcel')
-               ->setParameter('parcel', '%'.$filtres['parcel'].'%');
+            $qb->andWhere('s.parcelleNom = :parcel')
+               ->setParameter('parcel', $filtres['parcel']);
         }
 
         return $qb->getQuery()->getResult();
@@ -165,6 +165,37 @@ class SaisieRepository extends ServiceEntityRepository
         }
 
         return $qb->getQuery()->getArrayResult();
+    }
+
+    /** Valeurs distinctes utilisées dans les saisies, pour alimenter les filtres */
+    public function findDistinctChefs(): array
+    {
+        return $this->createQueryBuilder('s')
+            ->select('DISTINCT s.chefNom')
+            ->where('s.chefNom IS NOT NULL')
+            ->orderBy('s.chefNom', 'ASC')
+            ->getQuery()
+            ->getSingleColumnResult();
+    }
+
+    public function findDistinctTaches(): array
+    {
+        return $this->createQueryBuilder('s')
+            ->select('DISTINCT s.tacheNom')
+            ->where('s.tacheNom IS NOT NULL')
+            ->orderBy('s.tacheNom', 'ASC')
+            ->getQuery()
+            ->getSingleColumnResult();
+    }
+
+    public function findDistinctParcelles(): array
+    {
+        return $this->createQueryBuilder('s')
+            ->select('DISTINCT s.parcelleNom')
+            ->where('s.parcelleNom IS NOT NULL')
+            ->orderBy('s.parcelleNom', 'ASC')
+            ->getQuery()
+            ->getSingleColumnResult();
     }
 
     /** Saisies récentes pour la page d'accueil, limitées */
