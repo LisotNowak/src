@@ -42,10 +42,10 @@
                     {{ form_errors(form.chefNom) }}
                 </div>
                 <div class="col-md-4">
-                    {{ form_label(form.personnelNom) }}
-                    {{ form_widget(form.personnelNom) }}
-                    {{ form_errors(form.personnelNom) }}
-                    <div class="form-text" id="contrat-info"></div>
+                    <label class="form-label">Personnel</label>
+                    <div id="personnel-chips" class="d-flex flex-wrap gap-2 p-2 border rounded bg-white" style="min-height:76px;">
+                        <span class="text-muted small align-self-center">Chargement…</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -83,8 +83,14 @@
                     {{ form_widget(form.heures) }}
                 </div>
                 <div class="col-6 col-md-3">
-                    {{ form_label(form.effectif) }}
-                    {{ form_widget(form.effectif) }}
+                    <label class="form-label">Effectif</label>
+                    <div class="input-group">
+                        <input type="text" readonly id="effectif-display"
+                               class="form-control bg-light text-center fw-bold"
+                               value="{{ saisie.effectif }}" style="cursor:default;">
+                        <span class="input-group-text"><i class="fas fa-users"></i></span>
+                    </div>
+                    <div class="form-text">Calculé automatiquement</div>
                 </div>
                 <div class="col-md-3">
                     {{ form_label(form.modePause) }}
@@ -149,12 +155,12 @@
 </div>
 
 <script>
-const TACHES    = {{ tachesJson|raw }};
-const PARCELLES = {{ parcellesJson|raw }};
-const EQUIPES   = {{ equipesJson|raw }};
+const TACHES             = {{ tachesJson|raw }};
+const PARCELLES          = {{ parcellesJson|raw }};
+const EQUIPES            = {{ equipesJson|raw }};
+const PERSONNELS_ACTUELS = {{ personnelsActuels|json_encode|raw }};
 
 const selChef           = document.getElementById('saisie_chefNom');
-const selPersonnel      = document.getElementById('saisie_personnelNom');
 const selTache          = document.getElementById('saisie_tacheNom');
 const selParcelle       = document.getElementById('saisie_parcelleNom');
 const heuresInput       = document.getElementById('saisie_heures');
@@ -194,22 +200,36 @@ function syncAdvFromPieds() {
 
 // ── Fonctions de filtrage / mise à jour ───────────────────────────────────
 
-function filterPersonnel(equipeNom) {
-    const ouvriers = EQUIPES[equipeNom] || [];
-    const current = selPersonnel.value;
-    selPersonnel.innerHTML = '<option value="">— Sélectionner le personnel —</option>';
-    ouvriers.forEach(o => {
-        const opt = document.createElement('option');
-        opt.value = o.nom;
-        opt.text  = o.nom + (o.contrat !== 'Permanent' ? ' (' + o.contrat + ')' : '');
-        if (o.nom === current) opt.selected = true;
-        selPersonnel.appendChild(opt);
+function filterPersonnel(equipeNom, preselected = []) {
+    const chips = document.getElementById('personnel-chips');
+    const liste = [...(EQUIPES[equipeNom] || []), { nom: 'Saisonniers non nominatifs', contrat: 'Saisonnier' }];
+    chips.innerHTML = '';
+    liste.forEach((o, i) => {
+        const id  = 'pcheck_' + i;
+        const cb  = document.createElement('input');
+        cb.type   = 'checkbox';
+        cb.className = 'btn-check';
+        cb.name   = 'personnelsNoms[]';
+        cb.value  = o.nom;
+        cb.id     = id;
+        cb.autocomplete = 'off';
+        cb.checked = preselected.includes(o.nom);
+        cb.addEventListener('change', updateEffectif);
+
+        const lbl = document.createElement('label');
+        lbl.className = 'btn btn-sm btn-outline-primary rounded-pill';
+        lbl.htmlFor   = id;
+        lbl.textContent = o.nom + (o.contrat === 'Permanent' || o.contrat === 'Saisonnier' ? '' : ' (' + o.contrat + ')');
+
+        chips.appendChild(cb);
+        chips.appendChild(lbl);
     });
-    const opt = document.createElement('option');
-    opt.value = 'Saisonniers non nominatifs';
-    opt.text  = 'Saisonniers non nominatifs (CDD/Saison)';
-    if (current === opt.value) opt.selected = true;
-    selPersonnel.appendChild(opt);
+    updateEffectif();
+}
+
+function updateEffectif() {
+    const count = document.querySelectorAll('#personnel-chips .btn-check:checked').length;
+    document.getElementById('effectif-display').value = count;
 }
 
 function updateParcelleVisibility() {
@@ -267,14 +287,14 @@ if (piedsTotalInput) {
 
 // ── Événements ────────────────────────────────────────────────────────────
 
-selChef.addEventListener('change', () => filterPersonnel(selChef.value));
+selChef.addEventListener('change', () => filterPersonnel(selChef.value, []));
 selTache.addEventListener('change', updateParcelleVisibility);
 modePauseInput.addEventListener('change', () => { updatePause(); updateHeuresNettes(); });
 heuresInput.addEventListener('input', updateHeuresNettes);
 minutesPauseInput.addEventListener('input', updateHeuresNettes);
 
-// Init
-if (selChef.value) filterPersonnel(selChef.value);
+// Init — pré-sélectionne les personnes enregistrées
+if (selChef.value) filterPersonnel(selChef.value, PERSONNELS_ACTUELS);
 updateParcelleVisibility();
 updatePause();
 updateHeuresNettes();

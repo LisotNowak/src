@@ -152,30 +152,40 @@ function setBasemap(type) {
 }
 
 // ── Helpers géométrie ────────────────────────────────────────────────────────
+function convertCoords(coords) {
+    const [lng, lat] = proj4('EPSG:2154', 'WGS84', coords);
+    return [lng, lat];
+}
+
 function convertGeom(geom) {
     if (geom.type === 'MultiPolygon') {
         return {
             type: 'MultiPolygon',
             coordinates: geom.coordinates.map(poly =>
-                poly.map(ring => ring.map(pt => {
-                    const [lng, lat] = proj4('EPSG:2154', 'WGS84', pt);
-                    return [lng, lat];
-                }))
+                poly.map(ring => ring.map(convertCoords))
             )
         };
     }
     if (geom.type === 'Polygon') {
         return {
             type: 'Polygon',
-            coordinates: geom.coordinates.map(ring =>
-                ring.map(pt => {
-                    const [lng, lat] = proj4('EPSG:2154', 'WGS84', pt);
-                    return [lng, lat];
-                })
-            )
+            coordinates: geom.coordinates.map(ring => ring.map(convertCoords))
         };
     }
     return geom;
+}
+
+// Crée un layer ou featureGroup selon le type de géométrie.
+// Les MultiPolygon sont éclatés en polygones indépendants pour éviter
+// l'annulation SVG evenodd sur les zones qui se chevauchent.
+function buildLayer(geomWgs, geoJsonOpts) {
+    if (geomWgs.type === 'MultiPolygon') {
+        const parts = geomWgs.coordinates.map(polyCoords =>
+            L.geoJSON({ type: 'Polygon', coordinates: polyCoords }, geoJsonOpts)
+        );
+        return L.featureGroup(parts);
+    }
+    return L.geoJSON(geomWgs, geoJsonOpts);
 }
 
 function advColor(adv) {
@@ -205,7 +215,7 @@ fetch('{{ path("app_tracabilite_carte_geojson") }}')
                 const p              = f.properties;
                 const originalColor  = advColor(p.avancement || 0);
 
-                const layer = L.geoJSON(geomWgs, {
+                const layer = buildLayer(geomWgs, {
                     style: {
                         color: '#fff',
                         weight: 1.5,
@@ -236,7 +246,7 @@ fetch('{{ path("app_tracabilite_carte_geojson") }}')
                     selectedOriginalColor = originalColor;
 
                     // Calque de contour noir épais dans le pane highlight (par-dessus tout)
-                    highlightLayer = L.geoJSON(geomWgs, {
+                    highlightLayer = buildLayer(geomWgs, {
                         pane: 'highlight',
                         style: { color: '#000', weight: 4, opacity: 1, fill: false }
                     }).addTo(map);

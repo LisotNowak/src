@@ -18,7 +18,6 @@ class SaisieType extends AbstractType
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $equipeChoices   = array_combine($options['equipes'],   $options['equipes']);
-        $personnelChoices = array_combine($options['personnel'], $options['personnel']);
         $tacheChoices    = array_combine($options['taches'],    $options['taches']);
         $parcelleChoices = array_combine($options['parcelles'], $options['parcelles']);
 
@@ -33,12 +32,6 @@ class SaisieType extends AbstractType
                 'choices'     => $equipeChoices,
                 'placeholder' => '— Sélectionner une équipe —',
                 'attr'        => ['class' => 'form-select', 'id' => 'saisie_chefNom'],
-            ])
-            ->add('personnelNom', ChoiceType::class, [
-                'label'       => 'Personnel',
-                'choices'     => $personnelChoices,
-                'placeholder' => '— Sélectionner le personnel —',
-                'attr'        => ['class' => 'form-select', 'id' => 'saisie_personnelNom'],
             ])
             ->add('tacheNom', ChoiceType::class, [
                 'label'       => 'Tâche',
@@ -57,10 +50,6 @@ class SaisieType extends AbstractType
                 'label' => 'Heures travaillées',
                 'scale' => 2,
                 'attr'  => ['min' => 0, 'step' => 0.25, 'class' => 'form-control', 'id' => 'saisie_heures'],
-            ])
-            ->add('effectif', IntegerType::class, [
-                'label' => 'Effectif',
-                'attr'  => ['min' => 1, 'class' => 'form-control'],
             ])
             ->add('modePause', ChoiceType::class, [
                 'label'   => 'Mode pause',
@@ -109,12 +98,10 @@ class SaisieType extends AbstractType
         $resolver->setDefaults([
             'data_class' => Saisie::class,
             'equipes'    => [],
-            'personnel'  => [],
             'taches'     => [],
             'parcelles'  => [],
         ]);
         $resolver->setAllowedTypes('equipes',   'array');
-        $resolver->setAllowedTypes('personnel', 'array');
         $resolver->setAllowedTypes('taches',    'array');
         $resolver->setAllowedTypes('parcelles', 'array');
     }

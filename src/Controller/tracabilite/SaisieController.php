@@ -60,16 +60,20 @@ class SaisieController extends AbstractController
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
-            $this->hydrateSaisie($saisie);
-            $saisie->setId($this->uuid4());
-            $saisie->setCreeA(new \DateTimeImmutable());
+            if (!$this->setPersonnelFromRequest($request, $saisie)) {
+                $this->addFlash('danger', 'Veuillez sélectionner au moins une personne.');
+            } else {
+                $this->hydrateSaisie($saisie);
+                $saisie->setId($this->uuid4());
+                $saisie->setCreeA(new \DateTimeImmutable());
 
-            $this->em->persist($saisie);
-            $this->em->persist($this->makeJournalEntry('Création', $saisie, null));
-            $this->em->flush();
+                $this->em->persist($saisie);
+                $this->em->persist($this->makeJournalEntry('Création', $saisie, null));
+                $this->em->flush();
 
-            $this->addFlash('success', 'Saisie créée avec succès.');
-            return $this->redirectToRoute('app_tracabilite_saisie_index');
+                $this->addFlash('success', 'Saisie créée avec succès.');
+                return $this->redirectToRoute('app_tracabilite_saisie_index');
+            }
         }
 
         return $this->render('tracabilite/saisie/new.html.twig', [
@@ -95,24 +99,31 @@ class SaisieController extends AbstractController
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
-            $this->hydrateSaisie($saisie);
-            $saisie->setModifieA(new \DateTime());
-            $saisie->setNombreModifs($saisie->getNombreModifs() + 1);
+            if (!$this->setPersonnelFromRequest($request, $saisie)) {
+                $this->addFlash('danger', 'Veuillez sélectionner au moins une personne.');
+            } else {
+                $this->hydrateSaisie($saisie);
+                $saisie->setModifieA(new \DateTime());
+                $saisie->setNombreModifs($saisie->getNombreModifs() + 1);
 
-            $this->em->persist($this->makeJournalEntry('Modification', $saisie, $avant));
-            $this->em->flush();
+                $this->em->persist($this->makeJournalEntry('Modification', $saisie, $avant));
+                $this->em->flush();
 
-            $this->addFlash('success', 'Saisie modifiée avec succès.');
-            return $this->redirectToRoute('app_tracabilite_saisie_index');
+                $this->addFlash('success', 'Saisie modifiée avec succès.');
+                return $this->redirectToRoute('app_tracabilite_saisie_index');
+            }
         }
 
+        $personnelsActuels = array_map('trim', explode(', ', $saisie->getPersonnelNom() ?? ''));
+
         return $this->render('tracabilite/saisie/edit.html.twig', [
-            'active_link'   => 'saisie',
-            'form'          => $form,
-            'saisie'        => $saisie,
-            'tachesJson'    => $this->buildTachesJson(),
-            'parcellesJson' => $this->buildParcellesJson(),
-            'equipesJson'   => $this->buildEquipesJson(),
+            'active_link'      => 'saisie',
+            'form'             => $form,
+            'saisie'           => $saisie,
+            'personnelsActuels'=> $personnelsActuels,
+            'tachesJson'       => $this->buildTachesJson(),
+            'parcellesJson'    => $this->buildParcellesJson(),
+            'equipesJson'      => $this->buildEquipesJson(),
         ]);
     }
 
@@ -166,17 +177,24 @@ class SaisieController extends AbstractController
 
     private function buildFormOptions(): array
     {
-        $noms = $this->ouvrierRepo->findAllNoms();
-        if (!in_array('Saisonniers non nominatifs', $noms, true)) {
-            $noms[] = 'Saisonniers non nominatifs';
-        }
-
         return [
             'equipes'   => array_map(fn($e) => $e->getNom(), $this->equipeRepo->findAllSorted()),
-            'personnel' => $noms,
             'taches'    => array_map(fn($t) => $t->getNom(), $this->tacheRepo->findAllSorted()),
             'parcelles' => array_map(fn($p) => $p->getSlug(), $this->parcelleRepo->findAllSorted()),
         ];
+    }
+
+    private function setPersonnelFromRequest(Request $request, \App\Entity\tracabilite\Saisie $saisie): bool
+    {
+        $noms = array_values(array_filter(
+            array_map('trim', $request->request->all()['personnelsNoms'] ?? [])
+        ));
+        if (empty($noms)) {
+            return false;
+        }
+        $saisie->setPersonnelNom(implode(', ', $noms));
+        $saisie->setEffectif(count($noms));
+        return true;
     }
 
     private function hydrateSaisie(Saisie $saisie): void
@@ -191,7 +209,8 @@ class SaisieController extends AbstractController
             $saisie->setType('Terrain');
         }
 
-        $ouvrier = $this->ouvrierRepo->findByNomComplet($saisie->getPersonnelNom());
+        $premierNom = trim(explode(',', $saisie->getPersonnelNom() ?? '')[0]);
+        $ouvrier = $this->ouvrierRepo->findByNomComplet($premierNom);
         if ($ouvrier) {
             $saisie->setPersonnelContrat($ouvrier->getContrat());
         }
