@@ -32,7 +32,7 @@ class InventaireController extends AbstractController
         $uniteMesure = $request->query->get('unite');
         $terme       = $request->query->get('q');
         $page        = max(1, (int) $request->query->get('page', 1));
-        $limit       = 50;
+        $limit       = 100;
 
         $result = $this->stockRepo->findWithFilters($depot, $emplacement, $uniteMesure, $terme, $page, $limit);
 
@@ -62,7 +62,7 @@ class InventaireController extends AbstractController
         $emplacement = $request->query->get('emplacement');
         $terme       = $request->query->get('q');
         $page        = max(1, (int) $request->query->get('page', 1));
-        $limit       = 50;
+        $limit       = 100;
 
         $result = $this->stockRepo->findWithFilters(null, $emplacement, null, $terme, $page, $limit);
 

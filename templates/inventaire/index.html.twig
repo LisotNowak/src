@@ -107,7 +107,7 @@
                        placeholder="Recherche…" value="{{ filtreQ }}">
             </div>
             <div class="col-6 col-md-2">
-                <select name="depot" class="form-select form-select-sm">
+                <select name="depot" class="form-select form-select-sm" onchange="this.form.submit()">
                     <option value="">Tous dépôts</option>
                     {% for d in depots %}
                         <option value="{{ d }}" {{ filtreDepot == d ? 'selected' : '' }}>{{ d }}</option>
@@ -115,7 +115,7 @@
                 </select>
             </div>
             <div class="col-6 col-md-3">
-                <select name="emplacement" class="form-select form-select-sm">
+                <select name="emplacement" class="form-select form-select-sm" onchange="this.form.submit()">
                     <option value="">Tous emplacements</option>
                     {% for e in emplacements %}
                         <option value="{{ e }}" {{ filtreEmpl == e ? 'selected' : '' }}>{{ e }}</option>
@@ -123,7 +123,7 @@
                 </select>
             </div>
             <div class="col-6 col-md-2">
-                <select name="unite" class="form-select form-select-sm">
+                <select name="unite" class="form-select form-select-sm" onchange="this.form.submit()">
                     <option value="">Toutes unités</option>
                     {% for u in unites %}
                         <option value="{{ u }}" {{ filtreUnite == u ? 'selected' : '' }}>{{ u }}</option>

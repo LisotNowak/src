@@ -95,22 +95,6 @@
     </a>
     {% endif %}
 
-    {% if emplacements|default([])|length > 0 %}
-    <hr class="mx-3 my-2">
-    <div class="sidebar-title">Emplacements</div>
-
-    <a href="{{ path('app_inventaire_index') }}"
-       class="nav-link {{ filtreEmpl is null or filtreEmpl == '' ? 'active' : '' }}">
-        <i class="fas fa-th-list"></i> Tous
-    </a>
-
-    {% for empl in emplacements %}
-        <a href="{{ path('app_inventaire_index', {emplacement: empl}) }}"
-           class="nav-link {{ filtreEmpl == empl ? 'active' : '' }}">
-            <i class="fas fa-map-marker-alt"></i> {{ empl }}
-        </a>
-    {% endfor %}
-    {% endif %}
 </div>
 
 {# ── Barre de navigation fixe en bas (mobile) ───────────────────────────── #}
@@ -126,32 +110,4 @@
         <i class="fas fa-file-excel"></i>Import
     </a>
     {% endif %}
-    <a href="#" data-bs-toggle="offcanvas" data-bs-target="#sidebarOffcanvas">
-        <i class="fas fa-filter"></i>Filtres
-    </a>
 </nav>
-
-{# ── Offcanvas filtres emplacements (mobile) ─────────────────────────────── #}
-<div class="offcanvas offcanvas-start offcanvas-inventaire" tabindex="-1" id="sidebarOffcanvas">
-    <div class="offcanvas-header" style="background:#800000; color:#fff;">
-        <h6 class="offcanvas-title fw-bold mb-0"><i class="fas fa-warehouse me-2"></i>Emplacements</h6>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
-    </div>
-    <div class="offcanvas-body p-0">
-        {% if emplacements|default([])|length > 0 %}
-        <div class="sidebar-title mt-2">Filtres rapides</div>
-        <a href="{{ path('app_inventaire_index') }}"
-           class="nav-link {{ filtreEmpl is null or filtreEmpl == '' ? 'active' : '' }}"
-           data-bs-dismiss="offcanvas">
-            <i class="fas fa-th-list"></i> Tous les emplacements
-        </a>
-        {% for empl in emplacements %}
-            <a href="{{ path('app_inventaire_index', {emplacement: empl}) }}"
-               class="nav-link {{ filtreEmpl == empl ? 'active' : '' }}"
-               data-bs-dismiss="offcanvas">
-                <i class="fas fa-map-marker-alt"></i> {{ empl }}
-            </a>
-        {% endfor %}
-        {% endif %}
-    </div>
-</div>

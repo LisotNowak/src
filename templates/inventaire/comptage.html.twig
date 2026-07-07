@@ -113,7 +113,7 @@
                        placeholder="Recherche par nom…" value="{{ filtreQ }}">
             </div>
             <div class="col-8 col-md-4">
-                <select name="emplacement" class="form-select form-select-sm">
+                <select name="emplacement" class="form-select form-select-sm" onchange="this.form.submit()">
                     <option value="">Tous les emplacements</option>
                     {% for e in emplacements %}
                         <option value="{{ e }}" {{ filtreEmpl == e ? 'selected' : '' }}>{{ e }}</option>
@@ -307,6 +307,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
         btnSave.addEventListener('click', function () {
             btnSave.disabled = true;
+            statusEl.textContent = 'Vérification de la connexion…';
+            statusEl.className   = isCard ? 'save-status-mobile' : 'save-status';
+
+            if (!navigator.onLine) {
+                statusEl.textContent = '✗ Pas de connexion internet';
+                statusEl.className   = (isCard ? 'save-status-mobile' : 'save-status') + ' err';
+                btnSave.disabled     = false;
+                return;
+            }
+
             statusEl.textContent = '';
 
             fetch(SAVE_URL.replace('__ID__', id), {
