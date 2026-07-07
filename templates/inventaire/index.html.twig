@@ -40,6 +40,8 @@
     }
     .table-inv tbody tr:hover { background-color: #fff5f5; }
     .table-inv td { font-size: 0.85rem; vertical-align: middle; white-space: nowrap; }
+    .table-inv tr.match    > td { background-color: #d1e7dd !important; }
+    .table-inv tr.mismatch > td { background-color: #f8d7da !important; }
     .badge-um { background: #800000; color: #fff; font-size: 0.7rem; padding: 2px 6px; border-radius: 3px; }
     .table-wrapper { overflow-x: auto; max-height: 60vh; overflow-y: auto; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
 
@@ -151,21 +153,30 @@
                         <th>N° lot</th>
                         <th>Emplacement</th>
                         <th>Caissage</th>
-                        <th class="text-end">Stock dispo</th>
+                        <th class="text-end">Stock</th>
                         <th class="text-end">Comptage</th>
                         <th class="text-center">Statut</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for article in articles %}
-                        <tr>
+                        {% set isMatch    = article.comptage is not null and article.stockDisponible is not null and article.comptage|number_format(4, '.', '') == article.stockDisponible|number_format(4, '.', '') %}
+                        {% set isMismatch = article.comptage is not null and not isMatch %}
+                        <tr class="{{ isMatch ? 'match' : (isMismatch ? 'mismatch' : '') }}">
                             <td><code>{{ article.codeArticle }}</code></td>
                             <td>{{ article.nom }}</td>
                             <td class="text-muted">{{ article.numeroLot }}</td>
                             <td>{{ article.emplacement }}</td>
                             <td>{{ article.attributPrincipal1 }}</td>
                             <td class="text-end fw-semibold">
-                                {% if article.stockDisponible is not null %}{{ article.stockDisponible|number_format(2, ',', ' ') }}{% endif %}
+                                {% if article.quantiteAffectee is not null and article.stockDisponible is not null and article.quantiteAffectee|number_format(4, '.', '') != article.stockDisponible|number_format(4, '.', '') %}
+                                    Dispo : {{ article.stockDisponible|number_format(2, ',', ' ') }}
+                                    <span class="text-muted fw-normal">/ Commande prête qt : {{ article.quantiteAffectee|number_format(2, ',', ' ') }}</span>
+                                {% elseif article.quantiteAffectee is not null %}
+                                    <span class="text-muted fw-normal">Commande prête qt : {{ article.quantiteAffectee|number_format(2, ',', ' ') }}</span>
+                                {% else %}
+                                    {% if article.stockDisponible is not null %}Dispo : {{ article.stockDisponible|number_format(2, ',', ' ') }}{% endif %}
+                                {% endif %}
                             </td>
                             <td class="text-end">
                                 {% if article.comptage is not null %}{{ article.comptage|number_format(2, ',', ' ') }}{% endif %}
@@ -195,7 +206,14 @@
                     <div class="article-card-row">
                         <span class="text-muted"><i class="fas fa-map-marker-alt me-1"></i>{{ article.emplacement }}</span>
                         <span class="article-card-stock">
-                            {% if article.stockDisponible is not null %}{{ article.stockDisponible|number_format(2, ',', ' ') }}{% endif %}
+                            {% if article.quantiteAffectee is not null and article.stockDisponible is not null and article.quantiteAffectee|number_format(4, '.', '') != article.stockDisponible|number_format(4, '.', '') %}
+                                Dispo : {{ article.stockDisponible|number_format(2, ',', ' ') }}
+                                <span class="text-muted" style="font-size:0.75rem; font-weight:400;">/ Commande prête qt : {{ article.quantiteAffectee|number_format(2, ',', ' ') }}</span>
+                            {% elseif article.quantiteAffectee is not null %}
+                                <span class="text-muted" style="font-size:0.75rem; font-weight:400;">Commande prête qt : {{ article.quantiteAffectee|number_format(2, ',', ' ') }}</span>
+                            {% else %}
+                                {% if article.stockDisponible is not null %}Dispo : {{ article.stockDisponible|number_format(2, ',', ' ') }}{% endif %}
+                            {% endif %}
                         </span>
                     </div>
                     {% if article.attributPrincipal1 %}
