@@ -140,6 +140,7 @@
                     <tr>
                         <th>Nom</th>
                         <th>Emplacement</th>
+                        <th>Caissage</th>
                         <th class="text-end">Stock dispo</th>
                         <th class="text-end">Comptage</th>
                         <th class="text-center">Statut</th>
@@ -152,6 +153,7 @@
                     <tr data-id="{{ article.id }}" data-stock="{{ article.stockDisponible }}">
                         <td>{{ article.nom }}</td>
                         <td>{{ article.emplacement }}</td>
+                        <td>{{ article.attributPrincipal1 }}</td>
                         <td class="text-end fw-semibold">
                             {% if article.stockDisponible is not null %}{{ article.stockDisponible|number_format(2, ',', ' ') }}{% endif %}
                         </td>
@@ -208,6 +210,9 @@
                         {% if article.stockDisponible is not null %}{{ article.stockDisponible|number_format(2, ',', ' ') }}{% else %}—{% endif %}
                     </strong>
                 </div>
+                {% if article.attributPrincipal1 %}
+                    <div class="comptage-card-stock">Caissage : <strong>{{ article.attributPrincipal1 }}</strong></div>
+                {% endif %}
 
                 <label>Comptage</label>
                 <input type="number" step="0.0001"
@@ -272,7 +277,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // ── Modal bloquant hors-ligne ──
     var offlineModal = new bootstrap.Modal(document.getElementById('offlineModal'));
-    window.addEventListener('online', function () { offlineModal.hide(); });
+    var pendingSave  = null;
+    window.addEventListener('online', function () {
+        offlineModal.hide();
+        if (pendingSave) {
+            var save = pendingSave;
+            pendingSave = null;
+            save();
+        }
+    });
 
     function toNum(str) {
         if (str === null || str === undefined) return NaN;
@@ -322,12 +335,7 @@ document.addEventListener('DOMContentLoaded', function () {
         inputCompt.addEventListener('input', function () { applyColor(); checkDirty(); });
         inputComm.addEventListener('input', checkDirty);
 
-        btnSave.addEventListener('click', function () {
-            if (!navigator.onLine) {
-                offlineModal.show();
-                return;
-            }
-
+        function doSave() {
             btnSave.disabled = true;
             statusEl.textContent = '';
 
@@ -363,6 +371,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 statusEl.className   = (isCard ? 'save-status-mobile' : 'save-status') + ' err';
                 btnSave.disabled     = false;
             });
+        }
+
+        btnSave.addEventListener('click', function () {
+            if (!navigator.onLine) {
+                pendingSave = doSave;
+                offlineModal.show();
+                return;
+            }
+            doSave();
         });
     }
 

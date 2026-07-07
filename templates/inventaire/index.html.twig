@@ -150,6 +150,7 @@
                         <th>Nom</th>
                         <th>N° lot</th>
                         <th>Emplacement</th>
+                        <th>Caissage</th>
                         <th class="text-end">Stock dispo</th>
                         <th class="text-end">Comptage</th>
                         <th class="text-center">Statut</th>
@@ -162,6 +163,7 @@
                             <td>{{ article.nom }}</td>
                             <td class="text-muted">{{ article.numeroLot }}</td>
                             <td>{{ article.emplacement }}</td>
+                            <td>{{ article.attributPrincipal1 }}</td>
                             <td class="text-end fw-semibold">
                                 {% if article.stockDisponible is not null %}{{ article.stockDisponible|number_format(2, ',', ' ') }}{% endif %}
                             </td>
@@ -196,6 +198,12 @@
                             {% if article.stockDisponible is not null %}{{ article.stockDisponible|number_format(2, ',', ' ') }}{% endif %}
                         </span>
                     </div>
+                    {% if article.attributPrincipal1 %}
+                        <div class="article-card-row">
+                            <span class="text-muted">Caissage</span>
+                            <span>{{ article.attributPrincipal1 }}</span>
+                        </div>
+                    {% endif %}
                     {% if isOk %}<div class="mt-1"><span class="badge bg-success">OK</span></div>{% endif %}
                     {% if isDefaut %}
                         <div class="mt-1">
