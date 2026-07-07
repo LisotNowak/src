@@ -252,10 +252,27 @@
     {% endif %}
 </div>
 
+{# ── Modal bloquant hors-ligne ── #}
+<div class="modal fade" id="offlineModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content text-center p-4">
+            <div class="modal-body">
+                <i class="fas fa-wifi fa-2x text-danger mb-3"></i>
+                <h5 class="fw-bold mb-2">Pas de connexion internet</h5>
+                <p class="text-muted mb-0">Vérifiez votre connexion. Cette fenêtre se fermera automatiquement dès que la connexion sera rétablie.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     var CSRF_TOKEN = '{{ csrf_token }}';
     var SAVE_URL   = '{{ path('app_inventaire_comptage_save', {id: '__ID__'}) }}';
+
+    // ── Modal bloquant hors-ligne ──
+    var offlineModal = new bootstrap.Modal(document.getElementById('offlineModal'));
+    window.addEventListener('online', function () { offlineModal.hide(); });
 
     function toNum(str) {
         if (str === null || str === undefined) return NaN;
@@ -306,17 +323,12 @@ document.addEventListener('DOMContentLoaded', function () {
         inputComm.addEventListener('input', checkDirty);
 
         btnSave.addEventListener('click', function () {
-            btnSave.disabled = true;
-            statusEl.textContent = 'Vérification de la connexion…';
-            statusEl.className   = isCard ? 'save-status-mobile' : 'save-status';
-
             if (!navigator.onLine) {
-                statusEl.textContent = '✗ Pas de connexion internet';
-                statusEl.className   = (isCard ? 'save-status-mobile' : 'save-status') + ' err';
-                btnSave.disabled     = false;
+                offlineModal.show();
                 return;
             }
 
+            btnSave.disabled = true;
             statusEl.textContent = '';
 
             fetch(SAVE_URL.replace('__ID__', id), {
