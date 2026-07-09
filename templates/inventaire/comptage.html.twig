@@ -291,8 +291,15 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    var CSRF_TOKEN = '{{ csrf_token }}';
-    var SAVE_URL   = '{{ path('app_inventaire_comptage_save', {id: '__ID__'}) }}';
+    var CSRF_TOKEN     = '{{ csrf_token }}';
+    var SAVE_URL       = '{{ path('app_inventaire_comptage_save', {id: '__ID__'}) }}';
+    var CSRF_TOKEN_URL = '{{ path('app_inventaire_comptage_csrf_token') }}';
+
+    function refreshCsrfToken() {
+        return fetch(CSRF_TOKEN_URL, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function (r) { return r.json(); })
+            .then(function (data) { CSRF_TOKEN = data.token; });
+    }
 
     // ── Bouton afficher/masquer la colonne Stock ──
     var toggleStockBtn = document.getElementById('toggleStockCol');
@@ -312,13 +319,29 @@ document.addEventListener('DOMContentLoaded', function () {
     // ── Modal bloquant hors-ligne ──
     var offlineModal = new bootstrap.Modal(document.getElementById('offlineModal'));
     var pendingSave  = null;
-    window.addEventListener('online', function () {
-        offlineModal.hide();
-        if (pendingSave) {
-            var save = pendingSave;
-            pendingSave = null;
-            save();
+    var retryTimer   = null;
+
+    function showOfflineModal(save) {
+        pendingSave = save;
+        offlineModal.show();
+        if (!retryTimer) {
+            retryTimer = setInterval(function () {
+                if (pendingSave) pendingSave();
+            }, 3000);
         }
+    }
+
+    function clearOfflineModal() {
+        offlineModal.hide();
+        pendingSave = null;
+        if (retryTimer) {
+            clearInterval(retryTimer);
+            retryTimer = null;
+        }
+    }
+
+    window.addEventListener('online', function () {
+        if (pendingSave) pendingSave();
     });
 
     function toNum(str) {
@@ -369,7 +392,7 @@ document.addEventListener('DOMContentLoaded', function () {
         inputCompt.addEventListener('input', function () { applyColor(); checkDirty(); });
         inputComm.addEventListener('input', checkDirty);
 
-        function doSave() {
+        function doSave(isRetryAfterTokenRefresh) {
             btnSave.disabled = true;
             statusEl.textContent = '';
 
@@ -388,29 +411,42 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 if (data.success) {
+                    clearOfflineModal();
                     inputCompt.setAttribute('data-original', inputCompt.value);
                     inputComm.setAttribute('data-original',  inputComm.value);
                     applyColor();
                     statusEl.textContent = '✓ Sauvegardé';
                     statusEl.className   = (isCard ? 'save-status-mobile' : 'save-status') + ' ok';
                     setTimeout(function () { statusEl.textContent = ''; }, 2500);
-                } else {
-                    statusEl.textContent = '✗ Erreur';
-                    statusEl.className   = (isCard ? 'save-status-mobile' : 'save-status') + ' err';
-                    btnSave.disabled     = false;
+                    return;
                 }
-            })
-            .catch(function () {
-                statusEl.textContent = '✗ Erreur réseau';
+
+                if (data.retry) {
+                    // Panne temporaire côté serveur (ex. base de données injoignable) : on réessaie automatiquement
+                    showOfflineModal(doSave);
+                    return;
+                }
+
+                if (data.csrfExpired && !isRetryAfterTokenRefresh) {
+                    // Jeton CSRF périmé (ex. session renouvelée pendant la coupure) : on le rafraîchit et on rejoue la sauvegarde
+                    refreshCsrfToken().then(function () { doSave(true); });
+                    return;
+                }
+
+                clearOfflineModal();
+                statusEl.textContent = '✗ ' + (data.error || 'Erreur');
                 statusEl.className   = (isCard ? 'save-status-mobile' : 'save-status') + ' err';
                 btnSave.disabled     = false;
+            })
+            .catch(function () {
+                // Échec réseau réel (serveur injoignable) : bloquer et réessayer automatiquement
+                showOfflineModal(doSave);
             });
         }
 
         btnSave.addEventListener('click', function () {
             if (!navigator.onLine) {
-                pendingSave = doSave;
-                offlineModal.show();
+                showOfflineModal(doSave);
                 return;
             }
             doSave();

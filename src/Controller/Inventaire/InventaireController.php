@@ -2,9 +2,9 @@
 
 namespace App\Controller\Inventaire;
 
-use App\Entity\Inventaire\StockArticle;
 use App\Repository\Inventaire\StockArticleRepository;
 use App\Service\Inventaire\ImportStockService;
+use Doctrine\DBAL\Exception as DBALException;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -79,10 +79,16 @@ class InventaireController extends AbstractController
         ]);
     }
 
+    #[Route('/comptage/csrf-token', name: 'comptage_csrf_token', methods: ['GET'])]
+    public function comptageCsrfToken(CsrfTokenManagerInterface $csrfTokenManager): JsonResponse
+    {
+        return $this->json(['token' => $csrfTokenManager->getToken('comptage_save')->getValue()]);
+    }
+
     #[Route('/comptage/save/{id}', name: 'comptage_save', methods: ['POST'])]
     public function comptageSave(
         Request $request,
-        StockArticle $article,
+        int $id,
         CsrfTokenManagerInterface $csrfTokenManager,
     ): JsonResponse {
         if (!$request->isXmlHttpRequest()) {
@@ -91,7 +97,11 @@ class InventaireController extends AbstractController
 
         $csrfToken = $request->headers->get('X-CSRF-TOKEN');
         if (!$csrfTokenManager->isTokenValid(new CsrfToken('comptage_save', $csrfToken))) {
-            return $this->json(['success' => false, 'error' => 'Token CSRF invalide'], 403);
+            return $this->json([
+                'success'    => false,
+                'error'      => 'Token CSRF invalide',
+                'csrfExpired'=> true,
+            ], 403);
         }
 
         $data = json_decode($request->getContent(), true);
@@ -99,10 +109,23 @@ class InventaireController extends AbstractController
         $comptage    = isset($data['comptage']) && $data['comptage'] !== '' ? $data['comptage'] : null;
         $commentaire = isset($data['commentaire']) && $data['commentaire'] !== '' ? $data['commentaire'] : null;
 
-        $article->setComptage($comptage);
-        $article->setCommentaire($commentaire);
+        try {
+            $article = $this->stockRepo->find($id);
+            if (!$article) {
+                return $this->json(['success' => false, 'error' => 'Article introuvable'], 404);
+            }
 
-        $this->em->flush();
+            $article->setComptage($comptage);
+            $article->setCommentaire($commentaire);
+
+            $this->em->flush();
+        } catch (DBALException $e) {
+            return $this->json([
+                'success' => false,
+                'error'   => 'Base de données indisponible',
+                'retry'   => true,
+            ], 503);
+        }
 
         return $this->json(['success' => true]);
     }
