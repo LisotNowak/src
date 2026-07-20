@@ -63,6 +63,7 @@
         <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
             <div class="navbar-nav">
                 <a class="nav-item nav-link text-white" href="/" aria-current="page">Accueil</a>
+                <a class="nav-item nav-link text-white" href="/portail">Portail</a>
                 <a class="nav-item nav-link text-white" href="/getAllEvents">Tous les évènements Latour</a>
 
                 {% if app.user %}
@@ -75,6 +76,7 @@
                         Admin
                         <div class="admin-dropdown" id="admin-dropdown">
                             <a href="/admin/users/" title="/admin/users/">Gestion utilisateurs</a>
+                            <a href="/admin/portail/" title="/admin/portail/">Gestion du portail</a>
                             <a href="/dev/routes" title="/dev/routes">Gestion des routes</a>
                         </div>
                     </div>

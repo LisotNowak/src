@@ -11,7 +11,7 @@
     {% for category, routes in categorizedRoutes %}
         <div class="card my-4">
             <div class="card-header d-flex justify-content-between align-items-center flex-wrap">
-                <h3 class="h5 mb-0 mr-3">Catégorie : <span class="badge badge-secondary">{{ category }}</span></h3>
+                <h3 class="h5 mb-0 mr-3">Catégorie : <span class="">{{ category }}</span></h3>
                 
                 {% if maintenance.isCategoryActive(category) %}
                     {% set categoryConfig = maintenance.getCategoryConfig(category) %}

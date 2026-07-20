@@ -1,0 +1,57 @@
+{# Attend une variable `field` = la FormView du champ couleur (ChoiceType) #}
+{% set field_id = field.vars.id %}
+{{ form_label(field) }}
+<div class="dropdown">
+    <button class="btn btn-outline-secondary dropdown-toggle d-flex align-items-center gap-2 w-100"
+            type="button" id="{{ field_id }}_toggle" data-bs-toggle="dropdown" aria-expanded="false">
+        <span id="{{ field_id }}_preview" class="d-inline-block rounded-circle flex-shrink-0 border" style="width:16px;height:16px;background:#fff;"></span>
+        <span id="{{ field_id }}_label" class="flex-grow-1 text-start"></span>
+    </button>
+    <ul class="dropdown-menu w-100" id="{{ field_id }}_menu" aria-labelledby="{{ field_id }}_toggle">
+        {% if field.vars.placeholder is not none %}
+            <li>
+                <button type="button" class="dropdown-item d-flex align-items-center gap-2 couleur-option" data-value="" data-label="{{ field.vars.placeholder }}">
+                    <span class="d-inline-block rounded-circle flex-shrink-0 border" style="width:14px;height:14px;background:#fff;"></span>
+                    {{ field.vars.placeholder }}
+                </button>
+            </li>
+        {% endif %}
+        {% for choice in field.vars.choices %}
+            <li>
+                <button type="button" class="dropdown-item d-flex align-items-center gap-2 couleur-option" data-value="{{ choice.value }}" data-label="{{ choice.label }}">
+                    <span class="d-inline-block rounded-circle flex-shrink-0" style="width:14px;height:14px;background:{{ choice.value }};"></span>
+                    {{ choice.label }}
+                </button>
+            </li>
+        {% endfor %}
+    </ul>
+    <div class="d-none">{{ form_widget(field) }}</div>
+</div>
+{{ form_errors(field) }}
+
+<script>
+(function () {
+    var select = document.getElementById('{{ field_id }}');
+    var preview = document.getElementById('{{ field_id }}_preview');
+    var label = document.getElementById('{{ field_id }}_label');
+    var menu = document.getElementById('{{ field_id }}_menu');
+
+    function applyOption(value, text) {
+        select.value = value;
+        preview.style.background = value || '#fff';
+        label.textContent = text;
+    }
+
+    var current = select.options[select.selectedIndex];
+    if (current) {
+        applyOption(current.value, current.text);
+    }
+
+    menu.querySelectorAll('.couleur-option').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            applyOption(this.dataset.value, this.dataset.label);
+            select.dispatchEvent(new Event('change'));
+        });
+    });
+})();
+</script>

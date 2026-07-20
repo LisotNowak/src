@@ -1,0 +1,59 @@
+{% extends 'base.html.twig' %}
+{% block title %}Portail{% endblock %}
+
+{% block body %}
+<div class="container mt-4 mb-5">
+    <h1 class="mb-4">Portail applicatif</h1>
+
+    {% for category in categories %}
+        {% if category.tiles is not empty %}
+            <div class="portal-category card shadow-sm mb-4" style="border-top: 5px solid {{ category.couleur ?: '#800000' }};">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        {% if category.icone %}
+                            <i class="{{ category.icone }} fa-lg me-2" style="color: {{ category.couleur ?: '#800000' }};"></i>
+                        {% endif %}
+                        <h2 class="h4 mb-0">{{ category.nom }}</h2>
+                    </div>
+
+                    <div class="row g-4">
+                        {% for tile in category.tiles %}
+                            <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                                <a href="{{ tile.url }}"
+                                   class="text-decoration-none"
+                                   {% if tile.nouvelOnglet %}target="_blank" rel="noopener"{% endif %}>
+                                    <div class="card h-100 shadow-sm portal-tile" style="{% if tile.couleur %}border-top: 4px solid {{ tile.couleur }};{% endif %}">
+                                        <div class="card-body text-center">
+                                            {% if tile.image %}
+                                                <img src="{{ tile.image }}" alt="{{ tile.titre }}" class="mb-3" style="max-height:64px;">
+                                            {% elseif tile.icone %}
+                                                <i class="{{ tile.icone }} fa-2x mb-3" style="{% if tile.couleur %}color: {{ tile.couleur }};{% endif %}"></i>
+                                            {% endif %}
+                                            <h5 class="card-title text-dark">{{ tile.titre }}</h5>
+                                            {% if tile.description %}
+                                                <p class="card-text text-muted small">{{ tile.description }}</p>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    {% else %}
+        <p class="text-muted">Aucune application n'est publiée pour le moment.</p>
+    {% endfor %}
+</div>
+
+<style>
+    .portal-tile {
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .portal-tile:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15) !important;
+    }
+</style>
+{% endblock %}

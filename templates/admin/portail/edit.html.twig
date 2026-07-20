@@ -1,0 +1,60 @@
+{% extends 'base.html.twig' %}
+{% form_theme form 'bootstrap_5_layout.html.twig' %}
+{% block title %}Modifier la tuile{% endblock %}
+{% block body %}
+<div class="container mt-4 mb-5">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ path('admin_portail_index') }}">Portail</a></li>
+            <li class="breadcrumb-item active">{{ tile.titre }}</li>
+        </ol>
+    </nav>
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-white">
+            <h1 class="h4 mb-0"><i class="fas fa-pen text-primary me-2"></i>Modifier : {{ tile.titre }}</h1>
+        </div>
+        <div class="card-body">
+            {{ form_start(form) }}
+                <div class="row g-3">
+                    <div class="col-md-8">{{ form_row(form.titre) }}</div>
+                    <div class="col-md-4">{{ form_row(form.position) }}</div>
+
+                    <div class="col-md-8">{{ form_row(form.categorie) }}</div>
+                    <div class="col-md-4 d-flex align-items-end mb-3">
+                        <a href="{{ path('admin_portail_categorie_new') }}" class="btn btn-outline-secondary btn-sm" target="_blank">
+                            <i class="fas fa-plus me-1"></i>Nouvelle catégorie
+                        </a>
+                    </div>
+
+                    <div class="col-12">{{ form_row(form.description) }}</div>
+
+                    <div class="col-md-8">{{ form_row(form.url) }}</div>
+                    <div class="col-md-4">{{ form_row(form.icone) }}</div>
+
+                    <div class="col-md-4">
+                        {% include 'admin/portail/_couleur_picker.html.twig' with {field: form.couleur} %}
+                    </div>
+
+                    <div class="col-md-4 d-flex align-items-center">
+                        <div class="form-check form-switch mt-4">
+                            {{ form_widget(form.actif) }}
+                            {{ form_label(form.actif) }}
+                        </div>
+                    </div>
+                    <div class="col-md-4 d-flex align-items-center">
+                        <div class="form-check form-switch mt-4">
+                            {{ form_widget(form.nouvelOnglet) }}
+                            {{ form_label(form.nouvelOnglet) }}
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="my-4">
+                <button class="btn btn-success"><i class="fas fa-check me-1"></i>Enregistrer</button>
+                <a href="{{ path('admin_portail_index') }}" class="btn btn-outline-secondary">Annuler</a>
+            {{ form_end(form) }}
+        </div>
+    </div>
+</div>
+{% endblock %}
