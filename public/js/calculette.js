@@ -115,11 +115,8 @@ function calcul() {
 
     // ---- 2) Calculs globaux ----
     if (!isSaisonnier) {
-        if (totalHSaisie >= 49 && totalHSaisie <= 56) {
+        if (totalHSaisie >= 49) {
             totalHRepComp = (totalHSaisie - 48) * 0.25;
-        } else if (totalHSaisie >= 57) {
-            totalHRepComp = (56 - 48) * 0.25;
-            totalHRepComp += (totalHSaisie - 56) * 0.5;
         }
 
         const hDimanche = parseNumber(document.querySelector(".dimancheHSaisie")?.value);
