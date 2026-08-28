@@ -73,16 +73,24 @@ function calcul() {
                 totalH25 += hSaisie;
             }
         } else {
+            let reste = hSaisie;
+
+            if (totalHNorm < 35) {
+                const normHours = Math.min(reste, 35 - totalHNorm);
+                elHNorm.value = normHours;
+                totalHNorm += normHours;
+                reste -= normHours;
+            }
+
             if (totalH25 < 8) {
                 const remaining25 = Math.max(0, 8 - totalH25);
-                const hs25 = Math.min(remaining25, hSaisie);
-                const hs50 = Math.max(0, hSaisie - hs25);
+                const hs25 = Math.min(remaining25, reste);
                 elHS25.value = hs25;
-                elHS50.value = hs50;
                 totalH25 += hs25;
-            } else {
-                elHS50.value = hSaisie;
+                reste -= hs25;
             }
+
+            elHS50.value = Math.max(0, reste);
         }
     }
 
