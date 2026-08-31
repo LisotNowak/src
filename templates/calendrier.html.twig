@@ -202,7 +202,7 @@
     <input type="hidden" name="categories" id="selectedCategories" value="{{ app.request.query.get('categories') }}">
     <select name="mois" class="form-select w-auto me-2">
         {% set currentDate = 'now'|date %}
-        {% set minDate = 'now'|date_modify('-3 months') %}
+        {% set minDate = 'now'|date_modify('first day of -3 months') %}
         {% set maxDate = 'now'|date_modify('+6 months') %}
 
         {% for i in 0..8 %}
