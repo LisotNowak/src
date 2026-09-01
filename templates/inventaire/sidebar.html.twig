@@ -78,10 +78,12 @@
 <div class="sidebar-inventaire d-none d-lg-flex flex-column">
     <div class="sidebar-title mt-2">Inventaire</div>
 
+    {% if active_link != 'comptage' %}
     <a href="{{ path('app_inventaire_index') }}"
        class="nav-link {{ active_link == 'stock' ? 'active' : '' }}">
         <i class="fas fa-boxes"></i> Stock articles
     </a>
+    {% endif %}
 
     <a href="{{ path('app_inventaire_comptage') }}"
        class="nav-link {{ active_link == 'comptage' ? 'active' : '' }}">
@@ -99,9 +101,11 @@
 
 {# ── Barre de navigation fixe en bas (mobile) ───────────────────────────── #}
 <nav class="mobile-bottombar">
+    {% if active_link != 'comptage' %}
     <a href="{{ path('app_inventaire_index') }}" class="{{ active_link == 'stock' ? 'active' : '' }}">
         <i class="fas fa-boxes"></i>Stock
     </a>
+    {% endif %}
     <a href="{{ path('app_inventaire_comptage') }}" class="{{ active_link == 'comptage' ? 'active' : '' }}">
         <i class="fas fa-clipboard-check"></i>Comptage
     </a>

@@ -28,8 +28,7 @@
     }
     .table-inv td { font-size: 0.85rem; vertical-align: middle; }
     .table-wrapper { overflow-x: auto; max-height: 65vh; overflow-y: auto; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
-    tr.match    > td { background-color: #d1e7dd !important; }
-    tr.mismatch > td { background-color: #f8d7da !important; }
+    tr.touched > td { background-color: #e9ecef !important; }
 
     .input-comptage {
         width: 110px; text-align: right;
@@ -62,8 +61,7 @@
         border-left: 5px solid #dee2e6;
         transition: border-color 0.2s;
     }
-    .comptage-card.match    { border-left-color: #198754; background-color: #f0faf4; }
-    .comptage-card.mismatch { border-left-color: #dc3545; background-color: #fdf3f4; }
+    .comptage-card.touched { border-left-color: #adb5bd; background-color: #f4f5f6; }
 
     .comptage-card-nom   { font-weight: 700; font-size: 1rem; color: #212529; margin-bottom: 2px; }
     .comptage-card-empl  { font-size: 0.8rem; color: #6c757d; margin-bottom: 0.6rem; }
@@ -351,22 +349,14 @@ document.addEventListener('DOMContentLoaded', function () {
         return parseFloat(s);
     }
 
-    // ── Gestion couleur carte mobile ──
+    // ── Griser la carte quand une saisie est faite (indépendamment de la valeur) ──
     function applyCardColor(card, inputCompt) {
-        var comptage = toNum(inputCompt.value);
-        var stock    = toNum(card.getAttribute('data-stock'));
-        card.classList.remove('match', 'mismatch');
-        if (isNaN(comptage) || isNaN(stock)) return;
-        card.classList.add(comptage.toFixed(4) === stock.toFixed(4) ? 'match' : 'mismatch');
+        card.classList.toggle('touched', !isNaN(toNum(inputCompt.value)));
     }
 
-    // ── Gestion couleur ligne tableau ──
+    // ── Griser la ligne quand une saisie est faite (indépendamment de la valeur) ──
     function applyRowColor(row, inputCompt) {
-        var comptage = toNum(inputCompt.value);
-        var stock    = toNum(row.getAttribute('data-stock'));
-        row.classList.remove('match', 'mismatch');
-        if (isNaN(comptage) || isNaN(stock)) return;
-        row.classList.add(comptage.toFixed(4) === stock.toFixed(4) ? 'match' : 'mismatch');
+        row.classList.toggle('touched', !isNaN(toNum(inputCompt.value)));
     }
 
     function setupRow(container, isCard) {
