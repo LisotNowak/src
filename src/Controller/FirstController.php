@@ -68,7 +68,9 @@ public function getAllEvents(Request $request): Response
             'Dîner Extérieur',
             'Formation',
             'Masterclass Extérieur',
-            'Dégustation Technique'               
+            'Dégustation Technique',
+            'Dégustation Château Latour'               
+
         ];
     
         if (!isset($event['categorie']['nom'])) {

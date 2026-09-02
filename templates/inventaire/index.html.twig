@@ -38,7 +38,7 @@
         font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em;
         white-space: nowrap; position: sticky; top: 0; z-index: 1;
     }
-    .table-inv tbody tr:hover { background-color: #fff5f5; }
+    .table-inv tbody tr:hover { background-color: #fff5f5; cursor: pointer; }
     .table-inv td { font-size: 0.85rem; vertical-align: middle; white-space: nowrap; }
     .table-inv tr.match    > td { background-color: #d1e7dd !important; }
     .table-inv tr.mismatch > td { background-color: #f8d7da !important; }
@@ -53,6 +53,7 @@
         padding: 0.85rem 1rem;
         margin-bottom: 0.65rem;
         border-left: 4px solid #dee2e6;
+        cursor: pointer;
     }
     .article-card.statut-ok      { border-left-color: #198754; }
     .article-card.statut-defaut  { border-left-color: #dc3545; }
@@ -162,9 +163,11 @@
                     {% for article in articles %}
                         {% set isMatch    = article.comptage is not null and article.stockDisponible is not null and article.comptage|number_format(4, '.', '') == article.stockDisponible|number_format(4, '.', '') %}
                         {% set isMismatch = article.comptage is not null and not isMatch %}
-                        <tr class="{{ isMatch ? 'match' : (isMismatch ? 'mismatch' : '') }}">
+                        {% set hasCommentaire = article.commentaire is not null and article.commentaire|trim != '' %}
+                        <tr class="{{ isMatch ? 'match' : (isMismatch ? 'mismatch' : '') }}"
+                            data-nom="{{ article.nom }}" data-commentaire="{{ article.commentaire }}">
                             <td><code>{{ article.codeArticle }}</code></td>
-                            <td>{{ article.nom }}</td>
+                            <td>{{ article.nom }}{% if hasCommentaire %} <i class="fas fa-comment-dots text-warning ms-1" title="Commentaire disponible"></i>{% endif %}</td>
                             <td class="text-muted">{{ article.numeroLot }}</td>
                             <td>{{ article.emplacement }}</td>
                             <td>{{ article.attributPrincipal1 }}</td>
@@ -200,8 +203,10 @@
             {% for article in articles %}
                 {% set isOk     = article.statut == 2 %}
                 {% set isDefaut = article.statut == 3 and (article.attributPrincipal1 is not null or article.attributPrincipal2 is not null) %}
-                <div class="article-card {{ isOk ? 'statut-ok' : (isDefaut ? 'statut-defaut' : '') }}">
-                    <div class="article-card-nom">{{ article.nom }}</div>
+                {% set hasCommentaire = article.commentaire is not null and article.commentaire|trim != '' %}
+                <div class="article-card {{ isOk ? 'statut-ok' : (isDefaut ? 'statut-defaut' : '') }}"
+                     data-nom="{{ article.nom }}" data-commentaire="{{ article.commentaire }}">
+                    <div class="article-card-nom">{{ article.nom }}{% if hasCommentaire %} <i class="fas fa-comment-dots text-warning ms-1" title="Commentaire disponible"></i>{% endif %}</div>
                     <div class="article-card-code">{{ article.codeArticle }}{% if article.numeroLot %} · lot {{ article.numeroLot }}{% endif %}</div>
                     <div class="article-card-row">
                         <span class="text-muted"><i class="fas fa-map-marker-alt me-1"></i>{{ article.emplacement }}</span>
@@ -255,4 +260,43 @@
 
     {% endif %}
 </div>
+
+{# ── Modal commentaire ── #}
+<div class="modal fade" id="commentaireModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="commentaireModalNom"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0" id="commentaireModalTexte"></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var commentaireModalEl    = document.getElementById('commentaireModal');
+    var commentaireModal      = new bootstrap.Modal(commentaireModalEl);
+    var commentaireModalNom   = document.getElementById('commentaireModalNom');
+    var commentaireModalTexte = document.getElementById('commentaireModalTexte');
+
+    function showCommentaire(el) {
+        var commentaire = (el.getAttribute('data-commentaire') || '').trim();
+        commentaireModalNom.textContent   = el.getAttribute('data-nom') || '';
+        commentaireModalTexte.textContent = commentaire !== '' ? commentaire : 'Aucun commentaire.';
+        commentaireModalTexte.classList.toggle('text-muted', commentaire === '');
+        commentaireModal.show();
+    }
+
+    document.querySelectorAll('.table-inv tbody tr[data-nom]').forEach(function (row) {
+        row.addEventListener('click', function () { showCommentaire(row); });
+    });
+    document.querySelectorAll('.article-card[data-nom]').forEach(function (card) {
+        card.addEventListener('click', function () { showCommentaire(card); });
+    });
+});
+</script>
 {% endblock %}
