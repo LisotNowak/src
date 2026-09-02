@@ -96,25 +96,34 @@ class StockArticleRepository extends ServiceEntityRepository
      */
     public function findWithFilters(
         ?string $depot,
-        ?string $emplacement,
+        string|array|null $emplacement,
         ?string $uniteMesure,
         ?string $terme,
         int $page = 1,
-        int $limit = 50
+        int $limit = 50,
+        bool $ecartOnly = false
     ): array {
         $qb = $this->createQueryBuilder('s');
 
         if ($depot) {
             $qb->andWhere('s.depot = :depot')->setParameter('depot', $depot);
         }
-        if ($emplacement) {
+        if (is_array($emplacement)) {
+            $emplacement = array_values(array_filter($emplacement, fn ($v) => $v !== null && $v !== ''));
+            if ($emplacement) {
+                $qb->andWhere('s.emplacement IN (:emplacements)')->setParameter('emplacements', $emplacement);
+            }
+        } elseif ($emplacement) {
             $qb->andWhere('s.emplacement = :emplacement')->setParameter('emplacement', $emplacement);
         }
         if ($uniteMesure) {
             $qb->andWhere('s.uniteMesure = :um')->setParameter('um', $uniteMesure);
         }
         if ($terme) {
-            $qb->andWhere('s.codeArticle LIKE :t OR s.nom LIKE :t')->setParameter('t', '%' . $terme . '%');
+            $qb->andWhere('(s.codeArticle LIKE :t OR s.nom LIKE :t)')->setParameter('t', '%' . $terme . '%');
+        }
+        if ($ecartOnly) {
+            $qb->andWhere('s.comptage IS NOT NULL AND (s.stockDisponible IS NULL OR s.comptage <> s.stockDisponible)');
         }
 
         $total = (clone $qb)->select('COUNT(s.id)')->getQuery()->getSingleScalarResult();

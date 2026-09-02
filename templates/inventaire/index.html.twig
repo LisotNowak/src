@@ -118,12 +118,21 @@
                 </select>
             </div>
             <div class="col-6 col-md-3">
-                <select name="emplacement" class="form-select form-select-sm" onchange="this.form.submit()">
-                    <option value="">Tous emplacements</option>
-                    {% for e in emplacements %}
-                        <option value="{{ e }}" {{ filtreEmpl == e ? 'selected' : '' }}>{{ e }}</option>
-                    {% endfor %}
-                </select>
+                <div class="dropdown" id="emplacementDropdown">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle w-100 text-start" type="button"
+                            data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                        <span id="emplacementDropdownLabel">Tous emplacements</span>
+                    </button>
+                    <div class="dropdown-menu p-2" style="max-height: 260px; overflow-y: auto; min-width: 220px;">
+                        {% for e in emplacements %}
+                            <div class="form-check">
+                                <input class="form-check-input emplacement-check" type="checkbox" name="emplacement[]"
+                                       value="{{ e }}" id="empl-{{ loop.index }}" {{ e in filtreEmpl ? 'checked' : '' }}>
+                                <label class="form-check-label" for="empl-{{ loop.index }}">{{ e }}</label>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
             </div>
             <div class="col-6 col-md-2">
                 <select name="unite" class="form-select form-select-sm" onchange="this.form.submit()">
@@ -136,6 +145,17 @@
             <div class="col-6 col-md-1 d-flex gap-1">
                 <button type="submit" class="btn btn-sm btn-danger w-100"><i class="fas fa-filter"></i></button>
                 <a href="{{ path('app_inventaire_index') }}" class="btn btn-sm btn-outline-secondary w-100"><i class="fas fa-times"></i></a>
+            </div>
+        </div>
+        <div class="row mt-2">
+            <div class="col-12">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" id="ecartSwitch" name="ecart" value="1"
+                           {{ filtreEcart ? 'checked' : '' }} onchange="this.form.submit()">
+                    <label class="form-check-label" for="ecartSwitch">
+                        <i class="fas fa-triangle-exclamation text-danger me-1"></i>Écarts uniquement (comptage ≠ stock)
+                    </label>
+                </div>
             </div>
         </div>
     </form>
@@ -278,6 +298,23 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    var emplacementLabel  = document.getElementById('emplacementDropdownLabel');
+    var emplacementChecks = document.querySelectorAll('.emplacement-check');
+
+    function updateEmplacementLabel() {
+        var checked = Array.prototype.filter.call(emplacementChecks, function (c) { return c.checked; });
+        if (checked.length === 0) {
+            emplacementLabel.textContent = 'Tous emplacements';
+        } else if (checked.length <= 2) {
+            emplacementLabel.textContent = checked.map(function (c) { return c.value; }).join(', ');
+        } else {
+            emplacementLabel.textContent = checked.length + ' emplacements sélectionnés';
+        }
+    }
+
+    emplacementChecks.forEach(function (c) { c.addEventListener('change', updateEmplacementLabel); });
+    updateEmplacementLabel();
+
     var commentaireModalEl    = document.getElementById('commentaireModal');
     var commentaireModal      = new bootstrap.Modal(commentaireModalEl);
     var commentaireModalNom   = document.getElementById('commentaireModalNom');

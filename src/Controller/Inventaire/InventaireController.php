@@ -27,14 +27,15 @@ class InventaireController extends AbstractController
     #[Route('', name: 'index')]
     public function index(Request $request): Response
     {
-        $depot       = $request->query->get('depot');
-        $emplacement = $request->query->get('emplacement');
-        $uniteMesure = $request->query->get('unite');
-        $terme       = $request->query->get('q');
-        $page        = max(1, (int) $request->query->get('page', 1));
-        $limit       = 100;
+        $depot        = $request->query->get('depot');
+        $emplacements = $request->query->all('emplacement');
+        $uniteMesure  = $request->query->get('unite');
+        $terme        = $request->query->get('q');
+        $ecartOnly    = $request->query->get('ecart') === '1';
+        $page         = max(1, (int) $request->query->get('page', 1));
+        $limit        = 100;
 
-        $result = $this->stockRepo->findWithFilters($depot, $emplacement, $uniteMesure, $terme, $page, $limit);
+        $result = $this->stockRepo->findWithFilters($depot, $emplacements ?: null, $uniteMesure, $terme, $page, $limit, $ecartOnly);
 
         $totalPages = (int) ceil($result['total'] / $limit);
 
@@ -48,9 +49,10 @@ class InventaireController extends AbstractController
             'emplacements' => $this->stockRepo->findAllEmplacements(),
             'unites'       => $this->stockRepo->findAllUnites(),
             'filtreDepot'  => $depot,
-            'filtreEmpl'   => $emplacement,
+            'filtreEmpl'   => $emplacements,
             'filtreUnite'  => $uniteMesure,
             'filtreQ'      => $terme,
+            'filtreEcart'  => $ecartOnly,
         ]);
     }
 
