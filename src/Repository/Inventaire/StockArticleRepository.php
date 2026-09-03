@@ -138,6 +138,69 @@ class StockArticleRepository extends ServiceEntityRepository
         return ['items' => $items, 'total' => (int) $total];
     }
 
+    /**
+     * Synthèse par référence, tous emplacements confondus : une ligne par codeArticle
+     * avec la somme du stock et du comptage.
+     *
+     * @return array{items: array, total: int}
+     */
+    public function findGroupedByReference(?string $terme, int $page = 1, int $limit = 50, bool $ecartOnly = false): array
+    {
+        $qb = $this->createQueryBuilder('s')
+            ->select(
+                's.codeArticle AS codeArticle',
+                'MIN(s.nom) AS nom',
+                'SUM(s.stockDisponible) AS totalStock',
+                'SUM(s.comptage) AS totalComptage',
+                'COUNT(s.id) AS nbLignes',
+                'SUM(CASE WHEN s.aTraiter = true THEN 1 ELSE 0 END) AS nbATraiter'
+            )
+            ->groupBy('s.codeArticle');
+
+        if ($terme) {
+            $qb->andWhere('(s.codeArticle LIKE :t OR s.nom LIKE :t)')->setParameter('t', '%' . $terme . '%');
+        }
+        if ($ecartOnly) {
+            $qb->having('SUM(s.comptage) IS NOT NULL AND (SUM(s.stockDisponible) IS NULL OR SUM(s.comptage) <> SUM(s.stockDisponible))');
+        }
+
+        $total = count((clone $qb)->select('s.codeArticle')->getQuery()->getResult());
+
+        $items = $qb
+            ->orderBy('MIN(s.nom)', 'ASC')
+            ->setFirstResult(($page - 1) * $limit)
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+
+        return ['items' => $items, 'total' => $total];
+    }
+
+    /** @return StockArticle[] */
+    public function findByCodeArticle(string $codeArticle): array
+    {
+        return $this->createQueryBuilder('s')
+            ->andWhere('s.codeArticle = :code')
+            ->setParameter('code', $codeArticle)
+            ->orderBy('s.emplacement', 'ASC')
+            ->addOrderBy('s.numeroLot', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /** Bascule la case "à traiter" sur toutes les lignes d'une référence (tous emplacements/lots). */
+    public function setATraiterForCodeArticle(string $codeArticle, bool $value): void
+    {
+        $this->createQueryBuilder('s')
+            ->update()
+            ->set('s.aTraiter', ':val')
+            ->where('s.codeArticle = :code')
+            ->setParameter('val', $value)
+            ->setParameter('code', $codeArticle)
+            ->getQuery()
+            ->execute();
+    }
+
     /** @return string[] */
     public function findAllDepots(): array
     {

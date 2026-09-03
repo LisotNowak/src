@@ -61,6 +61,9 @@ class StockArticle
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $commentaire = null;
 
+    #[ORM\Column(options: ['default' => false])]
+    private bool $aTraiter = false;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -228,6 +231,17 @@ class StockArticle
     public function setCommentaire(?string $commentaire): static
     {
         $this->commentaire = $commentaire;
+        return $this;
+    }
+
+    public function isATraiter(): bool
+    {
+        return $this->aTraiter;
+    }
+
+    public function setATraiter(bool $aTraiter): static
+    {
+        $this->aTraiter = $aTraiter;
         return $this;
     }
 }

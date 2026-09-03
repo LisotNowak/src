@@ -25,7 +25,7 @@ class InventaireController extends AbstractController
     ) {}
 
     #[Route('', name: 'index')]
-    public function index(Request $request): Response
+    public function index(Request $request, CsrfTokenManagerInterface $csrfTokenManager): Response
     {
         $depot        = $request->query->get('depot');
         $emplacements = $request->query->all('emplacement');
@@ -53,7 +53,110 @@ class InventaireController extends AbstractController
             'filtreUnite'  => $uniteMesure,
             'filtreQ'      => $terme,
             'filtreEcart'  => $ecartOnly,
+            'csrf_token_a_traiter' => $csrfTokenManager->getToken('a_traiter')->getValue(),
         ]);
+    }
+
+    // ── Références (synthèse tous emplacements) ─────────────────────────────
+
+    #[Route('/references', name: 'references')]
+    public function references(Request $request, CsrfTokenManagerInterface $csrfTokenManager): Response
+    {
+        $terme     = $request->query->get('q');
+        $ecartOnly = $request->query->get('ecart') === '1';
+        $page      = max(1, (int) $request->query->get('page', 1));
+        $limit     = 100;
+
+        $result = $this->stockRepo->findGroupedByReference($terme, $page, $limit, $ecartOnly);
+
+        return $this->render('inventaire/references.html.twig', [
+            'references' => $result['items'],
+            'total'      => $result['total'],
+            'page'       => $page,
+            'totalPages' => (int) ceil($result['total'] / $limit),
+            'limit'      => $limit,
+            'filtreQ'    => $terme,
+            'filtreEcart' => $ecartOnly,
+            'csrf_token_a_traiter' => $csrfTokenManager->getToken('a_traiter')->getValue(),
+        ]);
+    }
+
+    #[Route('/references/{codeArticle}/detail', name: 'references_detail', methods: ['GET'])]
+    public function referencesDetail(string $codeArticle): JsonResponse
+    {
+        $lignes = $this->stockRepo->findByCodeArticle($codeArticle);
+
+        return $this->json(array_map(fn ($a) => [
+            'id'                 => $a->getId(),
+            'emplacement'        => $a->getEmplacement(),
+            'numeroLot'          => $a->getNumeroLot(),
+            'caissage'           => $a->getAttributPrincipal1(),
+            'attributPrincipal2' => $a->getAttributPrincipal2(),
+            'stockDisponible'    => $a->getStockDisponible(),
+            'quantiteAffectee'   => $a->getQuantiteAffectee(),
+            'comptage'           => $a->getComptage(),
+            'commentaire'        => $a->getCommentaire(),
+            'statut'             => $a->getStatut(),
+            'aTraiter'           => $a->isATraiter(),
+        ], $lignes));
+    }
+
+    #[Route('/references/{codeArticle}/a-traiter', name: 'references_a_traiter', methods: ['POST'])]
+    public function referencesATraiter(
+        Request $request,
+        string $codeArticle,
+        CsrfTokenManagerInterface $csrfTokenManager,
+    ): JsonResponse {
+        if (!$request->isXmlHttpRequest()) {
+            return $this->json(['success' => false], 400);
+        }
+
+        $csrfToken = $request->headers->get('X-CSRF-TOKEN');
+        if (!$csrfTokenManager->isTokenValid(new CsrfToken('a_traiter', $csrfToken))) {
+            return $this->json(['success' => false, 'error' => 'Token CSRF invalide'], 403);
+        }
+
+        $data = json_decode($request->getContent(), true);
+
+        try {
+            $this->stockRepo->setATraiterForCodeArticle($codeArticle, (bool) ($data['aTraiter'] ?? false));
+        } catch (DBALException $e) {
+            return $this->json(['success' => false, 'error' => 'Base de données indisponible'], 503);
+        }
+
+        return $this->json(['success' => true]);
+    }
+
+    #[Route('/article/{id}/a-traiter', name: 'article_a_traiter', methods: ['POST'])]
+    public function articleATraiter(
+        Request $request,
+        int $id,
+        CsrfTokenManagerInterface $csrfTokenManager,
+    ): JsonResponse {
+        if (!$request->isXmlHttpRequest()) {
+            return $this->json(['success' => false], 400);
+        }
+
+        $csrfToken = $request->headers->get('X-CSRF-TOKEN');
+        if (!$csrfTokenManager->isTokenValid(new CsrfToken('a_traiter', $csrfToken))) {
+            return $this->json(['success' => false, 'error' => 'Token CSRF invalide'], 403);
+        }
+
+        $article = $this->stockRepo->find($id);
+        if (!$article) {
+            return $this->json(['success' => false, 'error' => 'Article introuvable'], 404);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $article->setATraiter((bool) ($data['aTraiter'] ?? false));
+
+        try {
+            $this->em->flush();
+        } catch (DBALException $e) {
+            return $this->json(['success' => false, 'error' => 'Base de données indisponible'], 503);
+        }
+
+        return $this->json(['success' => true]);
     }
 
     // ── Comptage ──────────────────────────────────────────────────────────

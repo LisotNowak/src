@@ -42,6 +42,7 @@
     .table-inv td { font-size: 0.85rem; vertical-align: middle; white-space: nowrap; }
     .table-inv tr.match    > td { background-color: #d1e7dd !important; }
     .table-inv tr.mismatch > td { background-color: #f8d7da !important; }
+    .table-inv tr.to-process > td { background-color: #fff3cd !important; }
     .badge-um { background: #800000; color: #fff; font-size: 0.7rem; padding: 2px 6px; border-radius: 3px; }
     .table-wrapper { overflow-x: auto; max-height: 60vh; overflow-y: auto; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
 
@@ -57,6 +58,7 @@
     }
     .article-card.statut-ok      { border-left-color: #198754; }
     .article-card.statut-defaut  { border-left-color: #dc3545; }
+    .article-card.to-process     { background-color: #fff8e1; border-left-color: #ffc107; }
     .article-card-nom { font-weight: 600; font-size: 0.95rem; color: #212529; }
     .article-card-code { font-size: 0.75rem; color: #6c757d; font-family: monospace; }
     .article-card-row { display: flex; justify-content: space-between; align-items: center; margin-top: 0.35rem; font-size: 0.82rem; }
@@ -81,6 +83,7 @@
         }
         .table-inv thead th { position: static !important; }
         .table-inv, .table-inv * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .no-print { display: none !important; }
     }
 </style>
 
@@ -196,6 +199,7 @@
             <table class="table table-sm table-bordered table-hover table-inv mb-0">
                 <thead>
                     <tr>
+                        <th class="text-center no-print" title="À traiter plus tard"><i class="fas fa-flag"></i></th>
                         <th>Code article</th>
                         <th>Nom</th>
                         <th>N° lot</th>
@@ -211,8 +215,12 @@
                         {% set isMatch    = article.comptage is not null and article.stockDisponible is not null and article.comptage|number_format(4, '.', '') == article.stockDisponible|number_format(4, '.', '') %}
                         {% set isMismatch = article.comptage is not null and not isMatch %}
                         {% set hasCommentaire = article.commentaire is not null and article.commentaire|trim != '' %}
-                        <tr class="{{ isMatch ? 'match' : (isMismatch ? 'mismatch' : '') }}"
+                        <tr class="{{ isMatch ? 'match' : (isMismatch ? 'mismatch' : '') }} {{ article.aTraiter ? 'to-process' : '' }}"
                             data-nom="{{ article.nom }}" data-commentaire="{{ article.commentaire }}">
+                            <td class="text-center no-print" onclick="event.stopPropagation()">
+                                <input type="checkbox" class="form-check-input a-traiter-check" data-id="{{ article.id }}"
+                                       title="À traiter plus tard" {{ article.aTraiter ? 'checked' : '' }}>
+                            </td>
                             <td><code>{{ article.codeArticle }}</code></td>
                             <td>{{ article.nom }}{% if hasCommentaire %} <i class="fas fa-comment-dots text-warning ms-1" title="Commentaire disponible"></i>{% endif %}</td>
                             <td class="text-muted">{{ article.numeroLot }}</td>
@@ -251,9 +259,15 @@
                 {% set isOk     = article.statut == 2 %}
                 {% set isDefaut = article.statut == 3 and (article.attributPrincipal1 is not null or article.attributPrincipal2 is not null) %}
                 {% set hasCommentaire = article.commentaire is not null and article.commentaire|trim != '' %}
-                <div class="article-card {{ isOk ? 'statut-ok' : (isDefaut ? 'statut-defaut' : '') }}"
+                <div class="article-card {{ isOk ? 'statut-ok' : (isDefaut ? 'statut-defaut' : '') }} {{ article.aTraiter ? 'to-process' : '' }}"
                      data-nom="{{ article.nom }}" data-commentaire="{{ article.commentaire }}">
-                    <div class="article-card-nom">{{ article.nom }}{% if hasCommentaire %} <i class="fas fa-comment-dots text-warning ms-1" title="Commentaire disponible"></i>{% endif %}</div>
+                    <div class="article-card-row">
+                        <div class="article-card-nom">{{ article.nom }}{% if hasCommentaire %} <i class="fas fa-comment-dots text-warning ms-1" title="Commentaire disponible"></i>{% endif %}</div>
+                        <div class="form-check mb-0" onclick="event.stopPropagation()">
+                            <input type="checkbox" class="form-check-input a-traiter-check" data-id="{{ article.id }}"
+                                   title="À traiter plus tard" {{ article.aTraiter ? 'checked' : '' }}>
+                        </div>
+                    </div>
                     <div class="article-card-code">{{ article.codeArticle }}{% if article.numeroLot %} · lot {{ article.numeroLot }}{% endif %}</div>
                     <div class="article-card-row">
                         <span class="text-muted"><i class="fas fa-map-marker-alt me-1"></i>{{ article.emplacement }}</span>
@@ -360,6 +374,38 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     document.querySelectorAll('.article-card[data-nom]').forEach(function (card) {
         card.addEventListener('click', function () { showCommentaire(card); });
+    });
+
+    var aTraiterUrlBase = "{{ path('app_inventaire_article_a_traiter', {id: 'ID_PLACEHOLDER'}) }}";
+    var csrfTokenATraiter = "{{ csrf_token_a_traiter }}";
+
+    document.querySelectorAll('.a-traiter-check').forEach(function (checkbox) {
+        checkbox.addEventListener('click', function (e) { e.stopPropagation(); });
+        checkbox.addEventListener('change', function () {
+            var id       = checkbox.getAttribute('data-id');
+            var checked  = checkbox.checked;
+            var row      = checkbox.closest('tr') || checkbox.closest('.article-card');
+            var url      = aTraiterUrlBase.replace('ID_PLACEHOLDER', encodeURIComponent(id));
+
+            row.classList.toggle('to-process', checked);
+
+            fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfTokenATraiter, 'X-Requested-With': 'XMLHttpRequest' },
+                body: JSON.stringify({ aTraiter: checked })
+            })
+            .then(function (r) { if (!r.ok) throw new Error('http'); return r.json(); })
+            .then(function (data) {
+                if (!data.success) {
+                    checkbox.checked = !checked;
+                    row.classList.toggle('to-process', !checked);
+                }
+            })
+            .catch(function () {
+                checkbox.checked = !checked;
+                row.classList.toggle('to-process', !checked);
+            });
+        });
     });
 });
 </script>
