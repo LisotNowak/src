@@ -64,12 +64,35 @@
 
     .pagination .page-link { color: #800000; }
     .pagination .page-item.active .page-link { background-color: #800000; border-color: #800000; color: #fff; }
+
+    /* ── Impression : uniquement le tableau ── */
+    .print-title { display: none; }
+    @media print {
+        body * { visibility: hidden; }
+        .table-wrapper, .table-wrapper * { visibility: visible; }
+        .print-title { display: block !important; visibility: visible; }
+        .table-wrapper {
+            display: block !important;
+            position: absolute;
+            top: 0; left: 0; width: 100%;
+            max-height: none !important;
+            overflow: visible !important;
+            box-shadow: none !important;
+        }
+        .table-inv thead th { position: static !important; }
+        .table-inv, .table-inv * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
 </style>
 
 {# ── En-tête ── #}
-<div class="inv-header">
-    <h1><i class="fas fa-boxes me-2"></i>Stock articles</h1>
-    <p>{{ total }} ligne{{ total > 1 ? 's' : '' }} trouvée{{ total > 1 ? 's' : '' }}</p>
+<div class="inv-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div>
+        <h1><i class="fas fa-boxes me-2"></i>Stock articles</h1>
+        <p>{{ total }} ligne{{ total > 1 ? 's' : '' }} trouvée{{ total > 1 ? 's' : '' }}</p>
+    </div>
+    <button type="button" class="btn btn-sm btn-light" onclick="window.print()">
+        <i class="fas fa-print me-1"></i>Imprimer le tableau
+    </button>
 </div>
 
 <div class="container-fluid px-2 px-md-3">
@@ -166,6 +189,10 @@
 
         {# ── Tableau (≥ md) ── #}
         <div class="table-wrapper d-none d-md-block">
+            <div class="print-title">
+                <h4 class="mb-1">Stock articles</h4>
+                <p class="mb-2">{{ total }} ligne{{ total > 1 ? 's' : '' }} — imprimé le {{ "now"|date('d/m/Y à H:i') }}</p>
+            </div>
             <table class="table table-sm table-bordered table-hover table-inv mb-0">
                 <thead>
                     <tr>
