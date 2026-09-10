@@ -12,6 +12,7 @@ function calcul() {
     };
 
     let totalHSaisie = 0;
+    let totalHSaisieSansDimanche = 0; // base du calcul progressif 35h/25%/50%, hors dimanche
     let totalHNorm = 0;
     let totalH25 = 0;
     let totalHRepComp = 0;
@@ -32,6 +33,7 @@ function calcul() {
     // ---- 1) Parcours des lignes ----
     for (let InputHSaisie of allHSaisieInputs) {
         const hSaisie = parseNumber(InputHSaisie.value);
+        const isDimanche = InputHSaisie.classList.contains("dimancheHSaisie");
 
         totalHSaisie += hSaisie;
 
@@ -55,15 +57,23 @@ function calcul() {
         elHS25.value = "";
         elHS50.value = "";
 
+        if (isDimanche) {
+            // Dimanche exclu du calcul progressif 35h/25%/50% : toujours majoré à 50%
+            if (hSaisie > 0) elHS50.value = hSaisie;
+            continue;
+        }
+
+        totalHSaisieSansDimanche += hSaisie;
+
         if (hSaisie <= 0) {
             // rien
-        } else if (totalHSaisie <= 35) {
+        } else if (totalHSaisieSansDimanche <= 35) {
             elHNorm.value = hSaisie;
             totalHNorm += hSaisie;
-        } else if (totalHSaisie <= 43) {
+        } else if (totalHSaisieSansDimanche <= 43) {
             if (totalHNorm < 35) {
                 const normHours = Math.max(0, 35 - totalHNorm);
-                const hs25 = Math.max(0, totalHSaisie - 35);
+                const hs25 = Math.max(0, totalHSaisieSansDimanche - 35);
                 elHNorm.value = normHours;
                 elHS25.value = hs25;
                 totalHNorm += normHours;
@@ -94,12 +104,14 @@ function calcul() {
         }
     }
 
-    // ---- Correction : HNorm doit être au moins 35 si totalHSaisie >= 35 ----
-    if (totalHSaisie >= 35 && totalHNorm < 35) {
+    // ---- Correction : HNorm doit être au moins 35 si totalHSaisieSansDimanche >= 35 ----
+    if (totalHSaisieSansDimanche >= 35 && totalHNorm < 35) {
         let manque = 35 - totalHNorm;
 
         for (let InputHSaisie of allHSaisieInputs) {
             if (manque <= 0) break;
+
+            if (InputHSaisie.classList.contains("dimancheHSaisie")) continue;
 
             const jour = InputHSaisie.id.split('H')[0];
             const elHNorm = document.getElementById(jour + "HNorm");
@@ -123,8 +135,8 @@ function calcul() {
 
     // ---- 2) Calculs globaux ----
     if (!isSaisonnier) {
-        if (totalHSaisie >= 49) {
-            totalHRepComp = (totalHSaisie - 48) * 0.25;
+        if (totalHSaisieSansDimanche >= 49) {
+            totalHRepComp = (totalHSaisieSansDimanche - 48) * 0.25;
         }
 
         const hDimanche = parseNumber(document.querySelector(".dimancheHSaisie")?.value);
@@ -149,10 +161,6 @@ function calcul() {
             if (targetsCompl.length) targetsCompl[0].value = totalHCompl.toFixed(2);
         }
     }
-
-    const dimancheHS50El = document.getElementById("dimancheHS50");
-    const dimancheSaisieEl = document.getElementsByClassName("dimancheHSaisie")[0];
-    if (dimancheHS50El) dimancheHS50El.value = dimancheSaisieEl ? dimancheSaisieEl.value : "";
 
     const totalEl = document.getElementById("totalHsaisie");
     if (totalEl) totalEl.value = totalHSaisie;
