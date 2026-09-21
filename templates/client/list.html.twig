@@ -45,7 +45,10 @@
         <div class="mb-4">
             <a href="{{ path('app_client_associate') }}" class="btn btn-info me-2">Associer des clients</a>
             <a href="{{ path('app_client_new') }}" class="btn btn-primary me-2">Ajouter un client</a>
-            <a href="{{ path('app_client_delete_list') }}" class="btn btn-danger">Supprimer un client</a>
+            <a href="{{ path('app_client_delete_list') }}" class="btn btn-danger me-2">Supprimer un client</a>
+            <button type="button" id="toggleVillePaysBtn" class="btn btn-outline-secondary">
+                <i class="bi bi-eye-slash"></i> Masquer Ville / Pays
+            </button>
         </div>
 
     </div>
@@ -57,20 +60,20 @@
                     <th>#</th> <!-- New column for row count -->
                     <th>Nom</th>
                     <th>Prénom</th>
-                    <th>Ville</th>
-                    <th>Pays</th>
+                    <th class="col-ville">Ville</th>
+                    <th class="col-pays">Pays</th>
                     <th>Société</th>
-                    <th>Catégorie</th> 
-                    <th>Conserver</th>
-                    <th>Signature Manuscrite</th>
+                    <th>Catégorie</th>
+                    <th>Supprimer</th>
+                    <th>Imprimer</th>
                     <th>Envoi mail</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
-                {% if signataire_selected %}
                     {% for client in clients %} {# Mettre à jour ici #}
                         {% set clientAssocs = associations[client.id] ?? [] %}
-                        {% set assoc = clientAssocs|filter(a => a.signataire.id == signataire_selected)|first %}
+                        {% set assoc = signataire_selected ? (clientAssocs|filter(a => a.signataire.id == signataire_selected)|first) : null %}
                         <tr class="{% if assoc and assoc.conserver %}row-conserver-oui{% endif %}" 
                             data-client-id="{{ client.id }}"
                             data-client-nom="{{ client.triNom|default('') }}"
@@ -86,68 +89,79 @@
                             <td data-bs-toggle="modal" data-bs-target="#addressModal">{{ loop.index }}</td>
                             <td data-bs-toggle="modal" data-bs-target="#addressModal">{{ client.triNom }}</td>
                             <td data-bs-toggle="modal" data-bs-target="#addressModal">{{ client.triPrenom }}</td>
-                            <td data-bs-toggle="modal" data-bs-target="#addressModal">{{ client.ville }}</td>
-                            <td data-bs-toggle="modal" data-bs-target="#addressModal">{{ client.pays }}</td>
+                            <td class="col-ville" data-bs-toggle="modal" data-bs-target="#addressModal">{{ client.ville }}</td>
+                            <td class="col-pays" data-bs-toggle="modal" data-bs-target="#addressModal">{{ client.pays }}</td>
                             <td data-bs-toggle="modal" data-bs-target="#addressModal">{{ client.societeNom }}</td>
                             <td data-bs-toggle="modal" data-bs-target="#addressModal">{{ client.categorieEntity ? client.categorieEntity.nomCategorie : 'Aucune' }}</td>
                             
                             <td>
-                                <div class="btn-group" role="group">
-                                    <button type="button" class="btn btn-sm conserver-btn conserver-oui"
-                                            data-client-id="{{ client.id }}" data-signataire="{{ assoc ? assoc.signataire.id : '' }}"
-                                            data-value="1" style="background-color: {% if assoc and assoc.conserver %}green{% else %}gray{% endif %}; color: white;">
-                                        Oui
-                                    </button>
-                                    <button type="button" class="btn btn-sm conserver-btn conserver-non"
-                                            data-client-id="{{ client.id }}" data-signataire="{{ assoc ? assoc.signataire.id : '' }}"
-                                            data-value="0" style="background-color: {% if assoc and not assoc.conserver %}red{% else %}gray{% endif %}; color: white;">
-                                        Non
-                                    </button>
-                                </div>
+                                {% if signataire_selected %}
+                                    <div class="btn-group" role="group">
+                                        <button type="button" class="btn btn-sm conserver-btn conserver-oui"
+                                                data-client-id="{{ client.id }}" data-signataire="{{ assoc ? assoc.signataire.id : signataire_selected }}"
+                                                data-value="1" style="background-color: {% if assoc and assoc.conserver %}green{% else %}gray{% endif %}; color: white;">
+                                            Oui
+                                        </button>
+                                        <button type="button" class="btn btn-sm conserver-btn conserver-non"
+                                                data-client-id="{{ client.id }}" data-signataire="{{ assoc ? assoc.signataire.id : signataire_selected }}"
+                                                data-value="0" style="background-color: {% if assoc and not assoc.conserver %}red{% else %}gray{% endif %}; color: white;">
+                                            Non
+                                        </button>
+                                    </div>
+                                {% else %}
+                                    <span class="text-muted small">Choisir un signataire</span>
+                                {% endif %}
                             </td>
 
                             <td>
-                                <div class="btn-group" role="group">
-                                    <button type="button" class="btn btn-sm signature-btn signature-oui"
-                                            data-client-id="{{ client.id }}" data-signataire="{{ assoc ? assoc.signataire.id : '' }}"
-                                            data-value="1" style="background-color: {% if assoc and assoc.signature %}green{% else %}gray{% endif %}; color: white;">
-                                        Oui
-                                    </button>
-                                    <button type="button" class="btn btn-sm signature-btn signature-non"
-                                            data-client-id="{{ client.id }}" data-signataire="{{ assoc ? assoc.signataire.id : '' }}"
-                                            data-value="0" style="background-color: {% if assoc and not assoc.signature %}red{% else %}gray{% endif %}; color: white;">
-                                        Non
-                                    </button>
-                                </div>
+                                {% if signataire_selected %}
+                                    <div class="btn-group" role="group">
+                                        <button type="button" class="btn btn-sm signature-btn signature-oui"
+                                                data-client-id="{{ client.id }}" data-signataire="{{ assoc ? assoc.signataire.id : signataire_selected }}"
+                                                data-value="1" style="background-color: {% if assoc and assoc.signature %}green{% else %}gray{% endif %}; color: white;">
+                                            Oui
+                                        </button>
+                                        <button type="button" class="btn btn-sm signature-btn signature-non"
+                                                data-client-id="{{ client.id }}" data-signataire="{{ assoc ? assoc.signataire.id : signataire_selected }}"
+                                                data-value="0" style="background-color: {% if assoc and not assoc.signature %}red{% else %}gray{% endif %}; color: white;">
+                                            Non
+                                        </button>
+                                    </div>
+                                {% else %}
+                                    <span class="text-muted small">Choisir un signataire</span>
+                                {% endif %}
                             </td>
 
                             <td>
-                                <div class="btn-group" role="group">
-                                    <button type="button" class="btn btn-sm envoi-mail-btn envoi-mail-oui"
-                                            data-client-id="{{ client.id }}" data-signataire="{{ assoc ? assoc.signataire.id : '' }}"
-                                            data-value="1" style="background-color: {% if assoc and assoc.envoiMail %}green{% else %}gray{% endif %}; color: white;">
-                                        Oui
-                                    </button>
-                                    <button type="button" class="btn btn-sm envoi-mail-btn envoi-mail-non"
-                                            data-client-id="{{ client.id }}" data-signataire="{{ assoc ? assoc.signataire.id : '' }}"
-                                            data-value="0" style="background-color: {% if assoc and not assoc.envoiMail %}red{% else %}gray{% endif %}; color: white;">
-                                        Non
-                                    </button>
-                                </div>
+                                {% if signataire_selected %}
+                                    <div class="btn-group" role="group">
+                                        <button type="button" class="btn btn-sm envoi-mail-btn envoi-mail-oui"
+                                                data-client-id="{{ client.id }}" data-signataire="{{ assoc ? assoc.signataire.id : signataire_selected }}"
+                                                data-value="1" style="background-color: {% if assoc and assoc.envoiMail %}green{% else %}gray{% endif %}; color: white;">
+                                            Oui
+                                        </button>
+                                        <button type="button" class="btn btn-sm envoi-mail-btn envoi-mail-non"
+                                                data-client-id="{{ client.id }}" data-signataire="{{ assoc ? assoc.signataire.id : signataire_selected }}"
+                                                data-value="0" style="background-color: {% if assoc and not assoc.envoiMail %}red{% else %}gray{% endif %}; color: white;">
+                                            Non
+                                        </button>
+                                    </div>
+                                {% else %}
+                                    <span class="text-muted small">Choisir un signataire</span>
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                <a href="{{ path('app_client_edit', {id: client.id}) }}" class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation();">
+                                    <i class="bi bi-pencil"></i> Modifier
+                                </a>
                             </td>
                         </tr>
                     {% else %}
                         <tr>
-                            <td colspan="10" class="text-center text-muted">Aucun client trouvé pour ce signataire.</td>
+                            <td colspan="11" class="text-center text-muted">Aucun client trouvé.</td>
                         </tr>
                     {% endfor %}
-                {% else %}
-                    <tr>
-                        <td colspan="10" class="text-center p-4">
-                            Veuillez sélectionner un signataire pour afficher les clients associés.
-                        </td>
-                    </tr>
-                {% endif %}
             </tbody>
 
 
@@ -240,6 +254,33 @@
 {{ parent() }}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // --- Script pour masquer/afficher les colonnes Ville / Pays ---
+    const toggleVillePaysBtn = document.getElementById('toggleVillePaysBtn');
+    const VILLE_PAYS_STORAGE_KEY = 'clients_hide_ville_pays';
+
+    function applyVillePaysVisibility(hidden) {
+        document.querySelectorAll('.col-ville, .col-pays').forEach(function(el) {
+            el.style.display = hidden ? 'none' : '';
+        });
+        toggleVillePaysBtn.innerHTML = hidden
+            ? '<i class="bi bi-eye"></i> Afficher Ville / Pays'
+            : '<i class="bi bi-eye-slash"></i> Masquer Ville / Pays';
+    }
+
+    let villePaysHidden = false;
+    try {
+        villePaysHidden = localStorage.getItem(VILLE_PAYS_STORAGE_KEY) === '1';
+    } catch (e) {}
+    applyVillePaysVisibility(villePaysHidden);
+
+    toggleVillePaysBtn.addEventListener('click', function() {
+        villePaysHidden = !villePaysHidden;
+        try {
+            localStorage.setItem(VILLE_PAYS_STORAGE_KEY, villePaysHidden ? '1' : '0');
+        } catch (e) {}
+        applyVillePaysVisibility(villePaysHidden);
+    });
+
     // --- Script pour les boutons Oui/Non ---
     document.querySelectorAll('.conserver-btn, .signature-btn, .envoi-mail-btn').forEach(function(button) {
         button.addEventListener('click', function(event) {

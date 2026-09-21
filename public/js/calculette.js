@@ -16,7 +16,6 @@ function calcul() {
     let totalHNorm = 0;
     let totalH25 = 0;
     let totalHRepComp = 0;
-    let totalHCompl = 0;
 
     // Liste des inputs HSaisie (en ordre du DOM)
     const allHSaisieInputs = Array.from(document.getElementsByClassName("HSaisie"));
@@ -145,20 +144,6 @@ function calcul() {
         if (lastRowWithHSaisie) {
             const targets = lastRowWithHSaisie.querySelectorAll(".HRepComp");
             if (targets.length) targets[0].value = totalHRepComp.toFixed(2);
-        }
-    }
-
-    if (totalHSaisie >= 49) {
-        if (totalHSaisie <= 56) {
-            totalHCompl = (totalHSaisie - 48) * 0.25;
-        } else {
-            totalHCompl = (56 - 48) * 0.25;
-            totalHCompl += (totalHSaisie - 56) * 0.5;
-        }
-
-        if (lastRowWithHSaisie) {
-            const targetsCompl = lastRowWithHSaisie.querySelectorAll(".HCompl");
-            if (targetsCompl.length) targetsCompl[0].value = totalHCompl.toFixed(2);
         }
     }
 

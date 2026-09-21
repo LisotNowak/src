@@ -35,39 +35,39 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
     $signataires = $signataireRepo->findAll();
     $categories = $categorieRepo->findAll();
 
-    $clients = [];
     $associations = [];
+
+    $qb = $clientRepo->createQueryBuilder('c');
 
     // Si un signataire est sélectionné, récupérer uniquement ses clients associés
     if ($signataireId) {
-        $qb = $clientRepo->createQueryBuilder('c')
-            ->innerJoin('c.associations', 'a')
+        $qb->innerJoin('c.associations', 'a')
             ->andWhere('a.signataire = :signataire')
             ->setParameter('signataire', $signataireId);
+    }
 
-        if ($categorieId) {
-            $qb->andWhere('c.categorieEntity = :categorie')
-               ->setParameter('categorie', $categorieId);
-        }
+    if ($categorieId) {
+        $qb->andWhere('c.categorieEntity = :categorie')
+           ->setParameter('categorie', $categorieId);
+    }
 
-        // Pagination
-        // $qb->setFirstResult(($page - 1) * $pageSize)
-        //    ->setMaxResults($pageSize);
+    // Pagination
+    // $qb->setFirstResult(($page - 1) * $pageSize)
+    //    ->setMaxResults($pageSize);
 
-        $clients = $qb->getQuery()->getResult();
+    $clients = $qb->getQuery()->getResult();
 
-        // Charger les associations uniquement pour les clients récupérés
-        if ($clients) {
-            $clientIds = array_map(fn($c) => $c->getId(), $clients);
-            $assocList = $associationRepo->createQueryBuilder('a')
-                ->andWhere('a.client IN (:clients)')
-                ->setParameter('clients', $clientIds)
-                ->getQuery()
-                ->getResult();
+    // Charger les associations uniquement pour les clients récupérés
+    if ($clients) {
+        $clientIds = array_map(fn($c) => $c->getId(), $clients);
+        $assocList = $associationRepo->createQueryBuilder('a')
+            ->andWhere('a.client IN (:clients)')
+            ->setParameter('clients', $clientIds)
+            ->getQuery()
+            ->getResult();
 
-            foreach ($assocList as $assoc) {
-                $associations[$assoc->getClient()->getId()][] = $assoc;
-            }
+        foreach ($assocList as $assoc) {
+            $associations[$assoc->getClient()->getId()][] = $assoc;
         }
     }
 
@@ -90,9 +90,24 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
         $form = $this->createForm(ClientType::class, $client);
         $form->handleRequest($request);
 
+        $signataireRepo = $doctrine->getRepository(Signataire::class);
+        $signataires = $signataireRepo->findAll();
+
         if ($form->isSubmitted() && $form->isValid()) {
             $entityManager = $doctrine->getManager();
             $entityManager->persist($client);
+
+            $signataireIds = $request->request->all('signataires');
+            foreach ($signataireRepo->findBy(['id' => $signataireIds]) as $signataire) {
+                $association = new AssociationSignataire();
+                $association->setClient($client);
+                $association->setSignataire($signataire);
+                $association->setConserver(false);
+                $association->setSignature(false);
+                $association->setEnvoiMail(false);
+                $entityManager->persist($association);
+            }
+
             $entityManager->flush();
 
             $this->addFlash('success', 'Le client a été ajouté avec succès.');
@@ -104,6 +119,61 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
         return $this->render('client/new.html.twig', [
             'client' => $client,
             'form' => $form,
+            'signataires' => $signataires,
+            'selectedSignataires' => [],
+        ]);
+    }
+
+    #[Route('/client/{id}/edit', name: 'app_client_edit', methods: ['GET', 'POST'])]
+    public function edit(Client $client, Request $request, ManagerRegistry $doctrine): Response
+    {
+        $entityManager = $doctrine->getManager();
+        $signataireRepo = $entityManager->getRepository(Signataire::class);
+        $associationRepo = $entityManager->getRepository(AssociationSignataire::class);
+
+        $form = $this->createForm(ClientType::class, $client);
+        $form->handleRequest($request);
+
+        $signataires = $signataireRepo->findAll();
+        $existingAssociations = $associationRepo->findBy(['client' => $client]);
+        $selectedSignataires = array_map(fn($a) => $a->getSignataire()->getId(), $existingAssociations);
+
+        if ($form->isSubmitted() && $form->isValid()) {
+            $signataireIds = $request->request->all('signataires');
+
+            // Ajoute les nouvelles associations sélectionnées
+            foreach ($signataireRepo->findBy(['id' => $signataireIds]) as $signataire) {
+                $existing = $associationRepo->findOneBy(['client' => $client, 'signataire' => $signataire]);
+                if (!$existing) {
+                    $association = new AssociationSignataire();
+                    $association->setClient($client);
+                    $association->setSignataire($signataire);
+                    $association->setConserver(false);
+                    $association->setSignature(false);
+                    $association->setEnvoiMail(false);
+                    $entityManager->persist($association);
+                }
+            }
+
+            // Retire les associations décochées
+            foreach ($existingAssociations as $association) {
+                if (!in_array((string) $association->getSignataire()->getId(), $signataireIds, true)) {
+                    $entityManager->remove($association);
+                }
+            }
+
+            $entityManager->flush();
+
+            $this->addFlash('success', 'Le client a été modifié avec succès.');
+
+            return $this->redirectToRoute('app_clients_list');
+        }
+
+        return $this->render('client/edit.html.twig', [
+            'client' => $client,
+            'form' => $form,
+            'signataires' => $signataires,
+            'selectedSignataires' => $selectedSignataires,
         ]);
     }
 
