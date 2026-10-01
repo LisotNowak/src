@@ -1,13 +1,13 @@
 {% extends 'tracabilite/layout.html.twig' %}
 
-{% block title %}Tracabilité – Journal{% endblock %}
+{% block title %}Tracabilité – Historique{% endblock %}
 
 {% block body %}
 <div class="p-3 p-lg-4">
 
     <div class="d-flex flex-wrap align-items-center justify-content-between mb-3 gap-2">
         <h4 class="mb-0 fw-bold" style="color:#800000;">
-            <i class="fas fa-history me-2"></i>Journal des modifications
+            <i class="fas fa-history me-2"></i>Historique des modifications
         </h4>
     </div>
 
@@ -59,7 +59,7 @@
     {# Tableau journal #}
     <div class="card border-0 shadow-sm">
         <div class="card-header bg-white d-flex justify-content-between">
-            <span class="fw-semibold"><i class="fas fa-list me-2" style="color:#800000;"></i>Entrées du journal</span>
+            <span class="fw-semibold"><i class="fas fa-list me-2" style="color:#800000;"></i>Entrées de l'historique</span>
             <span class="text-muted small">{{ entrees|length }} entrée(s)</span>
         </div>
         <div class="table-responsive">
@@ -143,7 +143,7 @@
                     </div>
                     {% endif %}
                     {% else %}
-                    <tr><td colspan="8" class="text-center text-muted py-4">Aucune entrée dans le journal</td></tr>
+                    <tr><td colspan="8" class="text-center text-muted py-4">Aucune entrée dans l'historique</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

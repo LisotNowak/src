@@ -16,7 +16,7 @@ class JournalController extends AbstractController
         private readonly EquipeRepository              $equipeRepo,
     ) {}
 
-    #[Route('/tracabilite/journal', name: 'app_tracabilite_journal')]
+    #[Route('/tracabilite/historique', name: 'app_tracabilite_journal')]
     public function index(Request $request): Response
     {
         $chef  = $request->query->get('chef', '');

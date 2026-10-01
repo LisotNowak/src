@@ -74,14 +74,16 @@ class SaisieRepository extends ServiceEntityRepository
                 'SUM(s.heures) AS totalHeures',
                 'MAX(s.dateTravail) AS dernierDate'
             )
-            ->where('s.mois = :mois')
-            ->andWhere('s.type = :type')
+            ->where('s.type = :type')
             ->andWhere('s.parcelleNom IS NOT NULL')
-            ->setParameter('mois', $mois)
             ->setParameter('type', 'Terrain')
             ->groupBy('s.parcelleNom', 's.tacheNom')
             ->orderBy('s.parcelleNom', 'ASC');
 
+        // Mois vide = tous les mois
+        if ($mois !== '') {
+            $qb->andWhere('s.mois = :mois')->setParameter('mois', $mois);
+        }
         if ($chef !== '') {
             $qb->andWhere('s.chefNom = :chef')->setParameter('chef', $chef);
         }

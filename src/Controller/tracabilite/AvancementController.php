@@ -21,7 +21,11 @@ class AvancementController extends AbstractController
     #[Route('/tracabilite/avancement', name: 'app_tracabilite_avancement')]
     public function index(Request $request): Response
     {
-        $mois = $request->query->get('mois', date('Y-m'));
+        // Sans paramètre : mois courant ; paramètre vide : tous les mois
+        $mois = $request->query->has('mois') ? (string) $request->query->get('mois') : date('Y-m');
+        if ($mois !== '' && !preg_match('/^\d{4}-\d{2}$/', $mois)) {
+            $mois = date('Y-m');
+        }
         $chef = $request->query->get('chef', '');
 
         return $this->render('tracabilite/avancement/index.html.twig', [

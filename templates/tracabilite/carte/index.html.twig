@@ -39,7 +39,6 @@
             <div style="height:1px; background:#ccc; margin:2px 0;"></div>
             <div style="font-size:0.65rem; color:#888; padding:2px 10px; background:#f8f9fa; text-align:center; letter-spacing:.05em;">IMPRESSION</div>
             <button id="btn-blanc" onclick="setBasemap('blanc')" class="bm-btn">⬜ Blanc</button>
-            <button id="btn-gris"  onclick="setBasemap('gris')"  class="bm-btn">▭ Gris</button>
             <div style="height:1px; background:#ccc;"></div>
             <button onclick="printCarte()" class="bm-btn" style="color:#800000; font-weight:700;">🖨 Imprimer</button>
         </div>
@@ -117,14 +116,8 @@ const satLayer = L.tileLayer(
     maxZoom: 20
 });
 
-// Fond gris clair sans labels (CartoDB – gratuit, sans clé API)
-const grisLayer = L.tileLayer(
-    'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
-    attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a> © <a href="https://carto.com">CARTO</a>',
-    maxZoom: 20
-});
 
-const baseLayers = { osm: osmLayer, sat: satLayer, gris: grisLayer };
+const baseLayers = { osm: osmLayer, sat: satLayer };
 osmLayer.addTo(map);
 let currentBase = 'osm';
 
@@ -136,13 +129,13 @@ function setBasemap(type) {
     }
     // Couleur de fond du div carte
     const mapEl = document.getElementById('map');
-    mapEl.style.background = (type === 'gris') ? '#d6d6d6' : '#ffffff';
+    mapEl.style.background = '#ffffff';
     // Ajoute le nouveau fond
     if (type !== 'blanc' && baseLayers[type]) {
         baseLayers[type].addTo(map);
     }
     // Met à jour l'apparence des boutons
-    ['osm', 'sat', 'blanc', 'gris'].forEach(t => {
+    ['osm', 'sat', 'blanc'].forEach(t => {
         const btn = document.getElementById('btn-' + t);
         if (!btn) return;
         if (t === type) { btn.classList.add('active-bm'); }

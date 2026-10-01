@@ -17,7 +17,11 @@
             <div class="row g-2 align-items-end">
                 <div class="col-sm-4">
                     <label class="form-label mb-1 small fw-semibold">Mois</label>
-                    <input type="month" name="mois" value="{{ mois }}" class="form-control form-control-sm" onchange="this.form.submit()">
+                    <div class="input-group input-group-sm">
+                        <input type="month" name="mois" value="{{ mois }}" class="form-control form-control-sm" onchange="this.form.submit()">
+                        <a href="{{ path('app_tracabilite_avancement', {mois: '', chef: chef}) }}"
+                           class="btn {{ mois == '' ? 'btn-secondary' : 'btn-outline-secondary' }}">Tous les mois</a>
+                    </div>
                 </div>
                 <div class="col-sm-4">
                     <label class="form-label mb-1 small fw-semibold">Équipe</label>
@@ -55,7 +59,7 @@
     <div class="card border-0 shadow-sm">
         <div class="card-header bg-white d-flex justify-content-between">
             <span class="fw-semibold"><i class="fas fa-list me-2" style="color:#800000;"></i>Avancement par parcelle</span>
-            <span class="text-muted small">{{ avancements|length }} ligne(s)</span>
+            <span class="text-muted small">{{ mois == '' ? 'Tous les mois · ' : '' }}{{ avancements|length }} ligne(s)</span>
         </div>
         <div class="table-responsive">
             <table class="table table-sm table-hover mb-0">
@@ -113,7 +117,7 @@
     <div class="card border-0 shadow-sm">
         <div class="card-body text-center text-muted py-5">
             <i class="fas fa-seedling fa-3x mb-3" style="color:#dee2e6;"></i>
-            <div>Aucune donnée d'avancement pour ce mois</div>
+            <div>Aucune donnée d'avancement {{ mois == '' ? 'enregistrée' : 'pour ce mois' }}</div>
             <a href="{{ path('app_tracabilite_saisie_new') }}" class="btn btn-sm btn-outline-success mt-2">
                 <i class="fas fa-plus me-1"></i>Créer une saisie
             </a>

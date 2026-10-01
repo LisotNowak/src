@@ -15,7 +15,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
-#[Route('/tracabilite/referentiel', name: 'app_tracabilite_referentiel_')]
+#[Route('/tracabilite/parametrage', name: 'app_tracabilite_referentiel_')]
 class ReferentielController extends AbstractController
 {
     public function __construct(
