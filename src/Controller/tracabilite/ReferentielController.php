@@ -7,7 +7,6 @@ use App\Entity\tracabilite\Ouvrier;
 use App\Entity\tracabilite\Tache;
 use App\Repository\tracabilite\EquipeRepository;
 use App\Repository\tracabilite\OuvrierRepository;
-use App\Repository\tracabilite\ParcelleRepository;
 use App\Repository\tracabilite\TacheRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -22,7 +21,6 @@ class ReferentielController extends AbstractController
         private readonly EquipeRepository   $equipeRepo,
         private readonly OuvrierRepository  $ouvrierRepo,
         private readonly TacheRepository    $tacheRepo,
-        private readonly ParcelleRepository $parcelleRepo,
         private readonly EntityManagerInterface $em,
     ) {}
 
@@ -33,7 +31,6 @@ class ReferentielController extends AbstractController
             'active_link' => 'referentiel',
             'equipes'     => $this->equipeRepo->findAllWithOuvriers(),
             'taches'      => $this->tacheRepo->findAllSorted(),
-            'parcelles'   => $this->parcelleRepo->findAllSorted(),
         ]);
     }
 
