@@ -42,9 +42,20 @@
                     {{ form_errors(form.chefNom) }}
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Personnel</label>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <label class="form-label mb-1">Personnel</label>
+                        <button type="button" id="btn-toute-equipe" class="btn btn-sm btn-outline-secondary py-0 mb-1" style="font-size:0.75rem;" disabled>
+                            <i class="fas fa-users me-1"></i>Toute l'équipe
+                        </button>
+                    </div>
                     <div id="personnel-chips" class="d-flex flex-wrap gap-2 p-2 border rounded bg-white" style="min-height:76px;">
                         <span class="text-muted small align-self-center">Chargement…</span>
+                    </div>
+                    <div id="nbSaisonniersBlock" class="mt-2" style="display:none;">
+                        <div class="input-group input-group-sm" style="max-width:240px;">
+                            <span class="input-group-text">Nombre de saisonniers</span>
+                            <input type="number" name="nbSaisonniers" id="nbSaisonniers" min="1" step="1" value="{{ nbSaisonniers }}" class="form-control">
+                        </div>
                     </div>
                 </div>
             </div>
@@ -81,6 +92,7 @@
                 <div class="col-6 col-md-3">
                     {{ form_label(form.heures) }}
                     {{ form_widget(form.heures) }}
+                    {{ form_errors(form.heures) }}
                 </div>
                 <div class="col-6 col-md-3">
                     <label class="form-label">Effectif</label>
@@ -99,6 +111,7 @@
                 <div class="col-md-3" id="minutesPauseBlock">
                     {{ form_label(form.minutesPause) }}
                     {{ form_widget(form.minutesPause) }}
+                    {{ form_errors(form.minutesPause) }}
                 </div>
             </div>
             <div class="mt-2">
@@ -118,6 +131,7 @@
             <div class="row g-3">
                 <div class="col-md-4">
                     {{ form_label(form.avancement) }}
+                    {{ form_errors(form.avancement) }}
                     <div class="d-flex align-items-center gap-2">
                         {{ form_widget(form.avancement, {attr: {type: 'range', class: 'form-range'}}) }}
                         <span id="avancement-display" class="badge text-bg-secondary" style="min-width:48px;">{{ saisie.avancement|number_format(0) }}%</span>
@@ -126,10 +140,12 @@
                 <div class="col-md-4" id="piedsBlock">
                     {{ form_label(form.pieds) }}
                     {{ form_widget(form.pieds) }}
+                    {{ form_errors(form.pieds) }}
                 </div>
                 <div class="col-md-4" id="piedsTotalBlock">
                     {{ form_label(form.piedsTotal) }}
                     {{ form_widget(form.piedsTotal) }}
+                    {{ form_errors(form.piedsTotal) }}
                 </div>
             </div>
         </div>
@@ -202,7 +218,7 @@ function syncAdvFromPieds() {
 
 function filterPersonnel(equipeNom, preselected = []) {
     const chips = document.getElementById('personnel-chips');
-    const liste = [...(EQUIPES[equipeNom] || []), { nom: 'Saisonniers non nominatifs', contrat: 'Saisonnier' }];
+    const liste = EQUIPES[equipeNom] || [];
     chips.innerHTML = '';
     liste.forEach((o, i) => {
         const id  = 'pcheck_' + i;
@@ -227,10 +243,42 @@ function filterPersonnel(equipeNom, preselected = []) {
     updateEffectif();
 }
 
+const SAISONNIERS = 'Saisonniers non nominatifs';
+const nbSaisonniersInput = document.getElementById('nbSaisonniers');
+
 function updateEffectif() {
-    const count = document.querySelectorAll('#personnel-chips .btn-check:checked').length;
+    const coches = [...document.querySelectorAll('#personnel-chips .btn-check:checked')];
+    const avecSaisonniers = coches.some(cb => cb.value === SAISONNIERS);
+    document.getElementById('nbSaisonniersBlock').style.display = avecSaisonniers ? '' : 'none';
+    let count = coches.filter(cb => cb.value !== SAISONNIERS).length;
+    if (avecSaisonniers) count += Math.max(1, parseInt(nbSaisonniersInput.value) || 1);
     document.getElementById('effectif-display').value = count;
+    updateBtnTouteEquipe();
 }
+
+// Cases des membres nommés de l'équipe (hors saisonniers non nominatifs)
+function membresEquipe() {
+    return [...document.querySelectorAll('#personnel-chips .btn-check')]
+        .filter(cb => cb.value !== SAISONNIERS);
+}
+
+function updateBtnTouteEquipe() {
+    const btn = document.getElementById('btn-toute-equipe');
+    const membres = membresEquipe();
+    const tous = membres.length > 0 && membres.every(cb => cb.checked);
+    btn.disabled = membres.length === 0;
+    btn.innerHTML = tous
+        ? '<i class="fas fa-user-minus me-1"></i>Tout retirer'
+        : '<i class="fas fa-users me-1"></i>Toute l\'équipe';
+}
+
+// Ajoute toutes les personnes de l'équipe (ou les retire si déjà toutes cochées)
+document.getElementById('btn-toute-equipe').addEventListener('click', () => {
+    const membres = membresEquipe();
+    const cocher = !membres.every(cb => cb.checked);
+    membres.forEach(cb => { cb.checked = cocher; });
+    updateEffectif();
+});
 
 function updateParcelleVisibility() {
     const tache = TACHES[selTache.value];
@@ -291,6 +339,7 @@ selChef.addEventListener('change', () => filterPersonnel(selChef.value, []));
 selTache.addEventListener('change', updateParcelleVisibility);
 modePauseInput.addEventListener('change', () => { updatePause(); updateHeuresNettes(); });
 heuresInput.addEventListener('input', updateHeuresNettes);
+nbSaisonniersInput.addEventListener('input', updateEffectif);
 minutesPauseInput.addEventListener('input', updateHeuresNettes);
 
 // Init — pré-sélectionne les personnes enregistrées
@@ -301,4 +350,5 @@ updateHeuresNettes();
 // Init sync si données existantes
 syncPiedsFromAdv();
 </script>
+{{ include('tracabilite/saisie/_validation.html.twig') }}
 {% endblock %}

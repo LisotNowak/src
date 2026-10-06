@@ -1,0 +1,119 @@
+{# Validation côté navigateur du formulaire de saisie (new / edit) : un message sous chaque champ #}
+<style>
+#personnel-chips.is-invalid { border-color: #dc3545 !important; }
+/* Erreurs renvoyées par le serveur (form_errors, thème par défaut <ul><li>) */
+form[name="saisie"] .row > div > ul {
+    list-style: none; padding: 0; margin: .25rem 0 0;
+    color: #dc3545; font-size: .875em;
+}
+</style>
+<script>
+(function () {
+    const form = document.querySelector('form[name="saisie"]');
+    if (!form) return;
+
+    const $ = id => document.getElementById(id);
+    const estVisible = el => el && el.offsetParent !== null;
+
+    function afficherErreur(el, message) {
+        el.classList.add('is-invalid');
+        const fb = document.createElement('div');
+        fb.className = 'invalid-feedback d-block js-erreur';
+        fb.textContent = message;
+        // Placé après le groupe (input-group / d-flex) pour ne pas casser la mise en page
+        const ancre = el.closest('.input-group, .d-flex.align-items-center') || el;
+        ancre.insertAdjacentElement('afterend', fb);
+    }
+
+    function effacerErreurs() {
+        form.querySelectorAll('.js-erreur').forEach(e => e.remove());
+        form.querySelectorAll('.is-invalid').forEach(e => e.classList.remove('is-invalid'));
+    }
+
+    function nombre(el) {
+        return el && el.value.trim() !== '' ? parseFloat(el.value) : null;
+    }
+
+    function valider() {
+        effacerErreurs();
+        const erreurs = [];
+        const ajouter = (el, msg) => { if (el) { afficherErreur(el, msg); erreurs.push(el); } };
+
+        // Date
+        const date = $('saisie_dateTravail');
+        if (!date.value) ajouter(date, 'Veuillez indiquer la date de travail.');
+
+        // Équipe
+        const chef = $('saisie_chefNom');
+        if (!chef.value) ajouter(chef, 'Veuillez choisir une équipe.');
+
+        // Personnel
+        const chips = $('personnel-chips');
+        if (chef.value && !chips.querySelector('.btn-check:checked')) {
+            ajouter(chips, 'Veuillez sélectionner au moins une personne.');
+        }
+        const nbSais = $('nbSaisonniers');
+        if (estVisible(nbSais)) {
+            const n = nombre(nbSais);
+            if (n === null || n < 1) ajouter(nbSais, 'Indiquez au moins 1 saisonnier.');
+        }
+
+        // Tâche
+        const tache = $('saisie_tacheNom');
+        if (!tache.value) ajouter(tache, 'Veuillez choisir une tâche.');
+
+        // Parcelle (obligatoire pour une tâche de terrain)
+        const parcelle = $('saisie_parcelleNom');
+        if (tache.value && estVisible(parcelle) && !parcelle.value) {
+            ajouter(parcelle, 'Veuillez choisir une parcelle pour cette tâche.');
+        }
+
+        // Heures
+        const heures = $('saisie_heures');
+        const h = nombre(heures);
+        if (h === null || isNaN(h) || h <= 0) ajouter(heures, 'Veuillez indiquer un nombre d\'heures supérieur à 0.');
+
+        // Minutes de pause (mode manuel)
+        const minutes = $('saisie_minutesPause');
+        if (estVisible(minutes)) {
+            const m = nombre(minutes);
+            if (m === null || isNaN(m) || m < 0) ajouter(minutes, 'Indiquez les minutes de pause (0 ou plus).');
+        }
+
+        // Pieds
+        const pieds = $('saisie_pieds');
+        const piedsTotal = $('saisie_piedsTotal');
+        if (estVisible(pieds)) {
+            const p = nombre(pieds);
+            if (p !== null && (isNaN(p) || p < 0)) ajouter(pieds, 'Le nombre de pieds ne peut pas être négatif.');
+        }
+        if (estVisible(piedsTotal)) {
+            const t = nombre(piedsTotal);
+            if (t !== null && (isNaN(t) || t < 0)) ajouter(piedsTotal, 'Le total de pieds ne peut pas être négatif.');
+        }
+
+        return erreurs;
+    }
+
+    form.addEventListener('submit', e => {
+        const erreurs = valider();
+        if (erreurs.length) {
+            e.preventDefault();
+            erreurs[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+            if (erreurs[0].focus) erreurs[0].focus({ preventScroll: true });
+        }
+    });
+
+    // Le message d'un champ disparaît dès qu'on le corrige
+    form.addEventListener('input',  e => retirerErreur(e.target));
+    form.addEventListener('change', e => retirerErreur(e.target));
+    function retirerErreur(el) {
+        const cible = el.closest('#personnel-chips') || el;
+        if (!cible.classList.contains('is-invalid')) return;
+        cible.classList.remove('is-invalid');
+        const ancre = cible.closest('.input-group, .d-flex.align-items-center') || cible;
+        const fb = ancre.nextElementSibling;
+        if (fb && fb.classList.contains('js-erreur')) fb.remove();
+    }
+})();
+</script>

@@ -112,7 +112,8 @@ class Saisie
         return $this->dateTravail;
     }
 
-    public function setDateTravail(\DateTimeInterface $dateTravail): static
+    // Nullable pour que le formulaire signale une date vide au lieu de planter
+    public function setDateTravail(?\DateTimeInterface $dateTravail): static
     {
         $this->dateTravail = $dateTravail;
         return $this;

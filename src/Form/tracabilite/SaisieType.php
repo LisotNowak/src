@@ -12,6 +12,7 @@ use Symfony\Component\Form\Extension\Core\Type\NumberType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
+use Symfony\Component\Validator\Constraints as Assert;
 
 class SaisieType extends AbstractType
 {
@@ -25,18 +26,23 @@ class SaisieType extends AbstractType
             ->add('dateTravail', DateType::class, [
                 'widget' => 'single_text',
                 'label'  => 'Date de travail',
+                'constraints' => [new Assert\NotBlank(message: 'Veuillez indiquer la date de travail.')],
                 'attr'   => ['class' => 'form-control'],
             ])
             ->add('chefNom', ChoiceType::class, [
                 'label'       => 'Équipe / Chef de secteur',
                 'choices'     => $equipeChoices,
                 'placeholder' => '— Sélectionner une équipe —',
+                'empty_data'  => '',
+                'constraints' => [new Assert\NotBlank(message: 'Veuillez choisir une équipe.')],
                 'attr'        => ['class' => 'form-select', 'id' => 'saisie_chefNom'],
             ])
             ->add('tacheNom', ChoiceType::class, [
                 'label'       => 'Tâche',
                 'choices'     => $tacheChoices,
                 'placeholder' => '— Sélectionner une tâche —',
+                'empty_data'  => '',
+                'constraints' => [new Assert\NotBlank(message: 'Veuillez choisir une tâche.')],
                 'attr'        => ['class' => 'form-select', 'id' => 'saisie_tacheNom'],
             ])
             ->add('parcelleNom', ChoiceType::class, [
@@ -49,6 +55,8 @@ class SaisieType extends AbstractType
             ->add('heures', NumberType::class, [
                 'label' => 'Heures travaillées',
                 'scale' => 2,
+                'empty_data'  => '0',
+                'constraints' => [new Assert\GreaterThan(value: 0, message: 'Veuillez indiquer un nombre d\'heures supérieur à 0.')],
                 'attr'  => ['min' => 0, 'step' => 0.25, 'class' => 'form-control', 'id' => 'saisie_heures'],
             ])
             ->add('modePause', ChoiceType::class, [
@@ -65,23 +73,31 @@ class SaisieType extends AbstractType
             ->add('minutesPause', IntegerType::class, [
                 'label'    => 'Minutes de pause (si manuel)',
                 'required' => false,
+                'empty_data'  => '0',
+                'constraints' => [new Assert\PositiveOrZero(message: 'Les minutes de pause ne peuvent pas être négatives.')],
                 'attr'     => ['min' => 0, 'class' => 'form-control', 'id' => 'saisie_minutesPause'],
             ])
             ->add('avancement', NumberType::class, [
                 'label' => 'Avancement (%)',
                 'scale' => 1,
+                'empty_data'  => '0',
+                'constraints' => [new Assert\Range(min: 0, max: 100, notInRangeMessage: 'L\'avancement doit être compris entre 0 et 100 %.')],
                 'attr'  => ['min' => 0, 'max' => 100, 'step' => 5, 'class' => 'form-control'],
             ])
             ->add('pieds', NumberType::class, [
                 'label'    => 'Pieds réalisés',
                 'scale'    => 0,
                 'required' => false,
+                'empty_data'  => '0',
+                'constraints' => [new Assert\PositiveOrZero(message: 'Le nombre de pieds ne peut pas être négatif.')],
                 'attr'     => ['min' => 0, 'class' => 'form-control'],
             ])
             ->add('piedsTotal', NumberType::class, [
                 'label'    => 'Total pieds parcelle',
                 'scale'    => 0,
                 'required' => false,
+                'empty_data'  => '0',
+                'constraints' => [new Assert\PositiveOrZero(message: 'Le total de pieds ne peut pas être négatif.')],
                 'attr'     => ['min' => 0, 'class' => 'form-control'],
             ])
             ->add('commentaire', TextareaType::class, [

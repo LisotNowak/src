@@ -12,6 +12,8 @@ use App\Repository\tracabilite\SaisieRepository;
 use App\Repository\tracabilite\TacheRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\Form\FormError;
+use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -20,6 +22,8 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/tracabilite/saisie', name: 'app_tracabilite_saisie_')]
 class SaisieController extends AbstractController
 {
+    private const SAISONNIERS = 'Saisonniers non nominatifs';
+
     public function __construct(
         private readonly SaisieRepository   $saisieRepo,
         private readonly EquipeRepository   $equipeRepo,
@@ -62,6 +66,8 @@ class SaisieController extends AbstractController
         if ($form->isSubmitted() && $form->isValid()) {
             if (!$this->setPersonnelFromRequest($request, $saisie)) {
                 $this->addFlash('danger', 'Veuillez sélectionner au moins une personne.');
+            } elseif (!$this->checkParcelle($form)) {
+                // L'erreur est affichée sous le champ Parcelle
             } else {
                 $this->hydrateSaisie($saisie);
                 $saisie->setId($this->uuid4());
@@ -79,6 +85,7 @@ class SaisieController extends AbstractController
         return $this->render('tracabilite/saisie/new.html.twig', [
             'active_link'   => 'saisie',
             'form'          => $form,
+            'nbSaisonniers' => $this->nbSaisonniersFromRequest($request),
             'tachesJson'    => $this->buildTachesJson(),
             'parcellesJson' => $this->buildParcellesJson(),
             'equipesJson'   => $this->buildEquipesJson(),
@@ -101,6 +108,8 @@ class SaisieController extends AbstractController
         if ($form->isSubmitted() && $form->isValid()) {
             if (!$this->setPersonnelFromRequest($request, $saisie)) {
                 $this->addFlash('danger', 'Veuillez sélectionner au moins une personne.');
+            } elseif (!$this->checkParcelle($form)) {
+                // L'erreur est affichée sous le champ Parcelle
             } else {
                 $this->hydrateSaisie($saisie);
                 $saisie->setModifieA(new \DateTime());
@@ -121,6 +130,9 @@ class SaisieController extends AbstractController
             'form'             => $form,
             'saisie'           => $saisie,
             'personnelsActuels'=> $personnelsActuels,
+            'nbSaisonniers'    => $form->isSubmitted()
+                ? $this->nbSaisonniersFromRequest($request)
+                : $this->nbSaisonniersFromSaisie($saisie, $personnelsActuels),
             'tachesJson'       => $this->buildTachesJson(),
             'parcellesJson'    => $this->buildParcellesJson(),
             'equipesJson'      => $this->buildEquipesJson(),
@@ -192,9 +204,39 @@ class SaisieController extends AbstractController
         if (empty($noms)) {
             return false;
         }
+        $effectif = count($noms);
+        // « Saisonniers non nominatifs » compte pour le nombre de saisonniers indiqué
+        if (in_array(self::SAISONNIERS, $noms, true)) {
+            $effectif += $this->nbSaisonniersFromRequest($request) - 1;
+        }
         $saisie->setPersonnelNom(implode(', ', $noms));
-        $saisie->setEffectif(count($noms));
+        $saisie->setEffectif($effectif);
         return true;
+    }
+
+    /** Une tâche de terrain doit avoir une parcelle */
+    private function checkParcelle(FormInterface $form): bool
+    {
+        $tache = $this->tacheRepo->findByNom((string) $form->get('tacheNom')->getData());
+        if ($tache && !$tache->isSansParcel() && !$form->get('parcelleNom')->getData()) {
+            $form->get('parcelleNom')->addError(new FormError('Veuillez choisir une parcelle pour cette tâche.'));
+            return false;
+        }
+        return true;
+    }
+
+    private function nbSaisonniersFromRequest(Request $request): int
+    {
+        return max(1, min(999, (int) $request->request->get('nbSaisonniers', 1)));
+    }
+
+    /** Nombre de saisonniers non nominatifs représentés par une saisie existante */
+    private function nbSaisonniersFromSaisie(Saisie $saisie, array $noms): int
+    {
+        if (!in_array(self::SAISONNIERS, $noms, true)) {
+            return 1;
+        }
+        return max(1, $saisie->getEffectif() - (count($noms) - 1));
     }
 
     private function hydrateSaisie(Saisie $saisie): void
@@ -302,7 +344,7 @@ class SaisieController extends AbstractController
                 $e->getOuvriers()->toArray()
             );
             // Saisonniers non nominatifs toujours disponibles dans chaque équipe
-            $ouvriers[] = ['nom' => 'Saisonniers non nominatifs', 'contrat' => 'Saisonnier'];
+            $ouvriers[] = ['nom' => self::SAISONNIERS, 'contrat' => 'Saisonnier'];
             $data[$e->getNom()] = $ouvriers;
         }
         return json_encode($data, JSON_UNESCAPED_UNICODE);

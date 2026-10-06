@@ -15,6 +15,15 @@
             <i class="fas fa-map-marked-alt me-2"></i>Carte des parcelles
         </h4>
         <div class="d-flex flex-wrap gap-1 align-items-center">
+            {# ── Filtre par tâche ── #}
+            {% if taches|length > 0 %}
+            <select id="tache-filter" class="form-select form-select-sm me-2" style="width:auto; max-width:220px;" title="Filtrer par tâche">
+                <option value="">Toutes les tâches</option>
+                {% for t in taches %}
+                    <option value="{{ t.nom }}">{{ t.nom }}</option>
+                {% endfor %}
+            </select>
+            {% endif %}
             <span class="badge text-bg-light border"><span class="d-inline-block me-1" style="width:10px;height:10px;background:#198754;border-radius:2px;"></span>100%</span>
             <span class="badge text-bg-light border"><span class="d-inline-block me-1" style="width:10px;height:10px;background:#0dcaf0;border-radius:2px;"></span>≥75%</span>
             <span class="badge text-bg-light border"><span class="d-inline-block me-1" style="width:10px;height:10px;background:#ffc107;border-radius:2px;"></span>≥50%</span>
@@ -83,8 +92,8 @@
                             <td class="fw-semibold"><span id="infoSurface">—</span> ha</td>
                         </tr>
                         <tr>
-                            <td class="text-muted py-1">Coordonnées</td>
-                            <td class="text-muted" id="infoCoords" style="font-size:0.72rem;">—</td>
+                            <td class="text-muted py-1 align-top">Tâche(s)</td>
+                            <td class="fw-semibold" id="infoTaches">—</td>
                         </tr>
                     </table>
                 </div>
@@ -197,7 +206,59 @@ map.getPane('highlight').style.pointerEvents = 'none'; // ne capte pas les clics
 let highlightLayer = null;   // calque de contour séparé
 let selectedLayer  = null;   // calque polygon original sélectionné
 let selectedOriginalColor = null;
+let selectedProps  = null;   // propriétés de la parcelle sélectionnée
 let globalBounds = null;
+
+// ── Filtre par tâche ─────────────────────────────────────────────────────────
+let currentTache = '';       // '' = toutes les tâches
+const parcelLayers = [];     // { layer, p }
+
+// Avancement d'une parcelle selon le filtre de tâche actif
+function advFor(p) {
+    if (!currentTache) return p.avancement || 0;
+    return (p.avancements && p.avancements[currentTache]) || 0;
+}
+
+function setAdvBadge(adv) {
+    const advEl = document.getElementById('infoAdv');
+    advEl.textContent = adv + '%';
+    advEl.className   = 'badge fs-6 ' + (
+        adv >= 100 ? 'text-bg-success' :
+        adv >= 75  ? 'text-bg-info'    :
+        adv >= 50  ? 'text-bg-warning' :
+        adv >  0   ? 'text-bg-danger'  : 'text-bg-secondary'
+    );
+}
+
+function setTacheFilter(tache) {
+    currentTache = tache;
+    parcelLayers.forEach(({ layer, p }) => {
+        const color = advColor(advFor(p));
+        layer.setStyle({ fillColor: color });
+        if (layer === selectedLayer) selectedOriginalColor = color;
+    });
+    if (selectedProps) {
+        setAdvBadge(advFor(selectedProps));
+        setTachesInfo(selectedProps);
+    }
+}
+
+// Tâches réalisées sur la parcelle avec leur avancement (ou la tâche filtrée)
+function setTachesInfo(p) {
+    const el = document.getElementById('infoTaches');
+    const advs = p.avancements || {};
+    const taches = currentTache ? [currentTache] : Object.keys(advs).sort((a, b) => a.localeCompare(b, 'fr'));
+    el.innerHTML = '';
+    if (!taches.length) { el.textContent = '—'; return; }
+    taches.forEach(t => {
+        const ligne = document.createElement('div');
+        ligne.textContent = t + ' : ' + Math.round(advs[t] || 0) + '%';
+        el.appendChild(ligne);
+    });
+}
+
+document.getElementById('tache-filter')
+    ?.addEventListener('change', e => setTacheFilter(e.target.value));
 
 fetch('{{ path("app_tracabilite_carte_geojson") }}')
     .then(r => r.json())
@@ -206,16 +267,16 @@ fetch('{{ path("app_tracabilite_carte_geojson") }}')
             try {
                 const geomWgs        = convertGeom(f.geometry);
                 const p              = f.properties;
-                const originalColor  = advColor(p.avancement || 0);
 
                 const layer = buildLayer(geomWgs, {
                     style: {
                         color: '#fff',
                         weight: 1.5,
-                        fillColor: originalColor,
+                        fillColor: advColor(advFor(p)),
                         fillOpacity: 0.72
                     }
                 }).addTo(map);
+                parcelLayers.push({ layer, p });
 
                 // Tooltip au survol
                 layer.bindTooltip(p.slug, {
@@ -236,7 +297,8 @@ fetch('{{ path("app_tracabilite_carte_geojson") }}')
                         });
                     }
                     selectedLayer         = layer;
-                    selectedOriginalColor = originalColor;
+                    selectedOriginalColor = advColor(advFor(p));
+                    selectedProps         = p;
 
                     // Calque de contour noir épais dans le pane highlight (par-dessus tout)
                     highlightLayer = buildLayer(geomWgs, {
@@ -244,27 +306,15 @@ fetch('{{ path("app_tracabilite_carte_geojson") }}')
                         style: { color: '#000', weight: 4, opacity: 1, fill: false }
                     }).addTo(map);
 
-                    // Coordonnées du centre
-                    const center = layer.getBounds().getCenter();
-                    const latStr = center.lat.toFixed(5) + '°N';
-                    const lngStr = Math.abs(center.lng).toFixed(5) + (center.lng >= 0 ? '°E' : '°O');
-
                     // Remplit la bulle
                     document.getElementById('infoSlug').textContent   = p.slug;
                     document.getElementById('infoCepage').textContent  = p.cepage    || '—';
                     document.getElementById('infoGamme').textContent   = p.gamme     || '—';
                     document.getElementById('infoPieds').textContent   = p.nombrePieds ? p.nombrePieds.toLocaleString('fr') : '—';
                     document.getElementById('infoSurface').textContent = p.surface   || '—';
-                    document.getElementById('infoCoords').textContent  = latStr + '  ' + lngStr;
 
-                    const advEl = document.getElementById('infoAdv');
-                    advEl.textContent = (p.avancement || 0) + '%';
-                    advEl.className   = 'badge fs-6 ' + (
-                        p.avancement >= 100 ? 'text-bg-success' :
-                        p.avancement >= 75  ? 'text-bg-info'    :
-                        p.avancement >= 50  ? 'text-bg-warning' :
-                        p.avancement >  0   ? 'text-bg-danger'  : 'text-bg-secondary'
-                    );
+                    setAdvBadge(advFor(p));
+                    setTachesInfo(p);
 
                     // Anime la bulle
                     const panel = document.getElementById('parcelleInfo');
@@ -307,6 +357,7 @@ document.getElementById('infoClose').addEventListener('click', () => {
         });
         selectedLayer = null;
     }
+    selectedProps = null;
 });
 </script>
 
@@ -327,7 +378,6 @@ document.getElementById('infoClose').addEventListener('click', () => {
 }
 .bm-btn:hover  { background: #f0f0f0; }
 .bm-btn.active-bm { background: #800000 !important; color: #fff !important; }
-
 /* ── Impression paysage – carte seule ─────────────────────────────────────── */
 @page {
     size: A4 landscape;
