@@ -44,6 +44,9 @@
 
         <div class="mb-4">
             <a href="{{ path('app_client_associate') }}" class="btn btn-info me-2">Associer des clients</a>
+            <button type="button" class="btn btn-warning me-2" data-bs-toggle="modal" data-bs-target="#associateCategorieModal">
+                <i class="bi bi-tags"></i> Associer une catégorie de clients
+            </button>
             <a href="{{ path('app_client_new') }}" class="btn btn-primary me-2">Ajouter un client</a>
             <a href="{{ path('app_client_delete_list') }}" class="btn btn-danger me-2">Supprimer un client</a>
             <button type="button" id="toggleVillePaysBtn" class="btn btn-outline-secondary">
@@ -64,8 +67,8 @@
                     <th class="col-pays">Pays</th>
                     <th>Société</th>
                     <th>Catégorie</th>
-                    <th>Supprimer</th>
-                    <th>Imprimer</th>
+                    <th>Conserver</th>
+                    <th>Signature Manuscrite</th>
                     <th>Envoi mail</th>
                     <th>Actions</th>
                 </tr>
@@ -240,6 +243,76 @@
   </div>
 </div>
 
+<!-- Modal : associer une catégorie de clients à un signataire -->
+<div class="modal fade" id="associateCategorieModal" tabindex="-1" aria-labelledby="associateCategorieModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="associateCategorieModalLabel">Associer une catégorie de clients</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label for="assocCatSignataire" class="form-label fw-bold">Signataire</label>
+          <select id="assocCatSignataire" class="form-select">
+            <option value="">-- Choisir un signataire --</option>
+            {% for signataire in signataires %}
+              <option value="{{ signataire.id }}" {% if signataire_selected == signataire.id %}selected{% endif %}>{{ signataire.nom }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-3">
+          <label for="assocCatCategorie" class="form-label fw-bold">Catégorie</label>
+          <select id="assocCatCategorie" class="form-select">
+            <option value="">-- Toutes les catégories --</option>
+            {% for cat in categories %}
+              <option value="{{ cat.id }}" {% if categorie_selected == cat.id %}selected{% endif %}>{{ cat.nomCategorie }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-3 d-none" id="assocCatSocieteGroup">
+          <label for="assocCatSocieteSearch" class="form-label fw-bold">Société</label>
+          <input type="search" id="assocCatSocieteSearch" class="form-control mb-2" placeholder="Rechercher une société dans la catégorie..." autocomplete="off">
+          <select id="assocCatSociete" class="form-select" size="6">
+            <option value="">-- Toutes les sociétés --</option>
+          </select>
+        </div>
+        <div id="assocCatError" class="alert alert-danger d-none mb-0"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-warning" id="assocCatSubmitBtn">Associer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal : résultat de l'association -->
+<div class="modal fade" id="associateCategorieResultModal" tabindex="-1" aria-labelledby="associateCategorieResultModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="associateCategorieResultModalLabel">Association terminée</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <ul class="list-group">
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            Total ajoutés
+            <span class="badge bg-success rounded-pill" id="assocCatAdded">0</span>
+          </li>
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            Total déjà présents
+            <span class="badge bg-secondary rounded-pill" id="assocCatExisting">0</span>
+          </li>
+        </ul>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <style>
 /* applique la couleur verte clair à toutes les cellules de la ligne */
@@ -279,6 +352,116 @@ document.addEventListener('DOMContentLoaded', function() {
             localStorage.setItem(VILLE_PAYS_STORAGE_KEY, villePaysHidden ? '1' : '0');
         } catch (e) {}
         applyVillePaysVisibility(villePaysHidden);
+    });
+
+    // --- Script pour associer une catégorie de clients à un signataire ---
+    const assocCatModalEl = document.getElementById('associateCategorieModal');
+    const assocCatResultModalEl = document.getElementById('associateCategorieResultModal');
+    const assocCatSubmitBtn = document.getElementById('assocCatSubmitBtn');
+    const assocCatError = document.getElementById('assocCatError');
+    let assocCatHasAdded = false;
+
+    function showAssocCatError(message) {
+        assocCatError.textContent = message;
+        assocCatError.classList.remove('d-none');
+    }
+
+    // Filtre société : affiché uniquement quand une catégorie est choisie
+    const societesParCategorie = {{ societes_par_categorie|json_encode(constant('JSON_HEX_TAG') b-or constant('JSON_HEX_AMP'))|raw }};
+    const assocCatCategorieSelect = document.getElementById('assocCatCategorie');
+    const assocCatSocieteGroup = document.getElementById('assocCatSocieteGroup');
+    const assocCatSocieteSelect = document.getElementById('assocCatSociete');
+
+    const assocCatSocieteSearch = document.getElementById('assocCatSocieteSearch');
+
+    // Normalise pour une recherche insensible à la casse et aux accents
+    function normalizeText(text) {
+        return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    }
+
+    // Affiche les sociétés de la catégorie choisie correspondant à la recherche
+    function renderAssocCatSocietes() {
+        const societes = societesParCategorie[assocCatCategorieSelect.value] || [];
+        const search = normalizeText(assocCatSocieteSearch.value.trim());
+        const previous = assocCatSocieteSelect.value;
+
+        assocCatSocieteSelect.innerHTML = '<option value="">-- Toutes les sociétés --</option>';
+        societes
+            .filter(societe => !search || normalizeText(societe).includes(search))
+            .forEach(function(societe) {
+                const option = document.createElement('option');
+                option.value = societe;
+                option.textContent = societe;
+                assocCatSocieteSelect.appendChild(option);
+            });
+
+        // Conserve la sélection si elle est toujours visible, sinon revient à "Toutes"
+        assocCatSocieteSelect.value = previous;
+        if (assocCatSocieteSelect.selectedIndex === -1) {
+            assocCatSocieteSelect.value = '';
+        }
+    }
+
+    function refreshAssocCatSocietes() {
+        const societes = societesParCategorie[assocCatCategorieSelect.value] || [];
+        assocCatSocieteSearch.value = '';
+        assocCatSocieteSelect.value = '';
+        renderAssocCatSocietes();
+        assocCatSocieteGroup.classList.toggle('d-none', !assocCatCategorieSelect.value || societes.length === 0);
+    }
+
+    assocCatCategorieSelect.addEventListener('change', refreshAssocCatSocietes);
+    assocCatSocieteSearch.addEventListener('input', renderAssocCatSocietes);
+
+    assocCatModalEl.addEventListener('show.bs.modal', function() {
+        assocCatError.classList.add('d-none');
+        refreshAssocCatSocietes();
+    });
+
+    assocCatSubmitBtn.addEventListener('click', function() {
+        const signataire = document.getElementById('assocCatSignataire').value;
+        const categorie = assocCatCategorieSelect.value;
+        const societe = categorie ? assocCatSocieteSelect.value : '';
+
+        if (!signataire) {
+            showAssocCatError('Veuillez choisir un signataire.');
+            return;
+        }
+
+        assocCatSubmitBtn.disabled = true;
+        assocCatError.classList.add('d-none');
+
+        fetch("{{ path('app_client_associate_categorie') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': '{{ csrf_token('associate_categorie') }}'
+            },
+            body: JSON.stringify({ signataire: signataire, categorie: categorie, societe: societe })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                showAssocCatError(data.error || 'Erreur lors de l\'association.');
+                return;
+            }
+            document.getElementById('assocCatAdded').textContent = data.added;
+            document.getElementById('assocCatExisting').textContent = data.alreadyPresent;
+            assocCatHasAdded = data.added > 0;
+
+            bootstrap.Modal.getOrCreateInstance(assocCatModalEl).hide();
+            bootstrap.Modal.getOrCreateInstance(assocCatResultModalEl).show();
+        })
+        .catch(() => showAssocCatError('Erreur lors de l\'association.'))
+        .finally(() => { assocCatSubmitBtn.disabled = false; });
+    });
+
+    // Recharge la liste à la fermeture si de nouvelles associations ont été créées
+    assocCatResultModalEl.addEventListener('hidden.bs.modal', function() {
+        if (assocCatHasAdded) {
+            window.location.reload();
+        }
     });
 
     // --- Script pour les boutons Oui/Non ---

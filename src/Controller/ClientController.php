@@ -71,7 +71,21 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
         }
     }
 
+    // Sociétés distinctes par catégorie (pour le filtre de la modale d'association par catégorie)
+    $societesParCategorie = [];
+    $rows = $clientRepo->createQueryBuilder('c')
+        ->select('DISTINCT IDENTITY(c.categorieEntity) AS categorieId, c.societeNom')
+        ->andWhere('c.categorieEntity IS NOT NULL')
+        ->andWhere("c.societeNom IS NOT NULL AND c.societeNom <> ''")
+        ->orderBy('c.societeNom', 'ASC')
+        ->getQuery()
+        ->getArrayResult();
+    foreach ($rows as $row) {
+        $societesParCategorie[$row['categorieId']][] = $row['societeNom'];
+    }
+
         return $this->render('client/list.html.twig', [
+            'societes_par_categorie' => $societesParCategorie,
             'clients' => $clients,
             'signataires' => $signataires,
             'signataire_selected' => $signataireId ? (int) $signataireId : null,
@@ -243,6 +257,84 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
     }
 
 
+
+    #[Route('/clients/associate-categorie', name: 'app_client_associate_categorie', methods: ['POST'])]
+    public function associateCategorie(Request $request, ManagerRegistry $doctrine, CsrfTokenManagerInterface $csrfTokenManager): JsonResponse
+    {
+        if (!$request->isXmlHttpRequest()) {
+            return $this->json(['success' => false, 'error' => 'Requête non autorisée'], 400);
+        }
+
+        $csrfToken = $request->headers->get('X-CSRF-TOKEN');
+        if (!$csrfTokenManager->isTokenValid(new CsrfToken('associate_categorie', $csrfToken))) {
+            return $this->json(['success' => false, 'error' => 'Token CSRF invalide'], 403);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        if (empty($data['signataire'])) {
+            return $this->json(['success' => false, 'error' => 'Veuillez choisir un signataire'], 400);
+        }
+
+        $entityManager = $doctrine->getManager();
+        $signataire = $entityManager->getRepository(Signataire::class)->find($data['signataire']);
+        if (!$signataire) {
+            return $this->json(['success' => false, 'error' => 'Signataire introuvable'], 404);
+        }
+
+        // Catégorie vide = toutes les catégories (tous les clients)
+        $qb = $entityManager->getRepository(Client::class)->createQueryBuilder('c');
+        if (!empty($data['categorie'])) {
+            $categorie = $entityManager->getRepository(Categorie::class)->find($data['categorie']);
+            if (!$categorie) {
+                return $this->json(['success' => false, 'error' => 'Catégorie introuvable'], 404);
+            }
+            $qb->andWhere('c.categorieEntity = :categorie')->setParameter('categorie', $categorie);
+
+            // Filtre optionnel sur la société (uniquement quand une catégorie est choisie)
+            if (!empty($data['societe'])) {
+                $qb->andWhere('c.societeNom = :societe')->setParameter('societe', (string) $data['societe']);
+            }
+        }
+        $clients = $qb->getQuery()->getResult();
+
+        // IDs des clients déjà associés à ce signataire (une seule requête pour éviter les doublons)
+        $existingIds = $entityManager->getRepository(AssociationSignataire::class)->createQueryBuilder('a')
+            ->select('IDENTITY(a.client) AS clientId')
+            ->andWhere('a.signataire = :signataire')
+            ->setParameter('signataire', $signataire)
+            ->getQuery()
+            ->getSingleColumnResult();
+        $existingIds = array_flip(array_map('intval', $existingIds));
+
+        $added = 0;
+        $alreadyPresent = 0;
+        foreach ($clients as $client) {
+            if (isset($existingIds[$client->getId()])) {
+                $alreadyPresent++;
+                continue;
+            }
+
+            $association = new AssociationSignataire();
+            $association->setClient($client);
+            $association->setSignataire($signataire);
+            $association->setConserver(false);
+            $association->setSignature(false);
+            $association->setEnvoiMail(false);
+            $entityManager->persist($association);
+
+            $existingIds[$client->getId()] = true;
+            $added++;
+        }
+
+        $entityManager->flush();
+
+        return $this->json([
+            'success' => true,
+            'added' => $added,
+            'alreadyPresent' => $alreadyPresent,
+            'total' => count($clients),
+        ]);
+    }
 
     #[Route('/clients/update-field', name: 'app_clients_update_field', methods: ['POST'])]
     public function updateField(Request $request, ManagerRegistry $doctrine, CsrfTokenManagerInterface $csrfTokenManager): Response
