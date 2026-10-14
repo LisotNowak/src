@@ -21,13 +21,19 @@
         <div class="row mb-4">
             <div class="col-md-6">
                 <label class="form-label fw-bold">Sélectionnez un ou plusieurs signataires :</label>
-                <select name="signataires[]" class="form-select" multiple required>
+                <select name="signataires[]" id="signatairesSelect" class="form-select" multiple required>
                     {% for signataire in signataires %}
                         <option value="{{ signataire.id }}">{{ signataire.nom }}</option>
                     {% endfor %}
                 </select>
                 <small class="text-muted">Maintenez Ctrl (ou Cmd sur Mac) pour une sélection multiple.</small>
             </div>
+        </div>
+
+        {# Clients déjà associés aux signataires sélectionnés (chargés en AJAX) #}
+        <div id="existingAssociations" class="mb-4 d-none">
+            <h5>👥 Clients déjà associés</h5>
+            <div id="existingAssociationsContent"></div>
         </div>
 
         <hr>
@@ -53,6 +59,7 @@
                                     - {{ client.ville ?? '' }} ({{ client.codePostal ?? '' }})
                                 </span>
                             </label>
+                            <span class="badge bg-secondary ms-1 d-none already-associated-badge" data-client-id="{{ client.id }}"></span>
                         </div>
                     {% else %}
                         <p class="text-muted fst-italic">Aucun client trouvé.</p>
@@ -109,5 +116,174 @@ function refreshSelectedList() {
 }
 
 clientCheckboxes.forEach(cb => cb.addEventListener('change', refreshSelectedList));
+
+// 👥 Clients déjà associés aux signataires sélectionnés
+const signatairesSelect = document.getElementById('signatairesSelect');
+const existingBlock = document.getElementById('existingAssociations');
+const existingContent = document.getElementById('existingAssociationsContent');
+const signataireClientsUrl = "{{ path('app_client_associate_signataire_clients', {id: 'ID_PLACEHOLDER'}) }}";
+const deleteAssociationsUrl = "{{ path('app_client_associations_delete') }}";
+const deleteAssociationsToken = "{{ csrf_token('delete_associations') }}";
+let loadedSignataires = []; // [{ signataire: {id, nom}, clients: [...] }]
+let loadRequestId = 0; // ignore les réponses d'une sélection précédente
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text ?? '';
+    return div.innerHTML;
+}
+
+// Indique dans la liste des clients disponibles ceux déjà associés aux signataires sélectionnés
+function refreshAlreadyAssociatedBadges() {
+    const namesByClient = {};
+    loadedSignataires.forEach(data => {
+        data.clients.forEach(c => {
+            (namesByClient[c.clientId] = namesByClient[c.clientId] || []).push(data.signataire.nom);
+        });
+    });
+    document.querySelectorAll('.already-associated-badge').forEach(badge => {
+        const names = namesByClient[badge.dataset.clientId];
+        badge.textContent = names ? 'Déjà associé : ' + names.join(', ') : '';
+        badge.classList.toggle('d-none', !names);
+    });
+}
+
+function renderExistingAssociations() {
+    existingContent.innerHTML = '';
+    existingBlock.classList.toggle('d-none', loadedSignataires.length === 0);
+
+    loadedSignataires.forEach(data => {
+        const card = document.createElement('div');
+        card.className = 'card mb-3';
+        card.innerHTML = `
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <strong>${escapeHtml(data.signataire.nom)}</strong>
+                <span class="badge bg-primary rounded-pill">${data.clients.length} client(s)</span>
+            </div>
+            <div class="card-body">
+                ${data.clients.length === 0
+                    ? '<p class="text-muted fst-italic mb-0">Aucun client associé.</p>'
+                    : `
+                    <div class="d-flex gap-2 mb-2">
+                        <input type="text" class="form-control form-control-sm existing-search" placeholder="Rechercher un client associé...">
+                        <button type="button" class="btn btn-sm btn-outline-secondary existing-select-all text-nowrap">Tout cocher</button>
+                        <button type="button" class="btn btn-sm btn-danger existing-delete-selected text-nowrap" disabled>
+                            <i class="bi bi-trash"></i> Supprimer la sélection
+                        </button>
+                    </div>
+                    <ul class="list-group small" style="max-height: 300px; overflow-y: auto;">
+                        ${data.clients.map(c => `
+                            <li class="list-group-item d-flex justify-content-between align-items-center existing-item">
+                                <label class="form-check mb-0">
+                                    <input type="checkbox" class="form-check-input existing-checkbox" value="${c.associationId}">
+                                    <span class="form-check-label">
+                                        ${escapeHtml((c.nom || '').toUpperCase())} ${escapeHtml(c.prenom)}
+                                        <span class="text-muted">- ${escapeHtml(c.societe)} ${escapeHtml(c.ville)} ${c.codePostal ? '(' + escapeHtml(c.codePostal) + ')' : ''}</span>
+                                    </span>
+                                </label>
+                                <button type="button" class="btn btn-sm btn-outline-danger existing-delete-one" data-id="${c.associationId}" title="Supprimer l'association">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </li>`).join('')}
+                    </ul>`}
+            </div>`;
+        existingContent.appendChild(card);
+        bindCardEvents(card);
+    });
+
+    refreshAlreadyAssociatedBadges();
+}
+
+function bindCardEvents(card) {
+    const deleteSelectedBtn = card.querySelector('.existing-delete-selected');
+    const checkboxes = () => Array.from(card.querySelectorAll('.existing-checkbox'));
+    const visibleCheckboxes = () => checkboxes().filter(cb => cb.closest('.existing-item').style.display !== 'none');
+    const refreshDeleteBtn = () => {
+        if (deleteSelectedBtn) deleteSelectedBtn.disabled = !checkboxes().some(cb => cb.checked);
+    };
+
+    card.querySelector('.existing-search')?.addEventListener('input', function() {
+        const filter = this.value.toLowerCase();
+        card.querySelectorAll('.existing-item').forEach(li => {
+            li.style.display = li.textContent.toLowerCase().includes(filter) ? '' : 'none';
+        });
+    });
+
+    card.querySelector('.existing-select-all')?.addEventListener('click', function() {
+        const visibles = visibleCheckboxes();
+        const allChecked = visibles.length > 0 && visibles.every(cb => cb.checked);
+        visibles.forEach(cb => cb.checked = !allChecked);
+        refreshDeleteBtn();
+    });
+
+    checkboxes().forEach(cb => cb.addEventListener('change', refreshDeleteBtn));
+
+    card.querySelectorAll('.existing-delete-one').forEach(btn => {
+        btn.addEventListener('click', () => deleteAssociations([parseInt(btn.dataset.id, 10)]));
+    });
+
+    deleteSelectedBtn?.addEventListener('click', function() {
+        const ids = checkboxes().filter(cb => cb.checked).map(cb => parseInt(cb.value, 10));
+        deleteAssociations(ids);
+    });
+}
+
+function deleteAssociations(ids) {
+    if (ids.length === 0) return;
+    if (!confirm(`Supprimer ${ids.length} association(s) ? Les informations Supprimer / Imprimer / Envoi mail seront perdues.`)) return;
+
+    fetch(deleteAssociationsUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRF-TOKEN': deleteAssociationsToken
+        },
+        body: JSON.stringify({ ids: ids })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data.success) {
+            alert(data.error || 'Erreur lors de la suppression.');
+            return;
+        }
+        const deleted = new Set(data.deletedIds);
+        loadedSignataires.forEach(s => {
+            s.clients = s.clients.filter(c => !deleted.has(c.associationId));
+        });
+        renderExistingAssociations();
+    })
+    .catch(() => alert('Erreur lors de la suppression.'));
+}
+
+function loadExistingAssociations() {
+    const ids = Array.from(signatairesSelect.selectedOptions).map(o => o.value);
+    const requestId = ++loadRequestId;
+    if (ids.length === 0) {
+        loadedSignataires = [];
+        renderExistingAssociations();
+        return;
+    }
+
+    existingBlock.classList.remove('d-none');
+    existingContent.innerHTML = '<p class="text-muted">Chargement...</p>';
+
+    Promise.all(ids.map(id =>
+        fetch(signataireClientsUrl.replace('ID_PLACEHOLDER', id), {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        }).then(r => r.json())
+    ))
+    .then(results => {
+        if (requestId !== loadRequestId) return;
+        loadedSignataires = results.filter(r => r.success);
+        renderExistingAssociations();
+    })
+    .catch(() => {
+        existingContent.innerHTML = '<div class="alert alert-danger">Erreur lors du chargement des clients associés.</div>';
+    });
+}
+
+signatairesSelect.addEventListener('change', loadExistingAssociations);
+loadExistingAssociations();
 </script>
 {% endblock %}

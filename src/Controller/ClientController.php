@@ -46,14 +46,46 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
             ->setParameter('signataire', $signataireId);
     }
 
+    // Sociétés disponibles pour le filtre : clients de la catégorie choisie
+    // (et associés au signataire sélectionné, s'il y en a un)
+    $societeSelected = trim((string) $request->query->get('societe', ''));
+    $societes = [];
+
     if ($categorieId) {
         $qb->andWhere('c.categorieEntity = :categorie')
            ->setParameter('categorie', $categorieId);
+
+        $societeQb = $clientRepo->createQueryBuilder('c')
+            ->select('DISTINCT c.societeNom')
+            ->andWhere('c.categorieEntity = :categorie')
+            ->andWhere("c.societeNom IS NOT NULL AND c.societeNom <> ''")
+            ->setParameter('categorie', $categorieId)
+            ->orderBy('c.societeNom', 'ASC');
+        if ($signataireId) {
+            $societeQb->innerJoin('c.associations', 'a')
+                ->andWhere('a.signataire = :signataire')
+                ->setParameter('signataire', $signataireId);
+        }
+        $societes = $societeQb->getQuery()->getSingleColumnResult();
+
+        // Ignore une société qui ne fait plus partie des choix (ex. après changement de catégorie/signataire)
+        if ($societeSelected !== '' && in_array($societeSelected, $societes, true)) {
+            $qb->andWhere('c.societeNom = :societe')
+               ->setParameter('societe', $societeSelected);
+        } else {
+            $societeSelected = '';
+        }
+    } else {
+        $societeSelected = '';
     }
 
     // Pagination
     // $qb->setFirstResult(($page - 1) * $pageSize)
     //    ->setMaxResults($pageSize);
+
+    // Tri alphabétique par nom puis prénom
+    $qb->orderBy('c.triNom', 'ASC')
+       ->addOrderBy('c.triPrenom', 'ASC');
 
     $clients = $qb->getQuery()->getResult();
 
@@ -91,6 +123,8 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
             'signataire_selected' => $signataireId ? (int) $signataireId : null,
             'categories' => $categories,
             'categorie_selected' => $categorieId ? (int) $categorieId : null,
+            'societes' => $societes,
+            'societe_selected' => $societeSelected,
             'associations' => $associations,
         ]);
 
@@ -117,7 +151,7 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
                 $association->setClient($client);
                 $association->setSignataire($signataire);
                 $association->setConserver(false);
-                $association->setSignature(false);
+                $association->setImprimer(false);
                 $association->setEnvoiMail(false);
                 $entityManager->persist($association);
             }
@@ -163,7 +197,7 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
                     $association->setClient($client);
                     $association->setSignataire($signataire);
                     $association->setConserver(false);
-                    $association->setSignature(false);
+                    $association->setImprimer(false);
                     $association->setEnvoiMail(false);
                     $entityManager->persist($association);
                 }
@@ -225,7 +259,7 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
                         $association->setClient($client);
                         $association->setSignataire($signataire);
                         $association->setConserver(false);
-                        $association->setSignature(false);
+                        $association->setImprimer(false);
                         $association->setEnvoiMail(false);
                         $entityManager->persist($association);
                     }
@@ -257,6 +291,68 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
     }
 
 
+
+    #[Route('/clients/associate/signataire/{id}', name: 'app_client_associate_signataire_clients', methods: ['GET'])]
+    public function signataireClients(Signataire $signataire, ManagerRegistry $doctrine): JsonResponse
+    {
+        $associations = $doctrine->getRepository(AssociationSignataire::class)->createQueryBuilder('a')
+            ->innerJoin('a.client', 'c')
+            ->addSelect('c')
+            ->andWhere('a.signataire = :signataire')
+            ->setParameter('signataire', $signataire)
+            ->orderBy('c.triNom', 'ASC')
+            ->addOrderBy('c.triPrenom', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $this->json([
+            'success' => true,
+            'signataire' => ['id' => $signataire->getId(), 'nom' => $signataire->getNom()],
+            'clients' => array_map(fn(AssociationSignataire $a) => [
+                'associationId' => $a->getId(),
+                'clientId' => $a->getClient()->getId(),
+                'nom' => $a->getClient()->getTriNom(),
+                'prenom' => $a->getClient()->getTriPrenom(),
+                'ville' => $a->getClient()->getVille(),
+                'codePostal' => $a->getClient()->getCodePostal(),
+                'societe' => $a->getClient()->getSocieteNom(),
+            ], $associations),
+        ]);
+    }
+
+    #[Route('/clients/associations/delete', name: 'app_client_associations_delete', methods: ['POST'])]
+    public function deleteAssociations(Request $request, ManagerRegistry $doctrine, CsrfTokenManagerInterface $csrfTokenManager): JsonResponse
+    {
+        if (!$request->isXmlHttpRequest()) {
+            return $this->json(['success' => false, 'error' => 'Requête non autorisée'], 400);
+        }
+
+        $csrfToken = $request->headers->get('X-CSRF-TOKEN');
+        if (!$csrfTokenManager->isTokenValid(new CsrfToken('delete_associations', $csrfToken))) {
+            return $this->json(['success' => false, 'error' => 'Token CSRF invalide'], 403);
+        }
+
+        $data = json_decode($request->getContent(), true);
+        $ids = array_filter(array_map('intval', (array) ($data['ids'] ?? [])));
+        if (!$ids) {
+            return $this->json(['success' => false, 'error' => 'Aucune association sélectionnée'], 400);
+        }
+
+        $entityManager = $doctrine->getManager();
+        $associations = $entityManager->getRepository(AssociationSignataire::class)->findBy(['id' => $ids]);
+        // Les IDs sont lus avant suppression (Doctrine les vide après le flush)
+        $deletedIds = array_map(fn(AssociationSignataire $a) => $a->getId(), $associations);
+        foreach ($associations as $association) {
+            $entityManager->remove($association);
+        }
+        $entityManager->flush();
+
+        return $this->json([
+            'success' => true,
+            'deleted' => count($deletedIds),
+            'deletedIds' => $deletedIds,
+        ]);
+    }
 
     #[Route('/clients/associate-categorie', name: 'app_client_associate_categorie', methods: ['POST'])]
     public function associateCategorie(Request $request, ManagerRegistry $doctrine, CsrfTokenManagerInterface $csrfTokenManager): JsonResponse
@@ -318,7 +414,7 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
             $association->setClient($client);
             $association->setSignataire($signataire);
             $association->setConserver(false);
-            $association->setSignature(false);
+            $association->setImprimer(false);
             $association->setEnvoiMail(false);
             $entityManager->persist($association);
 
@@ -373,14 +469,14 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
             return $this->json(['success' => false, 'error' => 'Association introuvable'], 404);
         }
 
-        if (!in_array($data['field'], ['signature', 'conserver', 'envoiMail'])) {
+        if (!in_array($data['field'], ['imprimer', 'conserver', 'envoiMail'])) {
             return $this->json(['success' => false, 'error' => 'Champ non autorisé'], 400);
         }
 
         $boolValue = $data['value'] == '1';
 
         match($data['field']) {
-            'signature' => $association->setSignature($boolValue),
+            'imprimer' => $association->setImprimer($boolValue),
             'conserver' => $association->setConserver($boolValue),
             'envoiMail' => $association->setEnvoiMail($boolValue),
         };

@@ -38,6 +38,21 @@
                         {% endfor %}
                     </select>
                 </div>
+                {% if categorie_selected %}
+                    <div class="col-auto">
+                        <label for="societe" class="col-form-label fw-bold">Choisir une société :</label>
+                    </div>
+                    <div class="col-auto">
+                        <select id="societe" name="societe" class="form-select" onchange="this.form.submit()">
+                            <option value="">-- Toutes les sociétés --</option>
+                            {% for societe in societes %}
+                                <option value="{{ societe }}" {% if societe_selected == societe %}selected{% endif %}>{{ societe }}</option>
+                            {% else %}
+                                <option disabled>Aucune société trouvée.</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                {% endif %}
             </form>
             
         </div>
@@ -68,8 +83,8 @@
                     <th>Société</th>
                     <th>Catégorie</th>
                     <th>Conserver</th>
-                    <th>Signature Manuscrite</th>
-                    <th>Envoi mail</th>
+                    <th>Imprimer</th>
+                    <th class="col-envoi-mail d-none">Envoi mail</th> {# colonne masquée : retirer d-none pour la réafficher #}
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -119,14 +134,14 @@
                             <td>
                                 {% if signataire_selected %}
                                     <div class="btn-group" role="group">
-                                        <button type="button" class="btn btn-sm signature-btn signature-oui"
+                                        <button type="button" class="btn btn-sm imprimer-btn imprimer-oui"
                                                 data-client-id="{{ client.id }}" data-signataire="{{ assoc ? assoc.signataire.id : signataire_selected }}"
-                                                data-value="1" style="background-color: {% if assoc and assoc.signature %}green{% else %}gray{% endif %}; color: white;">
+                                                data-value="1" style="background-color: {% if assoc and assoc.imprimer %}green{% else %}gray{% endif %}; color: white;">
                                             Oui
                                         </button>
-                                        <button type="button" class="btn btn-sm signature-btn signature-non"
+                                        <button type="button" class="btn btn-sm imprimer-btn imprimer-non"
                                                 data-client-id="{{ client.id }}" data-signataire="{{ assoc ? assoc.signataire.id : signataire_selected }}"
-                                                data-value="0" style="background-color: {% if assoc and not assoc.signature %}red{% else %}gray{% endif %}; color: white;">
+                                                data-value="0" style="background-color: {% if assoc and not assoc.imprimer %}red{% else %}gray{% endif %}; color: white;">
                                             Non
                                         </button>
                                     </div>
@@ -135,7 +150,7 @@
                                 {% endif %}
                             </td>
 
-                            <td>
+                            <td class="col-envoi-mail d-none">
                                 {% if signataire_selected %}
                                     <div class="btn-group" role="group">
                                         <button type="button" class="btn btn-sm envoi-mail-btn envoi-mail-oui"
@@ -162,7 +177,7 @@
                         </tr>
                     {% else %}
                         <tr>
-                            <td colspan="11" class="text-center text-muted">Aucun client trouvé.</td>
+                            <td colspan="10" class="text-center text-muted">Aucun client trouvé.</td>
                         </tr>
                     {% endfor %}
             </tbody>
@@ -465,13 +480,13 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // --- Script pour les boutons Oui/Non ---
-    document.querySelectorAll('.conserver-btn, .signature-btn, .envoi-mail-btn').forEach(function(button) {
+    document.querySelectorAll('.conserver-btn, .imprimer-btn, .envoi-mail-btn').forEach(function(button) {
         button.addEventListener('click', function(event) {
             event.stopPropagation(); // Empêche l'ouverture de la modale
             const clientId = this.dataset.clientId;
             const value = this.dataset.value;
             const signataire = this.dataset.signataire;
-            let field = 'signature';
+            let field = 'imprimer';
             if (this.classList.contains('conserver-btn')) field = 'conserver';
             if (this.classList.contains('envoi-mail-btn')) field = 'envoiMail';
 
@@ -502,7 +517,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             this.style.backgroundColor = 'red';
                             row.classList.remove('row-conserver-oui'); // supprime la classe
                         }
-                    } else if (field === 'signature') {
+                    } else if (field === 'imprimer') {
                         this.style.backgroundColor = value === '1' ? 'green' : 'red';
                     } else if (field === 'envoiMail') {
                         this.style.backgroundColor = value === '1' ? 'green' : 'red';

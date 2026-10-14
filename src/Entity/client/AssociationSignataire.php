@@ -22,8 +22,8 @@ class AssociationSignataire
     #[ORM\JoinColumn(name: "client_id", referencedColumnName: "id", nullable: true)]
     private ?Client $client = null;
 
-    #[ORM\Column(name: "signature", type: "boolean", nullable: true)]
-    private ?bool $signature = null;
+    #[ORM\Column(name: "imprimer", type: "boolean", nullable: true)]
+    private ?bool $imprimer = null;
 
     #[ORM\Column(name: "conserver", type: "boolean", nullable: true)]
     private ?bool $conserver = null;
@@ -60,14 +60,14 @@ class AssociationSignataire
         return $this;
     }
 
-    public function getSignature(): ?bool
+    public function getImprimer(): ?bool
     {
-        return $this->signature;
+        return $this->imprimer;
     }
 
-    public function setSignature(?bool $signature): self
+    public function setImprimer(?bool $imprimer): self
     {
-        $this->signature = $signature;
+        $this->imprimer = $imprimer;
         return $this;
     }
 
