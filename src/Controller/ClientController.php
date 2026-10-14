@@ -16,6 +16,7 @@ use Symfony\Component\HttpFoundation\JsonResponse; // <-- Ajoutez cette ligne
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use Symfony\Component\Security\Csrf\CsrfToken;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 class ClientController extends AbstractController
 {
@@ -530,6 +531,7 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
 
 
     #[Route('/clients/delete', name: 'app_client_delete_list')]
+    #[IsGranted('ROLE_ADMIN')]
     public function deleteList(ManagerRegistry $doctrine): Response
     {
         $clients = $doctrine->getRepository(Client::class)->findAll();
@@ -541,6 +543,7 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
 
 
     #[Route('/client/{id}/delete', name: 'app_client_delete', methods: ['POST'])]
+    #[IsGranted('ROLE_ADMIN')]
     public function delete(Client $client, ManagerRegistry $doctrine, Request $request): RedirectResponse
     {
         $submittedToken = $request->request->get('_token');

@@ -63,7 +63,9 @@
                 <i class="bi bi-tags"></i> Associer une catégorie de clients
             </button>
             <a href="{{ path('app_client_new') }}" class="btn btn-primary me-2">Ajouter un client</a>
-            <a href="{{ path('app_client_delete_list') }}" class="btn btn-danger me-2">Supprimer un client</a>
+            {% if is_granted('ROLE_ADMIN') %}
+                <a href="{{ path('app_client_delete_list') }}" class="btn btn-danger me-2">Supprimer un client</a>
+            {% endif %}
             <button type="button" id="toggleVillePaysBtn" class="btn btn-outline-secondary">
                 <i class="bi bi-eye-slash"></i> Masquer Ville / Pays
             </button>
