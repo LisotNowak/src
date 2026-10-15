@@ -414,7 +414,7 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
             $association = new AssociationSignataire();
             $association->setClient($client);
             $association->setSignataire($signataire);
-            $association->setConserver(false);
+            $association->setConserver(true);
             $association->setImprimer(false);
             $association->setEnvoiMail(false);
             $entityManager->persist($association);
