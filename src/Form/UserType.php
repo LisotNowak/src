@@ -20,6 +20,7 @@ class UserType extends AbstractType
                 'choices' => [
                     'Utilisateur' => 'ROLE_USER',
                     'Administrateur' => 'ROLE_ADMIN',
+                    'Admin clients' => 'ROLE_ADMIN_CLIENTS',
                 ],
                 'multiple' => true,
                 'expanded' => true,

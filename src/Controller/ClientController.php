@@ -531,7 +531,7 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
 
 
     #[Route('/clients/delete', name: 'app_client_delete_list')]
-    #[IsGranted('ROLE_ADMIN')]
+    #[IsGranted('ROLE_ADMIN_CLIENTS')]
     public function deleteList(ManagerRegistry $doctrine): Response
     {
         $clients = $doctrine->getRepository(Client::class)->findAll();
@@ -543,7 +543,7 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
 
 
     #[Route('/client/{id}/delete', name: 'app_client_delete', methods: ['POST'])]
-    #[IsGranted('ROLE_ADMIN')]
+    #[IsGranted('ROLE_ADMIN_CLIENTS')]
     public function delete(Client $client, ManagerRegistry $doctrine, Request $request): RedirectResponse
     {
         $submittedToken = $request->request->get('_token');

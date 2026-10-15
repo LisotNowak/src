@@ -39,6 +39,9 @@ security:
                 lifetime: 604800
                 always_remember_me: true
 
+    role_hierarchy:
+        ROLE_ADMIN: [ROLE_ADMIN_CLIENTS]
+
     access_control:
         - { path: ^/connect/microsoft, roles: PUBLIC_ACCESS }
         - { path: ^/connect/microsoft/check, roles: PUBLIC_ACCESS }
