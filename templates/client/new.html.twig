@@ -1,6 +1,6 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Ajouter un client{% endblock %}
+{% block title %}Ajouter un contact{% endblock %}
 
 {% block body %}
 <div class="container mt-4 mb-5">
@@ -13,11 +13,11 @@
             <i class="fas fa-user-plus"></i>
         </div>
         <div>
-            <h2 class="mb-0">Ajouter un client</h2>
-            <small class="text-muted">Renseignez les informations du client et choisissez ses signataires.</small>
+            <h2 class="mb-0">Ajouter un contact</h2>
+            <small class="text-muted">Renseignez les informations du contact et choisissez ses signataires.</small>
         </div>
     </div>
 
-    {% include 'client/_form.html.twig' with {submit_label: 'Ajouter le client'} %}
+    {% include 'client/_form.html.twig' with {submit_label: 'Ajouter le contact'} %}
 </div>
 {% endblock %}

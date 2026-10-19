@@ -1,0 +1,67 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Gérer les signataires{% endblock %}
+
+{% block body %}
+<div class="container mt-4 mb-5">
+    <a href="{{ path('app_clients_list') }}" class="btn btn-outline-secondary mb-3">
+        <i class="fas fa-arrow-left me-1"></i>Retour à la liste
+    </a>
+
+    <h2 class="mb-4">Gérer les signataires</h2>
+
+    {% for message in app.flashes('success') %}
+        <div class="alert alert-success">{{ message }}</div>
+    {% endfor %}
+    {% for message in app.flashes('error') %}
+        <div class="alert alert-danger">{{ message }}</div>
+    {% endfor %}
+
+    <form method="post" action="{{ path('app_signataire_new') }}" class="row g-2 align-items-center mb-4">
+        <input type="hidden" name="_token" value="{{ csrf_token('signataire_new') }}">
+        <div class="col-auto">
+            <input type="text" name="nom" class="form-control" placeholder="Nom du nouveau signataire" maxlength="255" required>
+        </div>
+        <div class="col-auto">
+            <button class="btn btn-primary"><i class="bi bi-plus-lg"></i> Ajouter</button>
+        </div>
+    </form>
+
+    {% if signataires is not empty %}
+        <table class="table table-bordered table-hover align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>Nom</th>
+                    <th style="width: 140px;">Contacts associés</th>
+                    <th style="width: 120px;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for signataire in signataires %}
+                    {% set nb = nbAssociations[signataire.id] ?? 0 %}
+                    <tr>
+                        <td>
+                            <form method="post" action="{{ path('app_signataire_edit', {id: signataire.id}) }}" class="d-flex gap-2">
+                                <input type="hidden" name="_token" value="{{ csrf_token('signataire_edit_' ~ signataire.id) }}">
+                                <input type="text" name="nom" class="form-control form-control-sm" value="{{ signataire.nom }}" maxlength="255" required>
+                                <button class="btn btn-sm btn-outline-primary text-nowrap">Modifier</button>
+                            </form>
+                        </td>
+                        <td class="text-center">{{ nb }}</td>
+                        <td>
+                            <form method="post"
+                                  action="{{ path('app_signataire_delete', {id: signataire.id}) }}"
+                                  onsubmit="return confirm({{ ('Voulez-vous vraiment supprimer le signataire « ' ~ signataire.nom ~ ' » ?' ~ (nb > 0 ? ' Ses ' ~ nb ~ ' association(s) contact seront aussi supprimées.' : ''))|json_encode }});">
+                                <input type="hidden" name="_token" value="{{ csrf_token('signataire_delete_' ~ signataire.id) }}">
+                                <button class="btn btn-sm btn-danger">Supprimer</button>
+                            </form>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div class="alert alert-info">Aucun signataire.</div>
+    {% endif %}
+</div>
+{% endblock %}

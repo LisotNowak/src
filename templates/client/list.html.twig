@@ -1,11 +1,11 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Liste des clients{% endblock %}
+{% block title %}Liste des contacts{% endblock %}
 
 {% block body %}
 <div class="mt-4">
     <div class="container mt-4">
-        <h2 class="mb-4">Liste des clients</h2>
+        <h2 class="mb-4">Liste des contacts</h2>
         <div class="d-flex justify-content-between align-items-center mb-4">
             <form method="get" class="row g-2 align-items-center">
                 <div class="col-auto">
@@ -58,13 +58,16 @@
         </div>
 
         <div class="mb-4">
-            <a href="{{ path('app_client_associate') }}" class="btn btn-info me-2">Associer des clients</a>
+            <a href="{{ path('app_client_associate') }}" class="btn btn-info me-2">Associer des contacts</a>
             <button type="button" class="btn btn-warning me-2" data-bs-toggle="modal" data-bs-target="#associateCategorieModal">
-                <i class="bi bi-tags"></i> Associer une catégorie de clients
+                <i class="bi bi-tags"></i> Associer une catégorie de contacts
             </button>
-            <a href="{{ path('app_client_new') }}" class="btn btn-primary me-2">Ajouter un client</a>
+            <a href="{{ path('app_client_new') }}" class="btn btn-primary me-2">Ajouter un contact</a>
             {% if is_granted('ROLE_ADMIN_CLIENTS') %}
-                <a href="{{ path('app_client_delete_list') }}" class="btn btn-danger me-2">Supprimer un client</a>
+                <a href="{{ path('app_client_delete_list') }}" class="btn btn-danger me-2">Supprimer un contact</a>
+                <a href="{{ path('app_signataire_list') }}" class="btn btn-secondary me-2">
+                    <i class="bi bi-person-gear"></i> Gérer les signataires
+                </a>
             {% endif %}
             <button type="button" id="toggleVillePaysBtn" class="btn btn-outline-secondary">
                 <i class="bi bi-eye-slash"></i> Masquer Ville / Pays
@@ -85,7 +88,7 @@
                     <th>Société</th>
                     <th>Catégorie</th>
                     <th>Conserver</th>
-                    <th>Imprimer</th>
+                    <th>Mot imprimer</th>
                     <th class="col-envoi-mail d-none">Envoi mail</th> {# colonne masquée : retirer d-none pour la réafficher #}
                     <th>Actions</th>
                 </tr>
@@ -179,7 +182,7 @@
                         </tr>
                     {% else %}
                         <tr>
-                            <td colspan="10" class="text-center text-muted">Aucun client trouvé.</td>
+                            <td colspan="10" class="text-center text-muted">Aucun contact trouvé.</td>
                         </tr>
                     {% endfor %}
             </tbody>
@@ -265,7 +268,7 @@
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="associateCategorieModalLabel">Associer une catégorie de clients</h5>
+        <h5 class="modal-title" id="associateCategorieModalLabel">Associer une catégorie de contacts</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">

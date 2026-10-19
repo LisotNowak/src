@@ -159,7 +159,7 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
 
             $entityManager->flush();
 
-            $this->addFlash('success', 'Le client a été ajouté avec succès.');
+            $this->addFlash('success', 'Le contact a été ajouté avec succès.');
 
             // Redirige vers la liste des clients, en sélectionnant le signataire si possible
             return $this->redirectToRoute('app_clients_list');
@@ -213,7 +213,7 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
 
             $entityManager->flush();
 
-            $this->addFlash('success', 'Le client a été modifié avec succès.');
+            $this->addFlash('success', 'Le contact a été modifié avec succès.');
 
             return $this->redirectToRoute('app_clients_list');
         }
@@ -239,7 +239,7 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
             $clientIds = $request->request->all('clients');
 
             if (empty($signataireIds) || empty($clientIds)) {
-                $this->addFlash('error', 'Veuillez sélectionner au moins un signataire et un client.');
+                $this->addFlash('error', 'Veuillez sélectionner au moins un signataire et un contact.');
                 return $this->redirectToRoute('app_client_associate');
             }
 
@@ -273,7 +273,7 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
             $this->addFlash(
                 'success',
                 sprintf(
-                    '%d client(s) ont été associés à %d signataire(s) avec succès.',
+                    '%d contact(s) ont été associés à %d signataire(s) avec succès.',
                     count($clientsToAssociate),
                     count($signataires)
                 )
@@ -458,7 +458,7 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
         $signataire = $signataireRepo->find($data['signataire']);
 
         if (!$client || !$signataire) {
-            return $this->json(['success' => false, 'error' => 'Client ou signataire introuvable'], 404);
+            return $this->json(['success' => false, 'error' => 'Contact ou signataire introuvable'], 404);
         }
 
         $association = $associationRepo->findOneBy([

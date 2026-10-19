@@ -1,13 +1,13 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Association Clients / Signataires{% endblock %}
+{% block title %}Association Contacts / Signataires{% endblock %}
 
 {% block body %}
 <div class="container mt-4">
     <a href="{{ path('app_clients_list') }}" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Retour à la liste
     </a>
-    <h2 class="mb-4 text-center">🔗 Associer des clients à un ou plusieurs signataires</h2>
+    <h2 class="mb-4 text-center">🔗 Associer des contacts à un ou plusieurs signataires</h2>
 
     {# Flash messages #}
     {% for message in app.flashes('success') %}
@@ -32,7 +32,7 @@
 
         {# Clients déjà associés aux signataires sélectionnés (chargés en AJAX) #}
         <div id="existingAssociations" class="mb-4 d-none">
-            <h5>👥 Clients déjà associés</h5>
+            <h5>👥 Contacts déjà associés</h5>
             <div id="existingAssociationsContent"></div>
         </div>
 
@@ -40,8 +40,8 @@
 
         <div class="row">
             <div class="col-md-7">
-                <h5>📋 Liste des clients disponibles</h5>
-                <input type="text" id="searchClient" class="form-control mb-2" placeholder="Rechercher un client...">
+                <h5>📋 Liste des contacts disponibles</h5>
+                <input type="text" id="searchClient" class="form-control mb-2" placeholder="Rechercher un contact...">
 
                 <div id="clientsList" class="border rounded p-3" style="max-height: 400px; overflow-y: auto;">
                     {% for client in clients %}
@@ -56,28 +56,28 @@
                             <label class="form-check-label" for="client_{{ client.id }}">
                                 {{ client.triNom|upper }} {{ client.triPrenom }}
                                 <span class="text-muted small">
-                                    - {{ client.ville ?? '' }} ({{ client.codePostal ?? '' }})
+                                    - {{ client.ville ?? '' }}{% if client.societeNom %} ({{ client.societeNom }}){% endif %}
                                 </span>
                             </label>
                             <span class="badge bg-secondary ms-1 d-none already-associated-badge" data-client-id="{{ client.id }}"></span>
                         </div>
                     {% else %}
-                        <p class="text-muted fst-italic">Aucun client trouvé.</p>
+                        <p class="text-muted fst-italic">Aucun contact trouvé.</p>
                     {% endfor %}
                 </div>
             </div>
 
             <div class="col-md-5">
-                <h5>✅ Clients sélectionnés</h5>
+                <h5>✅ Contacts sélectionnés</h5>
                 <ul id="selectedClients" class="list-group small">
-                    <li class="list-group-item text-muted">Aucun client sélectionné pour le moment.</li>
+                    <li class="list-group-item text-muted">Aucun contact sélectionné pour le moment.</li>
                 </ul>
             </div>
         </div>
 
         <div class="text-center mt-4">
             <button type="submit" class="btn btn-primary px-5 py-2">
-                Associer les clients sélectionnés
+                Associer les contacts sélectionnés
             </button>
         </div>
     </form>
@@ -102,7 +102,7 @@ function refreshSelectedList() {
     const selected = Array.from(clientCheckboxes).filter(cb => cb.checked);
 
     if (selected.length === 0) {
-        selectedList.innerHTML = '<li class="list-group-item text-muted">Aucun client sélectionné pour le moment.</li>';
+        selectedList.innerHTML = '<li class="list-group-item text-muted">Aucun contact sélectionné pour le moment.</li>';
         return;
     }
 
@@ -158,14 +158,14 @@ function renderExistingAssociations() {
         card.innerHTML = `
             <div class="card-header d-flex justify-content-between align-items-center">
                 <strong>${escapeHtml(data.signataire.nom)}</strong>
-                <span class="badge bg-primary rounded-pill">${data.clients.length} client(s)</span>
+                <span class="badge bg-primary rounded-pill">${data.clients.length} contact(s)</span>
             </div>
             <div class="card-body">
                 ${data.clients.length === 0
-                    ? '<p class="text-muted fst-italic mb-0">Aucun client associé.</p>'
+                    ? '<p class="text-muted fst-italic mb-0">Aucun contact associé.</p>'
                     : `
                     <div class="d-flex gap-2 mb-2">
-                        <input type="text" class="form-control form-control-sm existing-search" placeholder="Rechercher un client associé...">
+                        <input type="text" class="form-control form-control-sm existing-search" placeholder="Rechercher un contact associé...">
                         <button type="button" class="btn btn-sm btn-outline-secondary existing-select-all text-nowrap">Tout cocher</button>
                         <button type="button" class="btn btn-sm btn-danger existing-delete-selected text-nowrap" disabled>
                             <i class="bi bi-trash"></i> Supprimer la sélection
@@ -279,7 +279,7 @@ function loadExistingAssociations() {
         renderExistingAssociations();
     })
     .catch(() => {
-        existingContent.innerHTML = '<div class="alert alert-danger">Erreur lors du chargement des clients associés.</div>';
+        existingContent.innerHTML = '<div class="alert alert-danger">Erreur lors du chargement des contacts associés.</div>';
     });
 }
 

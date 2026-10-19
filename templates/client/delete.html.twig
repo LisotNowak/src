@@ -1,17 +1,17 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Supprimer des clients{% endblock %}
+{% block title %}Supprimer des contacts{% endblock %}
 
 {% block body %}
 <div class="container mt-5">
-    <h2 class="mb-4 text-danger">Supprimer des clients</h2>
+    <h2 class="mb-4 text-danger">Supprimer des contacts</h2>
 
     <div class="d-flex justify-content-between align-items-center mb-4">
         <a href="{{ path('app_clients_list') }}" class="btn btn-secondary">⬅️ Retour à la liste</a>
 
         <!-- Barre de recherche -->
         <div class="w-50">
-            <input type="text" id="searchInput" class="form-control" placeholder="🔍 Rechercher un client (nom, prénom, ville, société...)">
+            <input type="text" id="searchInput" class="form-control" placeholder="🔍 Rechercher un contact (nom, prénom, ville, société...)">
         </div>
     </div>
 
@@ -50,7 +50,7 @@
             </tbody>
         </table>
     {% else %}
-        <div class="alert alert-info">Aucun client trouvé.</div>
+        <div class="alert alert-info">Aucun contact trouvé.</div>
     {% endif %}
 </div>
 
