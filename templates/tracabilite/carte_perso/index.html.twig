@@ -1,0 +1,699 @@
+{% extends 'tracabilite/layout.html.twig' %}
+
+{% block title %}Tracabilité – Cartes personnalisées{% endblock %}
+
+{% block stylesheets %}
+{{ parent() }}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+{% endblock %}
+
+{% block body %}
+<div class="p-2 p-md-3">
+
+    {% for label, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="alert alert-{{ label == 'success' ? 'success' : (label == 'danger' ? 'danger' : 'info') }} alert-dismissible fade show py-2">
+                {{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endfor %}
+
+    {# ── Barre d'outils ── #}
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+        <h4 class="mb-0 fw-bold me-2" style="color:#800000;">
+            <i class="fas fa-object-group me-2"></i>Cartes personnalisées
+        </h4>
+
+        {% if cartes|length > 0 %}
+        <select id="cp-choix" class="form-select form-select-sm" style="width:auto; max-width:240px;" title="Ouvrir une carte">
+            {% for c in cartes %}
+                <option value="{{ c.id }}" {{ carte and carte.id == c.id ? 'selected' : '' }}>{{ c.nom }}</option>
+            {% endfor %}
+        </select>
+        {% endif %}
+
+        <button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#cp-modal-new">
+            <i class="fas fa-plus me-1"></i>Nouvelle carte
+        </button>
+
+        {% if carte %}
+        <div class="ms-lg-auto d-flex flex-wrap align-items-center gap-2">
+            <span id="cp-etat" class="small text-muted">
+                {{ carte.modifieA ? 'Enregistrée le ' ~ carte.modifieA|date('d/m/Y H:i') : 'Jamais enregistrée' }}
+            </span>
+            <button type="button" id="cp-save" class="btn btn-sm btn-success">
+                <i class="fas fa-save me-1"></i>Enregistrer
+            </button>
+            <button type="button" id="cp-print" class="btn btn-sm btn-primary">
+                <i class="fas fa-print me-1"></i>Imprimer
+            </button>
+            <form action="{{ path('app_tracabilite_carte_perso_dupliquer', {id: carte.id}) }}" method="post" class="d-inline">
+                <input type="hidden" name="_token" value="{{ csrf_token('carte_perso_dupliquer_' ~ carte.id) }}">
+                <button type="submit" class="btn btn-sm btn-outline-secondary" title="Dupliquer cette carte (pour en faire une variante)">
+                    <i class="fas fa-copy"></i>
+                </button>
+            </form>
+            <form action="{{ path('app_tracabilite_carte_perso_delete', {id: carte.id}) }}" method="post" class="d-inline"
+                  onsubmit="return confirm('Supprimer définitivement la carte « {{ carte.nom|e('js') }} » ?')">
+                <input type="hidden" name="_token" value="{{ csrf_token('carte_perso_delete_' ~ carte.id) }}">
+                <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer cette carte">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if carte %}
+    <div class="d-flex flex-column flex-lg-row gap-2" style="min-height:0;">
+
+        {# ── Panneau de gauche : nom, options, parcelles ── #}
+        <div id="cp-panneau" class="card border-0 shadow-sm flex-shrink-0">
+            <div class="card-body p-2 small d-flex flex-column gap-2" style="min-height:0;">
+
+                <div>
+                    <label class="form-label mb-1 fw-semibold" for="cp-nom">Nom de la carte</label>
+                    <input type="text" id="cp-nom" class="form-control form-control-sm" maxlength="150" value="{{ carte.nom }}">
+                </div>
+
+                <details open>
+                    <summary class="fw-semibold mb-1">Affichage &amp; impression</summary>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="cp-opt-noms" {{ options.afficherNoms ? 'checked' : '' }}>
+                        <label class="form-check-label" for="cp-opt-noms">Afficher les noms</label>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <label for="cp-opt-police" class="text-nowrap">Taille du texte</label>
+                        <input type="range" id="cp-opt-police" class="form-range" min="6" max="24" step="1" value="{{ options.taillePolice }}">
+                        <span id="cp-opt-police-val" class="text-nowrap">{{ options.taillePolice }} px</span>
+                    </div>
+                    <div class="d-flex gap-1">
+                        <select id="cp-opt-couleur" class="form-select form-select-sm" title="Couleur des parcelles">
+                            <option value="neutre" {{ options.couleur == 'neutre' ? 'selected' : '' }}>Couleur neutre</option>
+                            <option value="avancement" {{ options.couleur == 'avancement' ? 'selected' : '' }}>Couleur selon avancement</option>
+                        </select>
+                        <select id="cp-opt-format" class="form-select form-select-sm" title="Format d'impression">
+                            <option value="a4-paysage" {{ options.format == 'a4-paysage' ? 'selected' : '' }}>A4 paysage</option>
+                            <option value="a4-portrait" {{ options.format == 'a4-portrait' ? 'selected' : '' }}>A4 portrait</option>
+                            <option value="a3-paysage" {{ options.format == 'a3-paysage' ? 'selected' : '' }}>A3 paysage</option>
+                            <option value="a3-portrait" {{ options.format == 'a3-portrait' ? 'selected' : '' }}>A3 portrait</option>
+                        </select>
+                    </div>
+                </details>
+
+                {# Parcelle sélectionnée #}
+                <div id="cp-selection" class="border rounded p-2 bg-light" style="display:none;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="fw-bold" id="cp-sel-nom">—</span>
+                        <button type="button" class="btn-close" id="cp-sel-fermer" style="font-size:0.6rem;" title="Désélectionner"></button>
+                    </div>
+                    <div class="text-muted mb-1" id="cp-sel-decalage"></div>
+                    <div class="d-flex flex-wrap gap-1">
+                        <button type="button" class="btn btn-sm btn-outline-primary py-0" id="cp-sel-centre" title="Amène la parcelle au centre de la vue actuelle">
+                            <i class="fas fa-crosshairs me-1"></i>Au centre de la vue
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary py-0" id="cp-sel-reset" title="Remet la parcelle à sa position géographique réelle">
+                            <i class="fas fa-undo me-1"></i>Position réelle
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger py-0" id="cp-sel-retirer" title="Retire la parcelle de cette carte">
+                            <i class="fas fa-eye-slash"></i>
+                        </button>
+                    </div>
+                    <div class="text-muted mt-1" style="font-size:0.7rem;">Glisser la parcelle à la souris · flèches du clavier : 5 m (Maj : 50 m)</div>
+                </div>
+
+                {# Liste des parcelles #}
+                <div class="d-flex flex-column" style="min-height:0; flex:1;">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="fw-semibold">Parcelles <span class="badge text-bg-secondary" id="cp-compteur">0</span></span>
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn btn-outline-secondary py-0" id="cp-tout" title="Cocher les parcelles affichées dans la liste">Tout</button>
+                            <button type="button" class="btn btn-outline-secondary py-0" id="cp-rien" title="Décocher les parcelles affichées dans la liste">Aucune</button>
+                            <button type="button" class="btn btn-outline-secondary py-0" id="cp-recadrer" title="Recadrer la vue sur les parcelles de la carte"><i class="fas fa-expand"></i></button>
+                        </div>
+                    </div>
+                    <input type="search" id="cp-recherche" class="form-control form-control-sm mb-1" placeholder="Filtrer les parcelles…" autocomplete="off">
+                    <div id="cp-liste" class="border rounded bg-white" style="overflow-y:auto; flex:1;">
+                        <div class="text-muted p-2">Chargement des parcelles…</div>
+                    </div>
+                </div>
+
+                <div class="text-muted" style="font-size:0.7rem;">
+                    Créée par {{ carte.auteur ?? '—' }} le {{ carte.creeA|date('d/m/Y') }}
+                </div>
+            </div>
+        </div>
+
+        {# ── Zone imprimée : titre + carte ── #}
+        <div id="cp-print-zone" class="card border-0 shadow-sm flex-grow-1">
+            <div id="cp-titre" class="d-flex justify-content-between align-items-end px-3 pt-2 pb-1 border-bottom">
+                <div>
+                    <div class="fw-bold" id="cp-titre-nom" style="color:#800000; font-size:1.05rem;">{{ carte.nom }}</div>
+                    <div class="text-muted" id="cp-titre-info" style="font-size:0.75rem;"></div>
+                </div>
+                <div id="cp-legende" class="d-flex flex-wrap gap-1" style="font-size:0.7rem;"></div>
+            </div>
+            <div id="cp-map"></div>
+        </div>
+    </div>
+
+    {% else %}
+    <div class="card border-0 shadow-sm">
+        <div class="card-body text-center text-muted py-5">
+            <i class="fas fa-object-group fa-3x mb-3" style="color:#dee2e6;"></i>
+            <div class="mb-1">Aucune carte personnalisée pour le moment.</div>
+            <div class="small mb-3">Créez une carte, cochez les parcelles à afficher puis déplacez-les pour rapprocher les parcelles éloignées.</div>
+            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#cp-modal-new">
+                <i class="fas fa-plus me-1"></i>Créer une carte
+            </button>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{# ── Modal nouvelle carte ── #}
+<div class="modal fade" id="cp-modal-new" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header" style="background:#800000; color:#fff;">
+                <h6 class="modal-title"><i class="fas fa-plus me-1"></i>Nouvelle carte</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ path('app_tracabilite_carte_perso_new') }}" method="post">
+                <input type="hidden" name="_token" value="{{ csrf_token('carte_perso_new') }}">
+                <div class="modal-body">
+                    <label class="form-label small fw-semibold" for="cp-new-nom">Nom de la carte</label>
+                    <input type="text" name="nom" id="cp-new-nom" class="form-control" maxlength="150" required>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-sm btn-success">Créer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style id="cp-page-style"></style>
+<style>
+#cp-panneau { width: 100%; }
+#cp-print-zone { display: flex; flex-direction: column; min-height: 420px; }
+#cp-map { flex: 1; min-height: 380px; background: #fff; border-radius: 0 0 .375rem .375rem; }
+@media (min-width: 992px) {
+    #cp-panneau   { width: 290px; height: calc(100vh - 150px); }
+    #cp-print-zone { height: calc(100vh - 150px); }
+}
+#cp-liste .cp-ligne { display: flex; align-items: center; gap: .4rem; padding: 2px 8px; cursor: pointer; }
+#cp-liste .cp-ligne:hover { background: #f1f3f5; }
+#cp-liste .cp-ligne.cp-active { background: #f8e5e5; font-weight: 600; }
+#cp-liste .cp-ligne .cp-deplacee { color: #800000; font-size: .7rem; }
+
+/* Étiquettes des parcelles (taille réglable) */
+#cp-map { --cp-police: 11px; }
+.cp-label { background: none; border: none; }
+.cp-label span {
+    position: absolute; transform: translate(-50%, -50%);
+    white-space: nowrap; font-size: var(--cp-police); font-weight: 600; color: #222;
+    text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 2px #fff;
+    pointer-events: none;
+}
+#cp-map.cp-sans-noms .cp-label { display: none; }
+.cp-nord {
+    background: rgba(255,255,255,.85); border: 1px solid #999; border-radius: 4px;
+    padding: 2px 6px; font-weight: 700; font-size: .8rem; line-height: 1.1; text-align: center;
+}
+.cp-drag-actif, .cp-drag-actif * { cursor: grabbing !important; }
+
+/* Préparation de l'impression : la zone prend la taille exacte de la page */
+body.cp-printing #cp-print-zone { flex: none !important; }
+@media print {
+    /* Une seule feuille : le reste de la page est masqué et ne doit pas générer de pages blanches */
+    html, body { height: 100% !important; overflow: hidden !important; background: #fff !important; }
+    body * { visibility: hidden !important; }
+    #cp-print-zone, #cp-print-zone * { visibility: visible !important; }
+    /* fixed : positionné sur la feuille, indépendamment de la barre latérale masquée */
+    #cp-print-zone {
+        position: fixed !important; left: 0 !important; top: 0 !important;
+        box-shadow: none !important; border: none !important; border-radius: 0 !important;
+    }
+    #cp-map { border-radius: 0 !important; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    #cp-print-zone .leaflet-control-zoom { display: none !important; }
+    #cp-titre, #cp-legende { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+}
+</style>
+
+{% if carte %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+(function () {
+// ── Données de la carte ─────────────────────────────────────────────────────
+const CARTE = {
+    id: {{ carte.id }},
+    disposition: {{ carte.disposition|json_encode|raw }},
+    options: {{ options|json_encode|raw }},
+};
+const SAVE_URL  = {{ path('app_tracabilite_carte_perso_save', {id: carte.id})|json_encode|raw }};
+const TOKEN     = {{ csrf_token('carte_perso_save_' ~ carte.id)|json_encode|raw }};
+const INDEX_URL = {{ path('app_tracabilite_carte_perso_index')|json_encode|raw }};
+const GEOJSON_URL = {{ path('app_tracabilite_carte_geojson', {mois: ''})|json_encode|raw }};
+
+const FORMATS = {
+    'a4-paysage':  { w: 297, h: 210, page: 'A4 landscape' },
+    'a4-portrait': { w: 210, h: 297, page: 'A4 portrait' },
+    'a3-paysage':  { w: 420, h: 297, page: 'A3 landscape' },
+    'a3-portrait': { w: 297, h: 420, page: 'A3 portrait' },
+};
+const MARGE_MM = 8;
+
+const options = Object.assign({}, CARTE.options);
+const parcelles = {};        // slug → { slug, parts, cx, cy, p, dx, dy, actif, polys, label }
+let selection = null;
+let modifie = false;
+
+// ── Carte sur fond blanc, coordonnées Lambert 93 en mètres ──────────────────
+// CRS.Simple : lat = y (nord), lng = x (est) ; distances en mètres, donc échelle exacte
+const map = L.map('cp-map', {
+    crs: L.CRS.Simple,
+    minZoom: -7, maxZoom: 5,
+    zoomSnap: 0.25, zoomDelta: 0.5,
+    attributionControl: false,
+    renderer: L.svg({ padding: 1 }),
+});
+L.control.scale({ metric: true, imperial: false, maxWidth: 150 }).addTo(map);
+const Nord = L.Control.extend({
+    options: { position: 'topright' },
+    onAdd() {
+        const el = L.DomUtil.create('div', 'cp-nord');
+        el.innerHTML = 'N<br>↑';
+        return el;
+    },
+});
+new Nord().addTo(map);
+
+function advColor(adv) {
+    if (adv <= 0)   return '#adb5bd';
+    if (adv >= 100) return '#198754';
+    if (adv >= 75)  return '#0dcaf0';
+    if (adv >= 50)  return '#ffc107';
+    return '#dc3545';
+}
+
+function style(item) {
+    const sel = item === selection;
+    return {
+        color: sel ? '#800000' : '#333',
+        weight: sel ? 3 : 1,
+        fillColor: options.couleur === 'avancement' ? advColor(item.p.avancement || 0) : '#e9ecef',
+        fillOpacity: options.couleur === 'avancement' ? 0.75 : 0.9,
+    };
+}
+
+function latlngs(item, part) {
+    return part.map(ring => ring.map(([x, y]) => [y + item.dy, x + item.dx]));
+}
+
+function estDeplacee(item) {
+    return Math.abs(item.dx) >= 0.5 || Math.abs(item.dy) >= 0.5;
+}
+
+// ── Dessin / mise à jour d'une parcelle ─────────────────────────────────────
+function afficher(item) {
+    if (item.polys) return;
+    item.polys = item.parts.map(part => {
+        const poly = L.polygon(latlngs(item, part), style(item)).addTo(map);
+        poly.on('mousedown', e => debutGlisser(item, e));
+        poly.on('click', e => L.DomEvent.stopPropagation(e));
+        return poly;
+    });
+    // Le nom est dans le HTML de l'icône : l'élément n'existe pas encore tant que la vue n'est pas positionnée
+    const span = document.createElement('span');
+    span.textContent = item.slug;
+    item.label = L.marker([item.cy + item.dy, item.cx + item.dx], {
+        icon: L.divIcon({ className: 'cp-label', html: span.outerHTML, iconSize: null }),
+        interactive: false, keyboard: false,
+    }).addTo(map);
+}
+
+function masquer(item) {
+    if (!item.polys) return;
+    item.polys.forEach(p => map.removeLayer(p));
+    map.removeLayer(item.label);
+    item.polys = null;
+    item.label = null;
+}
+
+function deplacer(item) {
+    if (!item.polys) return;
+    item.polys.forEach((poly, i) => poly.setLatLngs(latlngs(item, item.parts[i])));
+    item.label.setLatLng([item.cy + item.dy, item.cx + item.dx]);
+    if (item === selection) majSelection();
+}
+
+function restyler() {
+    Object.values(parcelles).forEach(item => item.polys && item.polys.forEach(p => p.setStyle(style(item))));
+    majLegende();
+}
+
+// ── Glisser-déposer des parcelles ───────────────────────────────────────────
+let glisse = null;
+
+function debutGlisser(item, e) {
+    L.DomEvent.stopPropagation(e);
+    selectionner(item);
+    map.dragging.disable();
+    glisse = { item, x: e.latlng.lng, y: e.latlng.lat, dx: item.dx, dy: item.dy, bouge: false };
+    document.body.classList.add('cp-drag-actif');
+}
+
+map.on('mousemove', e => {
+    if (!glisse) return;
+    glisse.item.dx = glisse.dx + (e.latlng.lng - glisse.x);
+    glisse.item.dy = glisse.dy + (e.latlng.lat - glisse.y);
+    glisse.bouge = true;
+    deplacer(glisse.item);
+});
+
+function finGlisser() {
+    if (!glisse) return;
+    const { item, bouge } = glisse;
+    glisse = null;
+    map.dragging.enable();
+    document.body.classList.remove('cp-drag-actif');
+    if (bouge) { marquerModifie(); majLigne(item); }
+}
+map.on('mouseup', finGlisser);
+document.addEventListener('mouseup', finGlisser);
+
+// Déplacement fin au clavier
+document.addEventListener('keydown', e => {
+    if (!selection || !selection.polys) return;
+    if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+    const pas = e.shiftKey ? 50 : 5;
+    const d = { ArrowLeft: [-pas, 0], ArrowRight: [pas, 0], ArrowUp: [0, pas], ArrowDown: [0, -pas] }[e.key];
+    if (!d) return;
+    e.preventDefault();
+    selection.dx += d[0];
+    selection.dy += d[1];
+    deplacer(selection);
+    majLigne(selection);
+    marquerModifie();
+});
+
+// ── Sélection ───────────────────────────────────────────────────────────────
+function selectionner(item) {
+    const avant = selection;
+    selection = item;
+    [avant, item].forEach(i => i && i.polys && i.polys.forEach(p => { p.setStyle(style(i)); if (i === item) p.bringToFront(); }));
+    document.querySelectorAll('#cp-liste .cp-ligne').forEach(l => l.classList.toggle('cp-active', item && l.dataset.slug === item.slug));
+    majSelection();
+}
+
+function majSelection() {
+    const bloc = document.getElementById('cp-selection');
+    if (!selection || !selection.polys) { bloc.style.display = 'none'; return; }
+    bloc.style.display = '';
+    document.getElementById('cp-sel-nom').textContent = selection.slug;
+    const dist = Math.round(Math.hypot(selection.dx, selection.dy));
+    document.getElementById('cp-sel-decalage').textContent = dist >= 1
+        ? 'Déplacée de ' + dist.toLocaleString('fr') + ' m par rapport à sa position réelle'
+        : 'À sa position réelle';
+}
+
+document.getElementById('cp-sel-fermer').addEventListener('click', () => selectionner(null));
+map.on('click', () => selectionner(null));
+
+document.getElementById('cp-sel-centre').addEventListener('click', () => {
+    if (!selection) return;
+    const c = map.getCenter();
+    selection.dx = c.lng - selection.cx;
+    selection.dy = c.lat - selection.cy;
+    deplacer(selection); majLigne(selection); marquerModifie();
+});
+document.getElementById('cp-sel-reset').addEventListener('click', () => {
+    if (!selection) return;
+    selection.dx = 0; selection.dy = 0;
+    deplacer(selection); majLigne(selection); marquerModifie();
+});
+document.getElementById('cp-sel-retirer').addEventListener('click', () => {
+    if (!selection) return;
+    basculer(selection, false);
+});
+
+// ── Liste des parcelles ─────────────────────────────────────────────────────
+function basculer(item, actif) {
+    item.actif = actif;
+    if (actif) afficher(item); else { masquer(item); if (item === selection) selectionner(null); }
+    const cb = document.querySelector('#cp-liste input[data-slug="' + CSS.escape(item.slug) + '"]');
+    if (cb) cb.checked = actif;
+    majLigne(item);
+    majCompteur();
+    marquerModifie();
+}
+
+function construireListe() {
+    const liste = document.getElementById('cp-liste');
+    liste.innerHTML = '';
+    Object.values(parcelles).sort((a, b) => a.slug.localeCompare(b.slug, 'fr', { numeric: true })).forEach(item => {
+        const ligne = document.createElement('label');
+        ligne.className = 'cp-ligne';
+        ligne.dataset.slug = item.slug;
+
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.className = 'form-check-input m-0';
+        cb.dataset.slug = item.slug;
+        cb.checked = item.actif;
+        cb.addEventListener('change', () => basculer(item, cb.checked));
+
+        const nom = document.createElement('span');
+        nom.className = 'flex-grow-1 text-truncate';
+        nom.textContent = item.slug;
+
+        const marque = document.createElement('i');
+        marque.className = 'fas fa-arrows-alt cp-deplacee';
+        marque.title = 'Parcelle déplacée';
+
+        ligne.append(cb, nom, marque);
+        // Clic sur le nom : sélectionne et centre la vue sur la parcelle
+        nom.addEventListener('click', e => {
+            if (!item.actif) return;
+            e.preventDefault();
+            selectionner(item);
+            map.panTo([item.cy + item.dy, item.cx + item.dx]);
+        });
+        liste.appendChild(ligne);
+        majLigne(item);
+    });
+    majCompteur();
+}
+
+function majLigne(item) {
+    const ligne = document.querySelector('#cp-liste .cp-ligne[data-slug="' + CSS.escape(item.slug) + '"]');
+    if (ligne) ligne.querySelector('.cp-deplacee').style.visibility = item.actif && estDeplacee(item) ? '' : 'hidden';
+    majTitre();
+}
+
+function majCompteur() {
+    document.getElementById('cp-compteur').textContent = Object.values(parcelles).filter(i => i.actif).length;
+}
+
+function lignesVisibles() {
+    return [...document.querySelectorAll('#cp-liste .cp-ligne')].filter(l => l.style.display !== 'none');
+}
+
+document.getElementById('cp-recherche').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('#cp-liste .cp-ligne').forEach(l => {
+        l.style.display = !q || l.dataset.slug.toLowerCase().includes(q) ? '' : 'none';
+    });
+});
+document.getElementById('cp-tout').addEventListener('click', () => {
+    lignesVisibles().forEach(l => { const it = parcelles[l.dataset.slug]; if (!it.actif) basculer(it, true); });
+});
+document.getElementById('cp-rien').addEventListener('click', () => {
+    lignesVisibles().forEach(l => { const it = parcelles[l.dataset.slug]; if (it.actif) basculer(it, false); });
+});
+document.getElementById('cp-recadrer').addEventListener('click', () => recadrer());
+
+function recadrer(padding = 30) {
+    const actifs = Object.values(parcelles).filter(i => i.polys);
+    if (!actifs.length) return;
+    // Nouvel objet : getBounds() renvoie les limites internes du polygone, à ne pas modifier
+    const b = L.latLngBounds([]);
+    actifs.forEach(i => i.polys.forEach(p => b.extend(p.getBounds())));
+    map.fitBounds(b, { padding: [padding, padding], animate: false });
+}
+
+// ── Titre & légende (imprimés avec la carte) ────────────────────────────────
+function majTitre() {
+    const nom = document.getElementById('cp-nom').value.trim() || 'Carte sans nom';
+    document.getElementById('cp-titre-nom').textContent = nom;
+    const actifs = Object.values(parcelles).filter(i => i.actif);
+    const deplacees = actifs.filter(estDeplacee).length;
+    document.getElementById('cp-titre-info').textContent =
+        actifs.length + ' parcelle(s) · ' + new Date().toLocaleDateString('fr') +
+        (deplacees ? ' · ' + deplacees + ' parcelle(s) repositionnée(s) : les distances entre parcelles ne sont pas réelles' : '');
+}
+
+function majLegende() {
+    const el = document.getElementById('cp-legende');
+    el.innerHTML = '';
+    if (options.couleur !== 'avancement') return;
+    [['#198754', '100 %'], ['#0dcaf0', '≥ 75 %'], ['#ffc107', '≥ 50 %'], ['#dc3545', '< 50 %'], ['#adb5bd', 'Non commencé']].forEach(([c, t]) => {
+        const s = document.createElement('span');
+        s.className = 'badge text-bg-light border';
+        s.innerHTML = '<span class="d-inline-block me-1" style="width:9px;height:9px;border-radius:2px;"></span>';
+        s.firstChild.style.background = c;
+        s.append(t);
+        el.appendChild(s);
+    });
+}
+
+// ── Options ─────────────────────────────────────────────────────────────────
+function appliquerOptions() {
+    map.getContainer().classList.toggle('cp-sans-noms', !options.afficherNoms);
+    map.getContainer().style.setProperty('--cp-police', options.taillePolice + 'px');
+    document.getElementById('cp-opt-police-val').textContent = options.taillePolice + ' px';
+}
+
+document.getElementById('cp-opt-noms').addEventListener('change', e => { options.afficherNoms = e.target.checked; appliquerOptions(); marquerModifie(); });
+document.getElementById('cp-opt-police').addEventListener('input', e => { options.taillePolice = parseInt(e.target.value, 10); appliquerOptions(); marquerModifie(); });
+document.getElementById('cp-opt-couleur').addEventListener('change', e => { options.couleur = e.target.value; restyler(); marquerModifie(); });
+document.getElementById('cp-opt-format').addEventListener('change', e => { options.format = e.target.value; marquerModifie(); });
+document.getElementById('cp-nom').addEventListener('input', () => { majTitre(); marquerModifie(); });
+
+// ── Enregistrement ──────────────────────────────────────────────────────────
+function marquerModifie() {
+    modifie = true;
+    const etat = document.getElementById('cp-etat');
+    etat.textContent = 'Modifications non enregistrées';
+    etat.className = 'small text-warning-emphasis fw-semibold';
+}
+
+async function enregistrer() {
+    const disposition = {};
+    Object.values(parcelles).filter(i => i.actif).forEach(i => {
+        disposition[i.slug] = [Math.round(i.dx * 10) / 10, Math.round(i.dy * 10) / 10];
+    });
+    const btn = document.getElementById('cp-save');
+    btn.disabled = true;
+    try {
+        const r = await fetch(SAVE_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ _token: TOKEN, nom: document.getElementById('cp-nom').value, disposition, options }),
+        });
+        const res = await r.json();
+        if (!r.ok) throw new Error(res.error || 'Erreur ' + r.status);
+        modifie = false;
+        const etat = document.getElementById('cp-etat');
+        etat.textContent = 'Enregistrée le ' + res.modifieA;
+        etat.className = 'small text-success';
+        const opt = document.querySelector('#cp-choix option[value="' + CARTE.id + '"]');
+        if (opt) opt.textContent = res.nom;
+    } catch (err) {
+        alert("La carte n'a pas pu être enregistrée : " + err.message);
+    } finally {
+        btn.disabled = false;
+    }
+}
+document.getElementById('cp-save').addEventListener('click', enregistrer);
+document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); enregistrer(); }
+});
+
+window.addEventListener('beforeunload', e => { if (modifie) { e.preventDefault(); e.returnValue = ''; } });
+
+document.getElementById('cp-choix')?.addEventListener('change', e => {
+    if (modifie && !confirm('Des modifications ne sont pas enregistrées. Changer de carte quand même ?')) {
+        e.target.value = CARTE.id;
+        return;
+    }
+    modifie = false;
+    window.location.href = INDEX_URL + '?id=' + encodeURIComponent(e.target.value);
+});
+
+// ── Impression : la zone prend exactement la taille de la feuille choisie ───
+const zone = document.getElementById('cp-print-zone');
+let centreAvantImpression = null;
+
+function preparerImpression() {
+    if (document.body.classList.contains('cp-printing')) return;
+    const f = FORMATS[options.format] || FORMATS['a4-paysage'];
+    document.getElementById('cp-page-style').textContent = '@page { size: ' + f.page + '; margin: ' + MARGE_MM + 'mm; }';
+    centreAvantImpression = { centre: map.getCenter(), zoom: map.getZoom() };
+    document.body.classList.add('cp-printing');
+    zone.style.width  = (f.w - 2 * MARGE_MM) + 'mm';
+    zone.style.height = (f.h - 2 * MARGE_MM - 2) + 'mm';
+    map.invalidateSize(false);
+    recadrer(15);
+}
+
+function finImpression() {
+    if (!document.body.classList.contains('cp-printing')) return;
+    document.body.classList.remove('cp-printing');
+    zone.style.width = '';
+    zone.style.height = '';
+    map.invalidateSize(false);
+    if (centreAvantImpression) map.setView(centreAvantImpression.centre, centreAvantImpression.zoom, { animate: false });
+}
+
+document.getElementById('cp-print').addEventListener('click', () => {
+    selectionner(null);
+    preparerImpression();
+    setTimeout(() => window.print(), 300);
+});
+window.addEventListener('beforeprint', preparerImpression);
+window.addEventListener('afterprint', finImpression);
+
+// ── Chargement des parcelles ────────────────────────────────────────────────
+appliquerOptions();
+majLegende();
+
+fetch(GEOJSON_URL)
+    .then(r => r.json())
+    .then(data => {
+        data.features.forEach(f => {
+            const g = f.geometry;
+            if (!g || !['Polygon', 'MultiPolygon'].includes(g.type)) return;
+            const parts = g.type === 'Polygon' ? [g.coordinates] : g.coordinates;
+            let xmin = Infinity, xmax = -Infinity, ymin = Infinity, ymax = -Infinity;
+            parts.forEach(rings => rings[0].forEach(([x, y]) => {
+                xmin = Math.min(xmin, x); xmax = Math.max(xmax, x);
+                ymin = Math.min(ymin, y); ymax = Math.max(ymax, y);
+            }));
+            const slug = f.properties.slug;
+            const d = CARTE.disposition[slug];
+            parcelles[slug] = {
+                slug, parts, p: f.properties,
+                cx: (xmin + xmax) / 2, cy: (ymin + ymax) / 2,
+                dx: d ? d[0] : 0, dy: d ? d[1] : 0,
+                actif: !!d, polys: null, label: null,
+            };
+        });
+
+        Object.values(parcelles).filter(i => i.actif).forEach(afficher);
+        construireListe();
+        majTitre();
+
+        if (Object.values(parcelles).some(i => i.actif)) {
+            recadrer();
+        } else {
+            // Carte vide : vue d'ensemble de toutes les parcelles
+            const all = Object.values(parcelles);
+            if (all.length) {
+                map.fitBounds([
+                    [Math.min(...all.map(i => i.cy)), Math.min(...all.map(i => i.cx))],
+                    [Math.max(...all.map(i => i.cy)), Math.max(...all.map(i => i.cx))],
+                ], { padding: [30, 30] });
+            }
+        }
+    })
+    .catch(err => {
+        document.getElementById('cp-liste').innerHTML = '<div class="text-danger p-2">Impossible de charger les parcelles.</div>';
+        console.error(err);
+    });
+})();
+</script>
+{% endif %}
+{% endblock %}
