@@ -1,0 +1,178 @@
+{% extends 'tracabilite/layout.html.twig' %}
+
+{% block title %}Tracabilité – {{ creation ? 'Nouvelle parcelle' : 'Parcelle ' ~ parcelle.slug }}{% endblock %}
+
+{% block body %}
+<div class="p-3 p-lg-4" style="max-width:1000px;">
+
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+        <a href="{{ path('app_tracabilite_parcelle_index') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        <h4 class="mb-0 fw-bold" style="color:#800000;">
+            <i class="fas fa-th-large me-2"></i>{{ creation ? 'Nouvelle parcelle' : 'Parcelle ' ~ parcelle.slug }}
+        </h4>
+    </div>
+
+    {% if erreurs['_'] is defined %}
+        <div class="alert alert-danger py-2">{{ erreurs['_'] }}</div>
+    {% elseif erreurs|length > 0 %}
+        <div class="alert alert-danger py-2">Le formulaire contient des erreurs, corrigez les champs signalés.</div>
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data" novalidate>
+        <input type="hidden" name="_token" value="{{ csrf_token('parcelle_form') }}">
+
+        <div class="row g-3">
+            <div class="col-lg-5">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white fw-semibold">
+                        <i class="fas fa-info-circle me-2" style="color:#800000;"></i>Informations
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label" for="p-slug">Identifiant</label>
+                            <input type="text" id="p-slug" name="slug" maxlength="255" value="{{ valeurs.slug }}"
+                                   class="form-control {{ erreurs.slug is defined ? 'is-invalid' }}"
+                                   {{ slugBloque ? 'readonly' }} required>
+                            {% if erreurs.slug is defined %}<div class="invalid-feedback">{{ erreurs.slug }}</div>{% endif %}
+                            <div class="form-text">
+                                {% if slugBloque %}
+                                    <i class="fas fa-lock me-1"></i>Non modifiable : utilisé dans {{ nbSaisies }} saisie(s).
+                                {% else %}
+                                    Nom affiché sur les cartes et dans les saisies (lettres, chiffres, « _ », « - »).
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row g-2 mb-3">
+                            <div class="col-7">
+                                <label class="form-label" for="p-cepage">Cépage</label>
+                                <input type="text" id="p-cepage" name="cepage" maxlength="100" list="liste-cepages" value="{{ valeurs.cepage }}"
+                                       class="form-control {{ erreurs.cepage is defined ? 'is-invalid' }}">
+                                {% if erreurs.cepage is defined %}<div class="invalid-feedback">{{ erreurs.cepage }}</div>{% endif %}
+                                <datalist id="liste-cepages">{% for c in cepages %}<option value="{{ c }}">{% endfor %}</datalist>
+                            </div>
+                            <div class="col-5">
+                                <label class="form-label" for="p-gamme">Gamme</label>
+                                <input type="text" id="p-gamme" name="gamme" maxlength="50" list="liste-gammes" value="{{ valeurs.gamme }}"
+                                       class="form-control {{ erreurs.gamme is defined ? 'is-invalid' }}">
+                                {% if erreurs.gamme is defined %}<div class="invalid-feedback">{{ erreurs.gamme }}</div>{% endif %}
+                                <datalist id="liste-gammes">{% for g in gammes %}<option value="{{ g }}">{% endfor %}</datalist>
+                            </div>
+                        </div>
+
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="form-label" for="p-surface">Surface (ha)</label>
+                                <input type="text" inputmode="decimal" id="p-surface" name="surface" value="{{ valeurs.surface }}"
+                                       class="form-control {{ erreurs.surface is defined ? 'is-invalid' }}">
+                                {% if erreurs.surface is defined %}<div class="invalid-feedback">{{ erreurs.surface }}</div>{% endif %}
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label" for="p-pieds">Nombre de pieds</label>
+                                <input type="text" inputmode="numeric" id="p-pieds" name="nombrePieds" value="{{ valeurs.nombrePieds }}"
+                                       class="form-control {{ erreurs.nombrePieds is defined ? 'is-invalid' }}">
+                                {% if erreurs.nombrePieds is defined %}<div class="invalid-feedback">{{ erreurs.nombrePieds }}</div>{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-7">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-draw-polygon me-2" style="color:#800000;"></i>Contour (géométrie)</span>
+                        <button type="button" id="geo-effacer" class="btn btn-sm btn-outline-danger py-0" title="Retirer le contour de la parcelle">
+                            <i class="fas fa-eraser me-1"></i>Effacer
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="geo-apercu" class="border rounded mb-2 d-flex align-items-center justify-content-center text-muted small"
+                             style="height:220px; background:#fff;"></div>
+
+                        <label class="form-label small mb-1" for="p-fichier">Importer un fichier GeoJSON</label>
+                        <input type="file" id="p-fichier" name="fichier_geojson" accept=".geojson,.json,application/geo+json,application/json"
+                               class="form-control form-control-sm mb-2">
+
+                        <label class="form-label small mb-1" for="p-geometrie">ou coller le GeoJSON</label>
+                        <textarea id="p-geometrie" name="geometrie" rows="5" spellcheck="false"
+                                  class="form-control form-control-sm font-monospace {{ erreurs.geometrie is defined ? 'is-invalid' }}"
+                                  style="font-size:0.7rem;">{{ valeurs.geometrie }}</textarea>
+                        {% if erreurs.geometrie is defined %}<div class="invalid-feedback">{{ erreurs.geometrie }}</div>{% endif %}
+                        <div class="form-text">
+                            Polygon ou MultiPolygon (géométrie seule, Feature ou FeatureCollection d'une seule parcelle),
+                            coordonnées en <strong>Lambert 93 (EPSG:2154)</strong>, en mètres. Sans contour, la parcelle n'apparaît pas sur les cartes.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex gap-2 mt-3">
+            <button type="submit" class="btn btn-success px-4">
+                <i class="fas fa-save me-1"></i>{{ creation ? 'Créer la parcelle' : 'Enregistrer' }}
+            </button>
+            <a href="{{ path('app_tracabilite_parcelle_index') }}" class="btn btn-outline-secondary">Annuler</a>
+        </div>
+    </form>
+</div>
+
+<style>
+#geo-apercu svg { width: 100%; height: 100%; }
+#geo-apercu path { fill: #e9ecef; stroke: #800000; stroke-width: 1.5; vector-effect: non-scaling-stroke; fill-rule: evenodd; }
+</style>
+
+<script>
+(function () {
+    const zone   = document.getElementById('p-geometrie');
+    const apercu = document.getElementById('geo-apercu');
+    const fichier = document.getElementById('p-fichier');
+
+    // Aperçu du contour (Lambert 93 en mètres, nord en haut)
+    function dessiner() {
+        apercu.innerHTML = '';
+        const texte = zone.value.trim();
+        if (!texte) { apercu.textContent = 'Aucun contour'; return; }
+        let g;
+        try { g = JSON.parse(texte); } catch (e) { apercu.textContent = 'GeoJSON illisible'; return; }
+        if (g.type === 'FeatureCollection') g = (g.features || [])[0] || {};
+        if (g.type === 'Feature') g = g.geometry || {};
+        const polys = g.type === 'Polygon' ? [g.coordinates] : g.type === 'MultiPolygon' ? g.coordinates : null;
+        if (!Array.isArray(polys)) { apercu.textContent = 'Géométrie non reconnue (Polygon ou MultiPolygon attendu)'; return; }
+
+        const pts = polys.flat(2).filter(p => Array.isArray(p) && p.length >= 2);
+        if (!pts.length) { apercu.textContent = 'Géométrie vide'; return; }
+        const xs = pts.map(p => p[0]), ys = pts.map(p => -p[1]);
+        const xmin = Math.min(...xs), ymin = Math.min(...ys);
+        const w = Math.max(Math.max(...xs) - xmin, 1), h = Math.max(Math.max(...ys) - ymin, 1), m = Math.max(w, h) * 0.06;
+
+        const ns = 'http://www.w3.org/2000/svg';
+        const svg = document.createElementNS(ns, 'svg');
+        svg.setAttribute('viewBox', [xmin - m, ymin - m, w + 2 * m, h + 2 * m].join(' '));
+        svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+        polys.forEach(rings => {
+            const path = document.createElementNS(ns, 'path');
+            path.setAttribute('d', rings.map(r => 'M' + r.map(p => p[0] + ' ' + (-p[1])).join('L') + 'Z').join(' '));
+            svg.appendChild(path);
+        });
+        apercu.appendChild(svg);
+    }
+
+    zone.addEventListener('input', dessiner);
+    // Fichier choisi : son contenu remplace le texte (et sert d'aperçu)
+    fichier.addEventListener('change', () => {
+        const f = fichier.files[0];
+        if (!f) return;
+        f.text().then(t => { zone.value = t.trim(); dessiner(); });
+    });
+    document.getElementById('geo-effacer').addEventListener('click', () => {
+        zone.value = '';
+        fichier.value = '';
+        dessiner();
+    });
+    dessiner();
+})();
+</script>
+{% endblock %}

@@ -138,6 +138,11 @@
     <hr class="mx-3 my-2">
     <div class="sidebar-title">Super admin</div>
 
+    <a href="{{ path('app_tracabilite_parcelle_index') }}"
+       class="nav-link {{ active_link == 'parcelle' ? 'active' : '' }}">
+        <i class="fas fa-th-large"></i> Parcelles
+    </a>
+
     <a href="{{ path('app_tracabilite_carte_perso_index') }}"
        class="nav-link {{ active_link == 'carte_perso' ? 'active' : '' }}">
         <i class="fas fa-object-group"></i> Cartes perso.
@@ -190,6 +195,9 @@
         {% if is_granted('ROLE_ADMIN') %}
         <hr class="mx-3 my-1">
         <div class="sidebar-title">Super admin</div>
+        <a href="{{ path('app_tracabilite_parcelle_index') }}" class="nav-link {{ active_link == 'parcelle' ? 'active' : '' }}" data-bs-dismiss="offcanvas">
+            <i class="fas fa-th-large"></i> Parcelles
+        </a>
         <a href="{{ path('app_tracabilite_carte_perso_index') }}" class="nav-link {{ active_link == 'carte_perso' ? 'active' : '' }}" data-bs-dismiss="offcanvas">
             <i class="fas fa-object-group"></i> Cartes perso.
         </a>

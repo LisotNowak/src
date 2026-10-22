@@ -1,0 +1,100 @@
+{% extends 'tracabilite/layout.html.twig' %}
+
+{% block title %}Tracabilité – Parcelles{% endblock %}
+
+{% block body %}
+<div class="p-3 p-lg-4">
+
+    {% for label, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="alert alert-{{ label == 'success' ? 'success' : (label == 'danger' ? 'danger' : 'info') }} alert-dismissible fade show py-2">
+                {{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endfor %}
+
+    <div class="d-flex flex-wrap align-items-center justify-content-between mb-3 gap-2">
+        <h4 class="mb-0 fw-bold" style="color:#800000;">
+            <i class="fas fa-th-large me-2"></i>Parcelles
+            <span class="badge text-bg-secondary fs-6 align-middle">{{ parcelles|length }}</span>
+        </h4>
+        <div class="d-flex gap-2">
+            <input type="search" id="parcelle-recherche" class="form-control form-control-sm" style="width:220px;"
+                   placeholder="Rechercher…" autocomplete="off">
+            <a href="{{ path('app_tracabilite_parcelle_new') }}" class="btn btn-sm btn-success text-nowrap">
+                <i class="fas fa-plus me-1"></i>Nouvelle parcelle
+            </a>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Identifiant</th>
+                        <th>Cépage</th>
+                        <th class="d-none d-sm-table-cell">Gamme</th>
+                        <th class="text-end d-none d-md-table-cell">Surface</th>
+                        <th class="text-end">Pieds</th>
+                        <th class="text-center">Géométrie</th>
+                        <th class="text-center d-none d-md-table-cell">Saisies</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="parcelle-lignes">
+                    {% for p in parcelles %}
+                    {% set nb = usages[p.slug] ?? 0 %}
+                    <tr data-recherche="{{ (p.slug ~ ' ' ~ p.cepage ~ ' ' ~ p.gamme)|lower }}">
+                        <td class="fw-semibold small">{{ p.slug }}</td>
+                        <td class="small">{{ p.cepage ?? '—' }}</td>
+                        <td class="small d-none d-sm-table-cell">{{ p.gamme ?? '—' }}</td>
+                        <td class="small text-end d-none d-md-table-cell">{{ p.surface ? p.surface|number_format(2, ',', ' ') ~ ' ha' : '—' }}</td>
+                        <td class="small text-end">{{ p.nombrePieds ? p.nombrePieds|number_format(0, ',', ' ') : '—' }}</td>
+                        <td class="text-center">
+                            {% if p.geometrie %}
+                                <i class="fas fa-check text-success" title="Contour renseigné"></i>
+                            {% else %}
+                                <span class="badge text-bg-warning" title="Parcelle absente des cartes">Aucune</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center small d-none d-md-table-cell">{{ nb ?: '—' }}</td>
+                        <td class="text-center text-nowrap">
+                            <a href="{{ path('app_tracabilite_parcelle_edit', {id: p.id}) }}" class="btn btn-outline-primary"
+                               style="padding:2px 7px; font-size:0.75rem;" title="Modifier">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            {% if nb == 0 %}
+                            <form action="{{ path('app_tracabilite_parcelle_delete', {id: p.id}) }}" method="post" class="d-inline"
+                                  onsubmit="return confirm('Supprimer la parcelle « {{ p.slug|e('js') }} » ?')">
+                                <input type="hidden" name="_token" value="{{ csrf_token('parcelle_delete_' ~ p.id) }}">
+                                <button type="submit" class="btn btn-outline-danger ms-1" style="padding:2px 7px; font-size:0.75rem;" title="Supprimer">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                            {% else %}
+                            <button type="button" class="btn btn-outline-secondary ms-1" style="padding:2px 7px; font-size:0.75rem;" disabled
+                                    title="Utilisée dans {{ nb }} saisie(s) : suppression impossible">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="8" class="text-center text-muted py-4">Aucune parcelle.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('parcelle-recherche').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('#parcelle-lignes tr[data-recherche]').forEach(tr => {
+        tr.style.display = !q || tr.dataset.recherche.includes(q) ? '' : 'none';
+    });
+});
+</script>
+{% endblock %}
