@@ -42,8 +42,6 @@
             <span class="badge text-bg-light border"><span class="d-inline-block me-1" style="width:10px;height:10px;background:#0dcaf0;border-radius:2px;"></span>≥75%</span>
             <span class="badge text-bg-light border"><span class="d-inline-block me-1" style="width:10px;height:10px;background:#ffc107;border-radius:2px;"></span>≥50%</span>
             <span class="badge text-bg-light border"><span class="d-inline-block me-1" style="width:10px;height:10px;background:#dc3545;border-radius:2px;"></span>&lt;50%</span>
-            <span class="badge text-bg-light border"><span class="d-inline-block me-1" style="width:10px;height:10px;background:#adb5bd;border-radius:2px;"></span>—</span>
-            <span class="badge text-bg-light border" title="Toutes tâches : la couleur suit la tâche la moins avancée"><span class="d-inline-block me-1" style="width:10px;height:10px;border:2px dashed #333;border-radius:2px;"></span>Plusieurs tâches</span>
         </div>
     </div>
 
@@ -135,6 +133,44 @@ proj4.defs('EPSG:2154', '+proj=lcc +lat_0=46.5 +lon_0=3 +lat_1=49 +lat_2=44 +x_0
 // ── Carte ────────────────────────────────────────────────────────────────────
 const map = L.map('map', { zoomControl: true }).setView([45.20, -0.77], 14);
 
+// Légende d'avancement dans la carte : visible uniquement à l'impression
+const Legende = L.Control.extend({
+    options: { position: 'bottomleft' },
+    onAdd() {
+        const el = L.DomUtil.create('div', 'carte-legende-print');
+        [['#198754', '100 %'], ['#0dcaf0', '≥ 75 %'], ['#ffc107', '≥ 50 %'], ['#dc3545', '< 50 %']].forEach(([couleur, texte]) => {
+            const ligne = L.DomUtil.create('div', 'carte-legende-ligne', el);
+            const carre = L.DomUtil.create('span', 'carte-legende-carre', ligne);
+            carre.style.background = couleur;
+            ligne.append(texte);
+        });
+        return el;
+    },
+});
+new Legende().addTo(map);
+
+// Cartouche d'impression : nom de la carte + tâche sélectionnée (visible uniquement à l'impression)
+const NOM_CARTE = {{ (cartePerso ? cartePerso.nom : 'Carte des parcelles')|json_encode|raw }};
+const Cartouche = L.Control.extend({
+    options: { position: 'topleft' },
+    onAdd() {
+        const el = L.DomUtil.create('div', 'carte-cartouche-print');
+        L.DomUtil.create('div', 'carte-cartouche-nom', el).textContent = NOM_CARTE;
+        L.DomUtil.create('div', 'carte-cartouche-tache', el);
+        L.DomUtil.create('div', 'carte-cartouche-date', el);
+        return el;
+    },
+});
+new Cartouche().addTo(map);
+
+function majCartouche() {
+    const el = document.querySelector('.carte-cartouche-tache');
+    if (el) el.textContent = 'Tâche : ' + (currentTache || 'Toutes les tâches');
+    // Date du jour au format français (jj/mm/aaaa), recalculée à chaque impression
+    const date = document.querySelector('.carte-cartouche-date');
+    if (date) date.textContent = 'Le ' + new Date().toLocaleDateString('fr-FR');
+}
+
 // Fond de carte plan (OSM)
 const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© <a href="https://openstreetmap.org" target="_blank">OpenStreetMap</a>',
@@ -188,6 +224,9 @@ if (DISPOSITION) {
         const b = document.getElementById(id);
         if (b) { b.disabled = true; b.title = 'Indisponible : les parcelles de cette carte personnalisée peuvent être repositionnées'; b.style.opacity = 0.4; }
     });
+    // Zoom bloqué : la vue reste cadrée sur les parcelles (le recadrage automatique reste possible)
+    map.removeControl(map.zoomControl);
+    ['scrollWheelZoom', 'doubleClickZoom', 'touchZoom', 'boxZoom', 'keyboard'].forEach(h => map[h] && map[h].disable());
 }
 
 // ── Helpers géométrie ────────────────────────────────────────────────────────
@@ -249,6 +288,7 @@ let globalBounds = null;
 
 // ── Filtre par tâche ─────────────────────────────────────────────────────────
 let currentTache = {{ tache|json_encode|raw }};   // '' = toutes les tâches
+majCartouche();
 const parcelLayers = [];     // { layer, p }
 
 // Avancement d'une parcelle selon le filtre de tâche actif
@@ -298,6 +338,7 @@ function setAdvBadge(p) {
 
 function setTacheFilter(tache) {
     currentTache = tache;
+    majCartouche();
     parcelLayers.forEach(({ layer, p }) => layer.setStyle(baseStyle(p)));
     if (selectedProps) {
         setAdvBadge(selectedProps);
@@ -453,6 +494,7 @@ let vueAvantImpression = null;
 function preparerImpression() {
     if (document.body.classList.contains('carte-printing')) return;
     vueAvantImpression = { centre: map.getCenter(), zoom: map.getZoom() };
+    majCartouche();
     document.body.classList.add('carte-printing');
     map.invalidateSize(false);
     if (globalBounds) map.fitBounds(globalBounds, { padding: [25, 25], animate: false });
@@ -538,6 +580,35 @@ document.getElementById('infoClose').addEventListener('click', () => {
     #parcelleInfo,
     .leaflet-control-zoom,
     .leaflet-control-attribution { display: none !important; }
+}
+
+/* Légende d'avancement : masquée à l'écran (déjà dans l'en-tête), affichée à l'impression */
+.carte-legende-print {
+    display: none;
+    background: #fff; border: 1px solid #999; border-radius: 4px;
+    padding: 4px 8px; font-size: 11px; line-height: 1.5; color: #222;
+    print-color-adjust: exact; -webkit-print-color-adjust: exact;
+}
+.carte-legende-ligne { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.carte-legende-carre {
+    display: inline-block; width: 12px; height: 12px; border-radius: 2px; border: 1px solid rgba(0,0,0,.25);
+    print-color-adjust: exact; -webkit-print-color-adjust: exact;
+}
+body.carte-printing .carte-legende-print { display: block; }
+
+/* Cartouche (nom de la carte + tâche) : même règle d'affichage que la légende */
+.carte-cartouche-print {
+    display: none;
+    background: #fff; border: 1px solid #999; border-radius: 4px;
+    padding: 4px 10px; color: #222; line-height: 1.35;
+}
+.carte-cartouche-nom   { font-weight: 700; font-size: 14px; color: #800000; }
+.carte-cartouche-tache { font-size: 12px; }
+.carte-cartouche-date  { font-size: 11px; color: #555; }
+body.carte-printing .carte-cartouche-print { display: block; }
+@media print {
+    .carte-legende-print,
+    .carte-cartouche-print { display: block !important; }
 }
 
 /* Préparation à l'impression, à l'écran : même taille que la feuille A4 paysage */

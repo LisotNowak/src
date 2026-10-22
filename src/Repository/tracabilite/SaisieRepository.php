@@ -230,9 +230,14 @@ class SaisieRepository extends ServiceEntityRepository
     /**
      * Tâches de terrain présentes dans les saisies d'un mois (mois vide = tous les mois).
      * $avecPieds : uniquement les tâches ayant des pieds et des heures (page rendement).
+     * $parcelles : limite aux tâches réalisées sur ces parcelles (null = toutes les parcelles).
      */
-    public function findTachesTerrainSurPeriode(string $mois, bool $avecPieds = false): array
+    public function findTachesTerrainSurPeriode(string $mois, bool $avecPieds = false, ?array $parcelles = null): array
     {
+        if ($parcelles === []) {
+            return [];
+        }
+
         $qb = $this->qb()
             ->select('DISTINCT s.tacheNom')
             ->andWhere('s.type = :type')
@@ -245,6 +250,9 @@ class SaisieRepository extends ServiceEntityRepository
         }
         if ($avecPieds) {
             $qb->andWhere('s.pieds > 0')->andWhere('s.heures > 0');
+        }
+        if ($parcelles !== null) {
+            $qb->andWhere('s.parcelleNom IN (:parcelles)')->setParameter('parcelles', $parcelles);
         }
 
         return $qb->getQuery()->getSingleColumnResult();

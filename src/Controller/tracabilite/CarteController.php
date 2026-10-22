@@ -30,14 +30,16 @@ class CarteController extends AbstractController
             $mois = date('Y-m');
         }
 
-        $taches = $this->saisieRepo->findTachesTerrainSurPeriode($mois);
+        // Disposition d'une carte personnalisée (parcelles repositionnées) au lieu des positions réelles
+        $cartePerso = $request->query->getInt('carte') ? $this->cartePersoRepo->find($request->query->getInt('carte')) : null;
+
+        // Avec une carte personnalisée, seules les tâches de ses parcelles sont proposées
+        $parcelles = $cartePerso ? array_map('strval', array_keys($cartePerso->getDisposition())) : null;
+        $taches = $this->saisieRepo->findTachesTerrainSurPeriode($mois, false, $parcelles);
         $tache  = (string) $request->query->get('tache', '');
         if (!in_array($tache, $taches, true)) {
             $tache = '';
         }
-
-        // Disposition d'une carte personnalisée (parcelles repositionnées) au lieu des positions réelles
-        $cartePerso = $request->query->getInt('carte') ? $this->cartePersoRepo->find($request->query->getInt('carte')) : null;
 
         return $this->render('tracabilite/carte/index.html.twig', [
             'active_link' => 'carte',
