@@ -2,6 +2,7 @@
 
 namespace App\Entity\tracabilite;
 
+use App\Entity\User;
 use App\Repository\tracabilite\EquipeRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -22,9 +23,18 @@ class Equipe
     #[ORM\OneToMany(mappedBy: 'equipe', targetEntity: Ouvrier::class)]
     private Collection $ouvriers;
 
+    /** Utilisateurs (managers tracabilité) qui voient les données de cette équipe */
+    #[ORM\ManyToMany(targetEntity: User::class)]
+    #[ORM\JoinTable(name: 'vigne_equipe_user')]
+    #[ORM\JoinColumn(name: 'equipe_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
+    #[ORM\InverseJoinColumn(name: 'user_id', referencedColumnName: 'id', onDelete: 'CASCADE')]
+    #[ORM\OrderBy(['email' => 'ASC'])]
+    private Collection $responsables;
+
     public function __construct()
     {
         $this->ouvriers = new ArrayCollection();
+        $this->responsables = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -65,6 +75,26 @@ class Equipe
                 $ouvrier->setEquipe(null);
             }
         }
+        return $this;
+    }
+
+    /** @return Collection<int, User> */
+    public function getResponsables(): Collection
+    {
+        return $this->responsables;
+    }
+
+    public function addResponsable(User $user): static
+    {
+        if (!$this->responsables->contains($user)) {
+            $this->responsables->add($user);
+        }
+        return $this;
+    }
+
+    public function removeResponsable(User $user): static
+    {
+        $this->responsables->removeElement($user);
         return $this;
     }
 

@@ -2,20 +2,20 @@
 
 namespace App\Controller\tracabilite;
 
-use App\Repository\tracabilite\EquipeRepository;
 use App\Repository\tracabilite\SaisieRepository;
-use App\Repository\tracabilite\TacheRepository;
+use App\Service\tracabilite\EquipeAccess;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
+#[IsGranted('ROLE_MANAGER_TRACABILITE')]
 class AvancementController extends AbstractController
 {
     public function __construct(
         private readonly SaisieRepository $saisieRepo,
-        private readonly EquipeRepository $equipeRepo,
-        private readonly TacheRepository  $tacheRepo,
+        private readonly EquipeAccess     $equipeAccess,
     ) {}
 
     #[Route('/tracabilite/avancement', name: 'app_tracabilite_avancement')]
@@ -26,16 +26,27 @@ class AvancementController extends AbstractController
         if ($mois !== '' && !preg_match('/^\d{4}-\d{2}$/', $mois)) {
             $mois = date('Y-m');
         }
-        $chef = $request->query->get('chef', '');
+        $chef  = $request->query->get('chef', '');
+        $tache = (string) $request->query->get('tache', '');
+
+        $taches = $this->saisieRepo->findTachesTerrainSurPeriode($mois);
+        if (!in_array($tache, $taches, true)) {
+            $tache = '';
+        }
+
+        $avancements = $this->saisieRepo->getAvancementParParcelle($mois, $chef, $tache);
 
         return $this->render('tracabilite/avancement/index.html.twig', [
             'active_link'  => 'avancement',
             'mois'         => $mois,
             'chef'         => $chef,
-            'avancements'  => $this->saisieRepo->getAvancementParParcelle($mois, $chef),
-            'equipes'      => $this->equipeRepo->findAllSorted(),
-            'taches'       => $this->tacheRepo->findTachesTerrain(),
-            'nonTerminees' => $this->saisieRepo->findParcellesNonTerminees(),
+            'tache'        => $tache,
+            'avancements'  => $avancements,
+            // Nombre de tâches menées en parallèle sur chaque parcelle
+            'nbTachesParcelle' => array_count_values(array_column($avancements, 'parcelleNom')),
+            'equipes'      => $this->equipeAccess->equipesVisibles(),
+            'taches'       => $taches,
+            'nonTerminees' => $this->saisieRepo->findParcellesNonTerminees('', $tache),
         ]);
     }
 }

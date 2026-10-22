@@ -3,6 +3,7 @@
 namespace App\Repository\tracabilite;
 
 use App\Entity\tracabilite\Equipe;
+use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -22,6 +23,17 @@ class EquipeRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /** Équipes associées à un utilisateur (manager tracabilité) */
+    public function findByResponsable(User $user): array
+    {
+        return $this->createQueryBuilder('e')
+            ->where(':user MEMBER OF e.responsables')
+            ->setParameter('user', $user)
+            ->orderBy('e.nom', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
     public function findByNom(string $nom): ?Equipe
     {
         return $this->findOneBy(['nom' => $nom]);
@@ -33,6 +45,8 @@ class EquipeRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('e')
             ->leftJoin('e.ouvriers', 'o')
             ->addSelect('o')
+            ->leftJoin('e.responsables', 'r')
+            ->addSelect('r')
             ->orderBy('e.nom', 'ASC')
             ->addOrderBy('o.nomComplet', 'ASC')
             ->getQuery()

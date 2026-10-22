@@ -53,20 +53,9 @@ class Saisie
     #[ORM\Column(options: ['default' => 0])]
     private float $heures = 0.0;
 
-    /** Heures nettes après déduction de la pause (pour calcul du rendement) */
-    #[ORM\Column(options: ['default' => 0])]
-    private float $heuresNettes = 0.0;
-
     /** Nombre de personnes représentées par cette ligne (>1 pour les saisonniers non nominatifs) */
     #[ORM\Column(options: ['default' => 1])]
     private int $effectif = 1;
-
-    /** auto | hiver | ete | aucune */
-    #[ORM\Column(length: 20, options: ['default' => 'auto'])]
-    private string $modePause = 'auto';
-
-    #[ORM\Column(options: ['default' => 0])]
-    private int $minutesPause = 0;
 
     /** Avancement en pourcentage (0-100) */
     #[ORM\Column(options: ['default' => 0])]
@@ -196,17 +185,6 @@ class Saisie
         return $this;
     }
 
-    public function getHeuresNettes(): float
-    {
-        return $this->heuresNettes;
-    }
-
-    public function setHeuresNettes(float $heuresNettes): static
-    {
-        $this->heuresNettes = $heuresNettes;
-        return $this;
-    }
-
     public function getEffectif(): int
     {
         return $this->effectif;
@@ -215,28 +193,6 @@ class Saisie
     public function setEffectif(int $effectif): static
     {
         $this->effectif = max(1, $effectif);
-        return $this;
-    }
-
-    public function getModePause(): string
-    {
-        return $this->modePause;
-    }
-
-    public function setModePause(string $modePause): static
-    {
-        $this->modePause = $modePause;
-        return $this;
-    }
-
-    public function getMinutesPause(): int
-    {
-        return $this->minutesPause;
-    }
-
-    public function setMinutesPause(int $minutesPause): static
-    {
-        $this->minutesPause = $minutesPause;
         return $this;
     }
 
@@ -328,13 +284,13 @@ class Saisie
         return $this;
     }
 
-    /** Calcule le rendement pieds/heure nette (null si pas de données) */
+    /** Calcule le rendement pieds/heure (null si pas de données) */
     public function getRendement(): ?float
     {
-        if ($this->heuresNettes <= 0 || $this->pieds <= 0) {
+        if ($this->heures <= 0 || $this->pieds <= 0) {
             return null;
         }
-        return $this->pieds / $this->heuresNettes;
+        return $this->pieds / $this->heures;
     }
 
     public function isRH(): bool

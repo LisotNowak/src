@@ -10,6 +10,7 @@ use App\Repository\tracabilite\OuvrierRepository;
 use App\Repository\tracabilite\ParcelleRepository;
 use App\Repository\tracabilite\SaisieRepository;
 use App\Repository\tracabilite\TacheRepository;
+use App\Service\tracabilite\EquipeAccess;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormError;
@@ -18,8 +19,10 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/tracabilite/saisie', name: 'app_tracabilite_saisie_')]
+#[IsGranted('ROLE_MANAGER_TRACABILITE')]
 class SaisieController extends AbstractController
 {
     private const SAISONNIERS = 'Saisonniers non nominatifs';
@@ -30,6 +33,7 @@ class SaisieController extends AbstractController
         private readonly OuvrierRepository  $ouvrierRepo,
         private readonly TacheRepository    $tacheRepo,
         private readonly ParcelleRepository $parcelleRepo,
+        private readonly EquipeAccess       $equipeAccess,
         private readonly EntityManagerInterface $em,
     ) {}
 
@@ -63,11 +67,30 @@ class SaisieController extends AbstractController
         $form = $this->createForm(SaisieType::class, $saisie, $this->buildFormOptions());
         $form->handleRequest($request);
 
+        $multiParcelle   = $request->request->getBoolean('multiParcelle');
+        $parcellesNoms   = $this->parcellesNomsFromRequest($request);
+        $heuresParcelles = $this->heuresParcellesFromRequest($request);
+
         if ($form->isSubmitted() && $form->isValid()) {
+            $tache = $this->tacheRepo->findByNom((string) $saisie->getTacheNom());
+            $multi = $multiParcelle && !($tache && $tache->isSansParcel());
+            $parcelles = $multi ? $this->parcellesFromNoms($parcellesNoms) : [];
+
             if (!$this->setPersonnelFromRequest($request, $saisie)) {
                 $this->addFlash('danger', 'Veuillez sélectionner au moins une personne.');
-            } elseif (!$this->checkParcelle($form)) {
+            } elseif ($multi && !$parcelles) {
+                $this->addFlash('danger', 'Veuillez sélectionner au moins une parcelle.');
+            } elseif ($multi && $this->parcellesSansHeures($parcelles, $heuresParcelles)) {
+                $this->addFlash('danger', 'Indiquez un nombre d\'heures supérieur à 0 pour chaque parcelle : '
+                    . implode(', ', $this->parcellesSansHeures($parcelles, $heuresParcelles)) . '.');
+            } elseif (!$multi && !$this->checkParcelle($form)) {
                 // L'erreur est affichée sous le champ Parcelle
+            } elseif ($multi) {
+                $nb = $this->creerSaisiesMultiParcelles($saisie, $parcelles, $heuresParcelles);
+                $this->em->flush();
+
+                $this->addFlash('success', $nb . ' saisie(s) créée(s), une par parcelle, avec un avancement de 100 %.');
+                return $this->redirectToRoute('app_tracabilite_saisie_index');
             } else {
                 $this->hydrateSaisie($saisie);
                 $saisie->setId($this->uuid4());
@@ -85,6 +108,9 @@ class SaisieController extends AbstractController
         return $this->render('tracabilite/saisie/new.html.twig', [
             'active_link'   => 'saisie',
             'form'          => $form,
+            'multiParcelle'   => $multiParcelle,
+            'parcellesNoms'   => $parcellesNoms,
+            'heuresParcelles' => $heuresParcelles,
             'nbSaisonniers' => $this->nbSaisonniersFromRequest($request),
             'tachesJson'    => $this->buildTachesJson(),
             'parcellesJson' => $this->buildParcellesJson(),
@@ -96,7 +122,7 @@ class SaisieController extends AbstractController
     public function edit(string $id, Request $request): Response
     {
         $saisie = $this->saisieRepo->find($id);
-        if (!$saisie) {
+        if (!$saisie || !$this->equipeAccess->peutVoirChef($saisie->getChefNom())) {
             throw $this->createNotFoundException('Saisie introuvable.');
         }
 
@@ -143,7 +169,7 @@ class SaisieController extends AbstractController
     public function delete(string $id, Request $request): Response
     {
         $saisie = $this->saisieRepo->find($id);
-        if (!$saisie) {
+        if (!$saisie || !$this->equipeAccess->peutVoirChef($saisie->getChefNom())) {
             throw $this->createNotFoundException('Saisie introuvable.');
         }
 
@@ -164,7 +190,11 @@ class SaisieController extends AbstractController
     #[Route('/api/ouvriers/{equipeNom}', name: 'api_ouvriers', methods: ['GET'])]
     public function apiOuvriers(string $equipeNom): JsonResponse
     {
-        $ouvriers = $this->ouvrierRepo->findByEquipeNom(urldecode($equipeNom));
+        $equipeNom = urldecode($equipeNom);
+        if (!$this->equipeAccess->peutVoirChef($equipeNom)) {
+            return $this->json(['error' => 'Équipe introuvable'], 404);
+        }
+        $ouvriers = $this->ouvrierRepo->findByEquipeNom($equipeNom);
         return $this->json(array_map(
             fn($o) => ['nom' => $o->getNomComplet(), 'contrat' => $o->getContrat()],
             $ouvriers
@@ -190,7 +220,7 @@ class SaisieController extends AbstractController
     private function buildFormOptions(): array
     {
         return [
-            'equipes'   => array_map(fn($e) => $e->getNom(), $this->equipeRepo->findAllSorted()),
+            'equipes'   => array_map(fn($e) => $e->getNom(), $this->equipeAccess->equipesVisibles()),
             'taches'    => array_map(fn($t) => $t->getNom(), $this->tacheRepo->findAllSorted()),
             'parcelles' => array_map(fn($p) => $p->getSlug(), $this->parcelleRepo->findAllSorted()),
         ];
@@ -212,6 +242,75 @@ class SaisieController extends AbstractController
         $saisie->setPersonnelNom(implode(', ', $noms));
         $saisie->setEffectif($effectif);
         return true;
+    }
+
+    /** @return string[] */
+    private function parcellesNomsFromRequest(Request $request): array
+    {
+        return array_values(array_unique(array_filter(
+            array_map('trim', $request->request->all()['parcellesNoms'] ?? [])
+        )));
+    }
+
+    /** @return \App\Entity\tracabilite\Parcelle[] */
+    private function parcellesFromNoms(array $slugs): array
+    {
+        $parcelles = [];
+        foreach ($slugs as $slug) {
+            if ($p = $this->parcelleRepo->findBySlug($slug)) {
+                $parcelles[] = $p;
+            }
+        }
+        return $parcelles;
+    }
+
+    /**
+     * Ventilation des heures par parcelle : heuresParcelles[slug] = heures.
+     * @return array<string, float>
+     */
+    private function heuresParcellesFromRequest(Request $request): array
+    {
+        $heures = [];
+        foreach ($request->request->all()['heuresParcelles'] ?? [] as $slug => $valeur) {
+            $heures[(string) $slug] = round((float) str_replace(',', '.', (string) $valeur), 2);
+        }
+        return $heures;
+    }
+
+    /** @return string[] slugs des parcelles sans heures ventilées */
+    private function parcellesSansHeures(array $parcelles, array $heuresParcelles): array
+    {
+        return array_values(array_map(
+            fn($p) => $p->getSlug(),
+            array_filter($parcelles, fn($p) => ($heuresParcelles[$p->getSlug()] ?? 0) <= 0)
+        ));
+    }
+
+    /**
+     * Saisie multi-parcelles : une saisie par parcelle, chacune terminée (avancement 100 %),
+     * avec les heures ventilées sur cette parcelle.
+     */
+    private function creerSaisiesMultiParcelles(Saisie $modele, array $parcelles, array $heuresParcelles): int
+    {
+        foreach ($parcelles as $parcelle) {
+            $pieds = (float) ($parcelle->getNombrePieds() ?? 0);
+
+            $s = clone $modele;
+            $s->setDateTravail(clone $modele->getDateTravail());
+            $s->setParcelleNom($parcelle->getSlug());
+            $s->setHeures($heuresParcelles[$parcelle->getSlug()]);
+            $s->setAvancement(100.0);
+            $s->setPieds($pieds);
+            $s->setPiedsTotal($pieds);
+            $this->hydrateSaisie($s);
+            $s->setId($this->uuid4());
+            $s->setCreeA(new \DateTimeImmutable());
+
+            $this->em->persist($s);
+            $this->em->persist($this->makeJournalEntry('Création', $s, null));
+        }
+
+        return count($parcelles);
     }
 
     /** Une tâche de terrain doit avoir une parcelle */
@@ -256,22 +355,6 @@ class SaisieController extends AbstractController
         if ($ouvrier) {
             $saisie->setPersonnelContrat($ouvrier->getContrat());
         }
-
-        $minutes = $this->calcMinutesPause($saisie);
-        $saisie->setMinutesPause($minutes);
-        $saisie->setHeuresNettes(max(0.0, $saisie->getHeures() - ($minutes / 60.0)));
-    }
-
-    private function calcMinutesPause(Saisie $saisie): int
-    {
-        $mois = (int) $saisie->getDateTravail()->format('n');
-        return match ($saisie->getModePause()) {
-            'hiver'  => 15,
-            'ete'    => 20,
-            'aucune' => 0,
-            'manuel' => $saisie->getMinutesPause(),
-            default  => ($mois >= 4 && $mois <= 9) ? 20 : 15,
-        };
     }
 
     private function snapshot(Saisie $s): string
@@ -325,11 +408,18 @@ class SaisieController extends AbstractController
 
     private function buildParcellesJson(): string
     {
+        // Avancement actuel de chaque tâche, une parcelle pouvant avoir plusieurs tâches en parallèle
+        $advTaches = [];
+        foreach ($this->saisieRepo->getAvancementGlobal() as $a) {
+            $advTaches[$a['parcelleNom']][$a['tacheNom']] = (float) $a['maxAdv'];
+        }
+
         $data = [];
         foreach ($this->parcelleRepo->findAllSorted() as $p) {
             $data[$p->getSlug()] = [
                 'nombrePieds' => $p->getNombrePieds(),
                 'cepage'      => $p->getCepage(),
+                'avancements' => (object) ($advTaches[$p->getSlug()] ?? []),
             ];
         }
         return json_encode($data, JSON_UNESCAPED_UNICODE);
@@ -339,6 +429,9 @@ class SaisieController extends AbstractController
     {
         $data = [];
         foreach ($this->equipeRepo->findAllWithOuvriers() as $e) {
+            if (!$this->equipeAccess->peutVoirChef($e->getNom())) {
+                continue;
+            }
             $ouvriers = array_map(
                 fn($o) => ['nom' => $o->getNomComplet(), 'contrat' => $o->getContrat()],
                 $e->getOuvriers()->toArray()

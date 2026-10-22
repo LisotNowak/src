@@ -4,42 +4,58 @@ namespace App\Controller\tracabilite;
 
 use App\Repository\tracabilite\ParcelleRepository;
 use App\Repository\tracabilite\SaisieRepository;
-use App\Repository\tracabilite\TacheRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
+#[IsGranted('ROLE_MANAGER_TRACABILITE')]
 class CarteController extends AbstractController
 {
     public function __construct(
         private readonly ParcelleRepository $parcelleRepo,
         private readonly SaisieRepository   $saisieRepo,
-        private readonly TacheRepository    $tacheRepo,
     ) {}
 
     #[Route('/tracabilite/carte', name: 'app_tracabilite_carte')]
-    public function index(): Response
+    public function index(Request $request): Response
     {
+        // Sans paramètre : mois courant ; paramètre vide : tous les mois
+        $mois = $request->query->has('mois') ? (string) $request->query->get('mois') : date('Y-m');
+        if ($mois !== '' && !preg_match('/^\d{4}-\d{2}$/', $mois)) {
+            $mois = date('Y-m');
+        }
+
+        $taches = $this->saisieRepo->findTachesTerrainSurPeriode($mois);
+        $tache  = (string) $request->query->get('tache', '');
+        if (!in_array($tache, $taches, true)) {
+            $tache = '';
+        }
+
         return $this->render('tracabilite/carte/index.html.twig', [
             'active_link' => 'carte',
-            'taches'      => $this->tacheRepo->findTachesTerrain(),
+            'mois'        => $mois,
+            'tache'       => $tache,
+            'taches'      => $taches,
         ]);
     }
 
     #[Route('/tracabilite/carte/api/geojson', name: 'app_tracabilite_carte_geojson')]
-    public function geojson(): JsonResponse
+    public function geojson(Request $request): JsonResponse
     {
-        $parcelles   = $this->parcelleRepo->findAvecGeometrie();
-        $avancements = $this->saisieRepo->getAvancementGlobal();
+        $mois = (string) $request->query->get('mois', '');
+        if (!preg_match('/^\d{4}-\d{2}$/', $mois)) {
+            $mois = '';
+        }
 
-        $advMap      = [];
-        $advTacheMap = []; // avancement par parcelle et par tâche (filtre carte)
+        $parcelles   = $this->parcelleRepo->findAvecGeometrie();
+        $avancements = $this->saisieRepo->getAvancementGlobal($mois);
+
+        $advTacheMap = []; // avancement par parcelle et par tâche (une parcelle peut avoir plusieurs tâches en parallèle)
         foreach ($avancements as $a) {
-            $slug  = $a['parcelleNom'] ?? '';
-            $adv   = (float)($a['maxAdv'] ?? 0);
-            $advMap[$slug] = max($advMap[$slug] ?? 0, $adv);
-            $advTacheMap[$slug][$a['tacheNom'] ?? ''] = $adv;
+            $advTacheMap[$a['parcelleNom'] ?? ''][$a['tacheNom'] ?? ''] = (float)($a['maxAdv'] ?? 0);
         }
 
         $features = [];
@@ -48,6 +64,7 @@ class CarteController extends AbstractController
                 continue;
             }
             $slug = $p->getSlug();
+            $advs = $advTacheMap[$slug] ?? [];
             $features[] = [
                 'type'       => 'Feature',
                 'properties' => [
@@ -56,8 +73,9 @@ class CarteController extends AbstractController
                     'gamme'       => $p->getGamme(),
                     'nombrePieds' => $p->getNombrePieds(),
                     'surface'     => $p->getSurface(),
-                    'avancement'  => $advMap[$slug] ?? 0,
-                    'avancements' => (object) ($advTacheMap[$slug] ?? []),
+                    // Toutes tâches confondues : la parcelle n'est terminée que si toutes ses tâches le sont
+                    'avancement'  => $advs ? min($advs) : 0,
+                    'avancements' => (object) $advs,
                 ],
                 'geometry' => $p->getGeometrie(),
             ];

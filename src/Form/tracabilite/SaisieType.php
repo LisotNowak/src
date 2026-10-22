@@ -7,7 +7,6 @@ use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\DateType;
 use Symfony\Component\Form\Extension\Core\Type\HiddenType;
-use Symfony\Component\Form\Extension\Core\Type\IntegerType;
 use Symfony\Component\Form\Extension\Core\Type\NumberType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\FormBuilderInterface;
@@ -58,24 +57,6 @@ class SaisieType extends AbstractType
                 'empty_data'  => '0',
                 'constraints' => [new Assert\GreaterThan(value: 0, message: 'Veuillez indiquer un nombre d\'heures supérieur à 0.')],
                 'attr'  => ['min' => 0, 'step' => 0.25, 'class' => 'form-control', 'id' => 'saisie_heures'],
-            ])
-            ->add('modePause', ChoiceType::class, [
-                'label'   => 'Mode pause',
-                'choices' => [
-                    'Automatique (saison)' => 'auto',
-                    'Hiver (15 min)'       => 'hiver',
-                    'Été (20 min)'         => 'ete',
-                    'Manuel'               => 'manuel',
-                    'Aucune'               => 'aucune',
-                ],
-                'attr' => ['class' => 'form-select', 'id' => 'saisie_modePause'],
-            ])
-            ->add('minutesPause', IntegerType::class, [
-                'label'    => 'Minutes de pause (si manuel)',
-                'required' => false,
-                'empty_data'  => '0',
-                'constraints' => [new Assert\PositiveOrZero(message: 'Les minutes de pause ne peuvent pas être négatives.')],
-                'attr'     => ['min' => 0, 'class' => 'form-control', 'id' => 'saisie_minutesPause'],
             ])
             ->add('avancement', NumberType::class, [
                 'label' => 'Avancement (%)',

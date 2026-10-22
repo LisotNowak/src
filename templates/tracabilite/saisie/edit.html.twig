@@ -78,6 +78,7 @@
                     {{ form_widget(form.parcelleNom) }}
                     {{ form_errors(form.parcelleNom) }}
                     <div class="form-text" id="parcelle-info"></div>
+                    <div class="form-text" id="parcelle-taches"></div>
                 </div>
             </div>
         </div>
@@ -85,7 +86,7 @@
 
     <div class="card border-0 shadow-sm mb-3">
         <div class="card-header bg-white fw-semibold">
-            <i class="fas fa-clock me-2" style="color:#800000;"></i>Heures &amp; Pause
+            <i class="fas fa-clock me-2" style="color:#800000;"></i>Heures &amp; Effectif
         </div>
         <div class="card-body">
             <div class="row g-3">
@@ -104,21 +105,6 @@
                     </div>
                     <div class="form-text">Calculé automatiquement</div>
                 </div>
-                <div class="col-md-3">
-                    {{ form_label(form.modePause) }}
-                    {{ form_widget(form.modePause) }}
-                </div>
-                <div class="col-md-3" id="minutesPauseBlock">
-                    {{ form_label(form.minutesPause) }}
-                    {{ form_widget(form.minutesPause) }}
-                    {{ form_errors(form.minutesPause) }}
-                </div>
-            </div>
-            <div class="mt-2">
-                <small class="text-muted">
-                    Heures nettes actuelles : <strong>{{ saisie.heuresNettes|number_format(2, ',') }}h</strong>
-                    &nbsp;|&nbsp; Estimé : <strong id="heuresNettesInfo">—</strong>
-                </small>
             </div>
         </div>
     </div>
@@ -136,6 +122,7 @@
                         {{ form_widget(form.avancement, {attr: {type: 'range', class: 'form-range'}}) }}
                         <span id="avancement-display" class="badge text-bg-secondary" style="min-width:48px;">{{ saisie.avancement|number_format(0) }}%</span>
                     </div>
+                    <div class="form-text" id="avancement-pieds"></div>
                 </div>
                 <div class="col-md-4" id="piedsBlock">
                     {{ form_label(form.pieds) }}
@@ -179,11 +166,7 @@ const PERSONNELS_ACTUELS = {{ personnelsActuels|json_encode|raw }};
 const selChef           = document.getElementById('saisie_chefNom');
 const selTache          = document.getElementById('saisie_tacheNom');
 const selParcelle       = document.getElementById('saisie_parcelleNom');
-const heuresInput       = document.getElementById('saisie_heures');
-const modePauseInput    = document.getElementById('saisie_modePause');
-const minutesPauseInput = document.getElementById('saisie_minutesPause');
 const parcelleBlock     = document.getElementById('parcelleBlock');
-const minutesPauseBlock = document.getElementById('minutesPauseBlock');
 const avancementRange   = document.getElementById('saisie_avancement');
 const advDisplay        = document.getElementById('avancement-display');
 const piedsInput        = document.getElementById('saisie_pieds');
@@ -200,6 +183,7 @@ function syncPiedsFromAdv() {
         piedsInput.value = Math.round(parseFloat(avancementRange.value) / 100 * total);
         _sync = false;
     }
+    updateAdvPieds();
 }
 
 function syncAdvFromPieds() {
@@ -212,6 +196,18 @@ function syncAdvFromPieds() {
         if (advDisplay) advDisplay.textContent = adv + '%';
         _sync = false;
     }
+    updateAdvPieds();
+}
+
+// Avancement exprimé en pieds réalisés / pieds total
+function updateAdvPieds() {
+    const el = document.getElementById('avancement-pieds');
+    if (!el || !piedsInput || !piedsTotalInput) return;
+    const total = parseFloat(piedsTotalInput.value) || 0;
+    const pieds = parseFloat(piedsInput.value) || 0;
+    el.textContent = total > 0
+        ? pieds.toLocaleString('fr') + ' / ' + total.toLocaleString('fr') + ' pieds'
+        : '';
 }
 
 // ── Fonctions de filtrage / mise à jour ───────────────────────────────────
@@ -288,20 +284,22 @@ function updateParcelleVisibility() {
     document.getElementById('piedsTotalBlock').style.display = hide ? 'none' : '';
 }
 
-function updatePause() {
-    minutesPauseBlock.style.display = (modePauseInput.value === 'manuel') ? '' : 'none';
-}
-
-function updateHeuresNettes() {
-    const h = parseFloat(heuresInput.value) || 0;
-    let m = 0;
-    const mode = modePauseInput.value;
-    if (mode === 'hiver') m = 15;
-    else if (mode === 'ete') m = 20;
-    else if (mode === 'manuel') m = parseInt(minutesPauseInput.value) || 0;
-    else if (mode === 'aucune') m = 0;
-    else { const mn = new Date().getMonth() + 1; m = (mn >= 4 && mn <= 9) ? 20 : 15; }
-    document.getElementById('heuresNettesInfo').textContent = Math.max(0, h - m / 60).toFixed(2) + 'h';
+// Tâches déjà en cours sur la parcelle (plusieurs tâches possibles en parallèle)
+function updateParcelleTaches() {
+    const el = document.getElementById('parcelle-taches');
+    const p  = PARCELLES[selParcelle.value];
+    const advs = (p && p.avancements) || {};
+    const taches = Object.keys(advs).sort((a, b) => a.localeCompare(b, 'fr'));
+    el.innerHTML = '';
+    if (!taches.length) return;
+    el.append('Tâches sur cette parcelle : ');
+    taches.forEach((t, i) => {
+        const item = document.createElement('span');
+        item.textContent = t + ' ' + Math.round(advs[t]) + '%';
+        if (t === selTache.value) item.className = 'fw-bold text-dark';
+        if (i > 0) el.append(' · ');
+        el.appendChild(item);
+    });
 }
 
 // ── Setup slider avancement ───────────────────────────────────────────────
@@ -336,19 +334,17 @@ if (piedsTotalInput) {
 // ── Événements ────────────────────────────────────────────────────────────
 
 selChef.addEventListener('change', () => filterPersonnel(selChef.value, []));
-selTache.addEventListener('change', updateParcelleVisibility);
-modePauseInput.addEventListener('change', () => { updatePause(); updateHeuresNettes(); });
-heuresInput.addEventListener('input', updateHeuresNettes);
+selTache.addEventListener('change', () => { updateParcelleVisibility(); updateParcelleTaches(); });
+selParcelle.addEventListener('change', updateParcelleTaches);
 nbSaisonniersInput.addEventListener('input', updateEffectif);
-minutesPauseInput.addEventListener('input', updateHeuresNettes);
 
 // Init — pré-sélectionne les personnes enregistrées
 if (selChef.value) filterPersonnel(selChef.value, PERSONNELS_ACTUELS);
 updateParcelleVisibility();
-updatePause();
-updateHeuresNettes();
+updateParcelleTaches();
 // Init sync si données existantes
 syncPiedsFromAdv();
+updateAdvPieds();
 </script>
 {{ include('tracabilite/saisie/_validation.html.twig') }}
 {% endblock %}

@@ -60,7 +60,7 @@ public function getAllEvents(Request $request): Response
         $validCategories = [
             'Visite',
             'Déjeuner Pavillon',
-            'Dégustation',
+            // 'Dégustation',
             'Dégustation En Primeur',
             'Dîner Pavillon',
             'Dîner Château',

@@ -40,7 +40,8 @@ security:
                 always_remember_me: true
 
     role_hierarchy:
-        ROLE_ADMIN: [ROLE_ADMIN_CLIENTS]
+        ROLE_ADMIN: [ROLE_ADMIN_CLIENTS, ROLE_ADMIN_TRACABILITE]
+        ROLE_ADMIN_TRACABILITE: [ROLE_MANAGER_TRACABILITE]
 
     access_control:
         - { path: ^/connect/microsoft, roles: PUBLIC_ACCESS }
@@ -54,6 +55,9 @@ security:
         - { path: ^/dev/, roles: ROLE_ADMIN }
         - { path: ^/files, roles: IS_AUTHENTICATED_FULLY }
         - { path: ^/calculette, roles: ROLE_MANAGER }
+        # Tracabilité : paramétrage et historique réservés à l'admin, le reste au manager
+        - { path: ^/tracabilite/(parametrage|historique), roles: ROLE_ADMIN_TRACABILITE }
+        - { path: ^/tracabilite, roles: ROLE_MANAGER_TRACABILITE }
         - { path: ^/admin/portail, roles: ROLE_ADMIN }
         - { path: ^/admin/users, roles: ROLE_ADMIN }
         - { path: ^/profil, roles: ROLE_USER }

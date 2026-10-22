@@ -54,6 +54,45 @@
                                 </form>
                             </div>
                         </div>
+                        {# Managers tracabilité qui voient cette équipe #}
+                        <div class="px-3 py-2 border-bottom small bg-light">
+                            <div class="fw-semibold text-muted mb-1" style="font-size:0.7rem; letter-spacing:.05em; text-transform:uppercase;">
+                                <i class="fas fa-user-shield me-1"></i>Managers
+                            </div>
+                            <div class="d-flex flex-wrap gap-1 mb-1">
+                                {% for u in equipe.responsables %}
+                                    {% set libelle = (u.prenom ~ ' ' ~ u.nom)|trim ?: u.email %}
+                                    <form action="{{ path('app_tracabilite_referentiel_responsable_remove', {id: equipe.id, userId: u.id}) }}" method="post" class="d-inline">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('responsable_remove_' ~ equipe.id ~ '_' ~ u.id) }}">
+                                        <span class="badge rounded-pill text-bg-primary d-inline-flex align-items-center gap-1" title="{{ u.email }}">
+                                            {{ libelle }}
+                                            <button type="submit" class="btn btn-link p-0 text-white" style="font-size:0.7rem; line-height:1;"
+                                                    onclick="return confirm('Retirer {{ libelle|e('js') }} de cette équipe ?')" title="Retirer">
+                                                <i class="fas fa-times" style="color:#fff;"></i>
+                                            </button>
+                                        </span>
+                                    </form>
+                                {% else %}
+                                    <span class="text-muted fst-italic">Aucun manager associé</span>
+                                {% endfor %}
+                            </div>
+                            {% set idsAssocies = equipe.responsables|map(r => r.id) %}
+                            {% set disponibles = managers|filter(m => m.id not in idsAssocies) %}
+                            {% if disponibles|length > 0 %}
+                            <form action="{{ path('app_tracabilite_referentiel_responsable_add', {id: equipe.id}) }}" method="post" class="d-flex gap-1">
+                                <input type="hidden" name="_token" value="{{ csrf_token('responsable_add_' ~ equipe.id) }}">
+                                <select name="user_id" class="form-select form-select-sm" required>
+                                    <option value="">— Associer un manager —</option>
+                                    {% for m in disponibles %}
+                                        <option value="{{ m.id }}">{{ (m.prenom ~ ' ' ~ m.nom)|trim ?: m.email }}{{ (m.prenom or m.nom) ? ' (' ~ m.email ~ ')' : '' }}</option>
+                                    {% endfor %}
+                                </select>
+                                <button type="submit" class="btn btn-sm btn-success" title="Associer"><i class="fas fa-plus"></i></button>
+                            </form>
+                            {% elseif managers|length == 0 %}
+                            <div class="text-muted" style="font-size:0.7rem;">Aucun utilisateur n'a le rôle « Manager tracabilité ».</div>
+                            {% endif %}
+                        </div>
                         <ul class="list-group list-group-flush" style="max-height:240px; overflow-y:auto;">
                             {% for ouvrier in equipe.ouvriers %}
                             <li class="list-group-item py-1 px-3 d-flex justify-content-between align-items-center small">

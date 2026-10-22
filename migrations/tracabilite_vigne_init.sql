@@ -59,10 +59,7 @@ CREATE TABLE IF NOT EXISTS vigne_saisie (
     tache_nom         VARCHAR(255)   NOT NULL,
     parcelle_nom      VARCHAR(255),                        -- NULL pour tâches RH
     heures            NUMERIC(8,2)   NOT NULL DEFAULT 0,
-    heures_nettes     NUMERIC(8,2)   NOT NULL DEFAULT 0,   -- heures - pause
     effectif          INTEGER        NOT NULL DEFAULT 1,
-    mode_pause        VARCHAR(20)    NOT NULL DEFAULT 'auto',
-    minutes_pause     INTEGER        NOT NULL DEFAULT 0,
     avancement        NUMERIC(5,2)   NOT NULL DEFAULT 0,   -- 0 à 100 %
     pieds             NUMERIC(10,2)  NOT NULL DEFAULT 0,
     pieds_total       NUMERIC(10,2)  NOT NULL DEFAULT 0,

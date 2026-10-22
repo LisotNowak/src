@@ -113,6 +113,11 @@
                                 <span class="badge {% if s.avancement >= 100 %}text-bg-success{% elseif s.avancement >= 50 %}text-bg-info{% elseif s.avancement > 0 %}text-bg-warning{% else %}text-bg-light text-dark{% endif %}">
                                     {{ s.avancement|number_format(0) }}%
                                 </span>
+                                {% if s.piedsTotal > 0 %}
+                                    <div class="text-muted text-nowrap" style="font-size:0.7rem;">
+                                        {{ s.pieds|number_format(0, ',', ' ') }} / {{ s.piedsTotal|number_format(0, ',', ' ') }} pieds
+                                    </div>
+                                {% endif %}
                             {% else %}<span class="text-muted small">—</span>{% endif %}
                         </td>
                         <td class="text-center small d-none d-lg-table-cell">{{ s.pieds > 0 ? s.pieds|number_format(0, ',', ' ') : '—' }}</td>

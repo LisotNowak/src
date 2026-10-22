@@ -26,6 +26,14 @@
         </form>
     </div>
 
+    {% if equipes|length == 0 %}
+    <div class="alert alert-warning">
+        <i class="fas fa-exclamation-triangle me-1"></i>
+        Aucune équipe ne vous est associée : vous ne voyez aucune donnée.
+        Demandez à un administrateur tracabilité de vous associer à vos équipes dans le paramétrage.
+    </div>
+    {% endif %}
+
     {# KPIs #}
     <div class="row g-3 mb-4">
         <div class="col-6 col-lg-3">
@@ -105,6 +113,11 @@
                                             <span class="badge {% if s.avancement >= 100 %}text-bg-success{% elseif s.avancement >= 50 %}text-bg-info{% else %}text-bg-warning{% endif %}">
                                                 {{ s.avancement|number_format(0) }}%
                                             </span>
+                                            {% if s.piedsTotal > 0 %}
+                                                <div class="text-muted text-nowrap" style="font-size:0.7rem;">
+                                                    {{ s.pieds|number_format(0, ',', ' ') }} / {{ s.piedsTotal|number_format(0, ',', ' ') }} pieds
+                                                </div>
+                                            {% endif %}
                                         {% else %}—{% endif %}
                                     </td>
                                 </tr>
@@ -146,6 +159,11 @@
                                     <div class="fw-bold {% if item.maxAdv >= 75 %}text-info{% elseif item.maxAdv >= 50 %}text-warning{% else %}text-danger{% endif %}">
                                         {{ item.maxAdv|number_format(0) }}%
                                     </div>
+                                    {% if item.piedsTotal > 0 %}
+                                        <div class="text-muted text-nowrap" style="font-size:0.7rem;">
+                                            {{ (item.maxAdv * item.piedsTotal / 100)|round|number_format(0, ',', ' ') }} / {{ item.piedsTotal|number_format(0, ',', ' ') }} pieds
+                                        </div>
+                                    {% endif %}
                                     <div class="text-muted" style="font-size:0.7rem;">{{ item.dernierDate|date('d/m') }}</div>
                                 </div>
                             </div>

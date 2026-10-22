@@ -5,6 +5,8 @@ namespace App\Controller\tracabilite;
 use App\Entity\tracabilite\Equipe;
 use App\Entity\tracabilite\Ouvrier;
 use App\Entity\tracabilite\Tache;
+use App\Entity\User;
+use App\Repository\UserRepository;
 use App\Repository\tracabilite\EquipeRepository;
 use App\Repository\tracabilite\OuvrierRepository;
 use App\Repository\tracabilite\TacheRepository;
@@ -13,14 +15,17 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/tracabilite/parametrage', name: 'app_tracabilite_referentiel_')]
+#[IsGranted('ROLE_ADMIN_TRACABILITE')]
 class ReferentielController extends AbstractController
 {
     public function __construct(
         private readonly EquipeRepository   $equipeRepo,
         private readonly OuvrierRepository  $ouvrierRepo,
         private readonly TacheRepository    $tacheRepo,
+        private readonly UserRepository     $userRepo,
         private readonly EntityManagerInterface $em,
     ) {}
 
@@ -31,7 +36,63 @@ class ReferentielController extends AbstractController
             'active_link' => 'referentiel',
             'equipes'     => $this->equipeRepo->findAllWithOuvriers(),
             'taches'      => $this->tacheRepo->findAllSorted(),
+            'managers'    => $this->findManagers(),
         ]);
+    }
+
+    // ---- Managers associés aux équipes ----
+
+    #[Route('/equipe/{id}/responsable/add', name: 'responsable_add', methods: ['POST'])]
+    public function responsableAdd(int $id, Request $request): Response
+    {
+        if (!$this->isCsrfTokenValid('responsable_add_'.$id, $request->request->get('_token'))) {
+            $this->addFlash('danger', 'Token invalide.');
+            return $this->redirectToRoute('app_tracabilite_referentiel_index');
+        }
+        $equipe = $this->equipeRepo->find($id);
+        $user   = $this->userRepo->find((int) $request->request->get('user_id'));
+        if ($equipe && $user) {
+            $equipe->addResponsable($user);
+            $this->em->flush();
+            $this->addFlash('success', "{$this->libelleUser($user)} associé à l'équipe « {$equipe->getNom()} ».");
+        }
+        return $this->redirectToRoute('app_tracabilite_referentiel_index');
+    }
+
+    #[Route('/equipe/{id}/responsable/{userId}/remove', name: 'responsable_remove', methods: ['POST'])]
+    public function responsableRemove(int $id, int $userId, Request $request): Response
+    {
+        if (!$this->isCsrfTokenValid('responsable_remove_'.$id.'_'.$userId, $request->request->get('_token'))) {
+            $this->addFlash('danger', 'Token invalide.');
+            return $this->redirectToRoute('app_tracabilite_referentiel_index');
+        }
+        $equipe = $this->equipeRepo->find($id);
+        $user   = $this->userRepo->find($userId);
+        if ($equipe && $user) {
+            $equipe->removeResponsable($user);
+            $this->em->flush();
+            $this->addFlash('success', "{$this->libelleUser($user)} retiré de l'équipe « {$equipe->getNom()} ».");
+        }
+        return $this->redirectToRoute('app_tracabilite_referentiel_index');
+    }
+
+    /**
+     * Utilisateurs ayant le rôle Manager tracabilité (les admins tracabilité voient déjà toutes les équipes).
+     * @return User[]
+     */
+    private function findManagers(): array
+    {
+        $managers = array_filter(
+            $this->userRepo->findBy([], ['email' => 'ASC']),
+            fn(User $u) => in_array('ROLE_MANAGER_TRACABILITE', $u->getRoles(), true)
+        );
+        return array_values($managers);
+    }
+
+    private function libelleUser(User $user): string
+    {
+        $nom = trim(($user->getPrenom() ?? '') . ' ' . ($user->getNom() ?? ''));
+        return $nom !== '' ? $nom : (string) $user->getEmail();
     }
 
     // ---- Équipes ----

@@ -1,6 +1,7 @@
 {# Validation côté navigateur du formulaire de saisie (new / edit) : un message sous chaque champ #}
 <style>
-#personnel-chips.is-invalid { border-color: #dc3545 !important; }
+#personnel-chips.is-invalid,
+#parcelle-chips.is-invalid { border-color: #dc3545 !important; }
 /* Erreurs renvoyées par le serveur (form_errors, thème par défaut <ul><li>) */
 form[name="saisie"] .row > div > ul {
     list-style: none; padding: 0; margin: .25rem 0 0;
@@ -67,18 +68,22 @@ form[name="saisie"] .row > div > ul {
         if (tache.value && estVisible(parcelle) && !parcelle.value) {
             ajouter(parcelle, 'Veuillez choisir une parcelle pour cette tâche.');
         }
+        // Mode multi-parcelles (formulaire de création uniquement)
+        const parcelleChips = $('parcelle-chips');
+        if (tache.value && estVisible(parcelleChips) && !parcelleChips.querySelector('.btn-check:checked')) {
+            ajouter(parcelleChips, 'Veuillez sélectionner au moins une parcelle.');
+        }
+        // Ventilation des heures : chaque parcelle doit avoir des heures
+        form.querySelectorAll('#ventilation-lignes input').forEach(inp => {
+            if (!estVisible(inp)) return;
+            const v = nombre(inp);
+            if (v === null || isNaN(v) || v <= 0) ajouter(inp, 'Heures > 0 requises.');
+        });
 
         // Heures
         const heures = $('saisie_heures');
         const h = nombre(heures);
         if (h === null || isNaN(h) || h <= 0) ajouter(heures, 'Veuillez indiquer un nombre d\'heures supérieur à 0.');
-
-        // Minutes de pause (mode manuel)
-        const minutes = $('saisie_minutesPause');
-        if (estVisible(minutes)) {
-            const m = nombre(minutes);
-            if (m === null || isNaN(m) || m < 0) ajouter(minutes, 'Indiquez les minutes de pause (0 ou plus).');
-        }
 
         // Pieds
         const pieds = $('saisie_pieds');
@@ -108,7 +113,7 @@ form[name="saisie"] .row > div > ul {
     form.addEventListener('input',  e => retirerErreur(e.target));
     form.addEventListener('change', e => retirerErreur(e.target));
     function retirerErreur(el) {
-        const cible = el.closest('#personnel-chips') || el;
+        const cible = el.closest('#personnel-chips, #parcelle-chips') || el;
         if (!cible.classList.contains('is-invalid')) return;
         cible.classList.remove('is-invalid');
         const ancre = cible.closest('.input-group, .d-flex.align-items-center') || cible;

@@ -65,10 +65,34 @@
                     {{ form_errors(form.tacheNom) }}
                 </div>
                 <div class="col-md-6" id="parcelleBlock">
-                    {{ form_label(form.parcelleNom) }}
-                    {{ form_widget(form.parcelleNom) }}
-                    {{ form_errors(form.parcelleNom) }}
-                    <div class="form-text" id="parcelle-info"></div>
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
+                        {{ form_label(form.parcelleNom) }}
+                        <div class="form-check form-switch mb-1 small">
+                            <input class="form-check-input" type="checkbox" role="switch" name="multiParcelle" value="1"
+                                   id="multiParcelle" {{ multiParcelle ? 'checked' : '' }}>
+                            <label class="form-check-label" for="multiParcelle">Plusieurs parcelles</label>
+                        </div>
+                    </div>
+                    <div id="parcelleSimple">
+                        {{ form_widget(form.parcelleNom) }}
+                        {{ form_errors(form.parcelleNom) }}
+                        <div class="form-text" id="parcelle-info"></div>
+                        <div class="form-text" id="parcelle-taches"></div>
+                    </div>
+                    <div id="parcelleMulti" style="display:none;">
+                        <input type="search" id="parcelle-search" class="form-control form-control-sm mb-1" placeholder="Filtrer les parcelles…" autocomplete="off">
+                        <div id="parcelle-chips" class="d-flex flex-wrap gap-1 p-2 border rounded bg-white" style="max-height:200px; overflow-y:auto;">
+                            {% for choice in form.parcelleNom.vars.choices %}
+                                <input type="checkbox" class="btn-check" name="parcellesNoms[]" value="{{ choice.value }}"
+                                       id="parcheck_{{ loop.index }}" autocomplete="off" {{ choice.value in parcellesNoms ? 'checked' : '' }}>
+                                <label class="btn btn-sm btn-outline-success rounded-pill" for="parcheck_{{ loop.index }}">{{ choice.label }}</label>
+                            {% endfor %}
+                        </div>
+                        <div class="form-text" id="parcelles-resume"></div>
+                        <div class="form-text text-warning-emphasis">
+                            <i class="fas fa-lock me-1"></i>Avancement bloqué à 100 % : une saisie terminée est créée par parcelle, avec les heures ventilées sur chacune.
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -76,7 +100,7 @@
 
     <div class="card border-0 shadow-sm mb-3">
         <div class="card-header bg-white fw-semibold">
-            <i class="fas fa-clock me-2" style="color:#800000;"></i>Heures &amp; Pause
+            <i class="fas fa-clock me-2" style="color:#800000;"></i>Heures &amp; Effectif
         </div>
         <div class="card-body">
             <div class="row g-3">
@@ -95,18 +119,33 @@
                     </div>
                     <div class="form-text">Calculé automatiquement</div>
                 </div>
-                <div class="col-md-3">
-                    {{ form_label(form.modePause) }}
-                    {{ form_widget(form.modePause) }}
-                </div>
-                <div class="col-md-3" id="minutesPauseBlock">
-                    {{ form_label(form.minutesPause) }}
-                    {{ form_widget(form.minutesPause) }}
-                    {{ form_errors(form.minutesPause) }}
-                </div>
             </div>
-            <div class="mt-2">
-                <small class="text-muted">Heures nettes estimées : <strong id="heuresNettesInfo">—</strong></small>
+
+            {# Ventilation des heures par parcelle (mode multi-parcelles) #}
+            <div id="ventilationBlock" class="mt-3" style="display:none;">
+                <div class="fw-semibold small mb-1">
+                    <i class="fas fa-random me-1" style="color:#800000;"></i>Ventilation des heures par parcelle
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-1">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Parcelle</th>
+                                <th class="text-end d-none d-sm-table-cell">Pieds</th>
+                                <th style="width:150px;">Heures</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ventilation-lignes"></tbody>
+                        <tfoot>
+                            <tr>
+                                <th>Total</th>
+                                <th class="text-end d-none d-sm-table-cell" id="ventilation-pieds"></th>
+                                <th id="ventilation-total">0,00h</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                <div class="form-text" id="ventilation-vide">Cochez des parcelles pour ventiler les heures.</div>
             </div>
         </div>
     </div>
@@ -124,6 +163,7 @@
                         {{ form_widget(form.avancement, {attr: {type: 'range', class: 'form-range'}}) }}
                         <span id="avancement-display" class="badge text-bg-secondary" style="min-width:48px;">0%</span>
                     </div>
+                    <div class="form-text" id="avancement-pieds"></div>
                 </div>
                 <div class="col-md-4" id="piedsBlock">
                     {{ form_label(form.pieds) }}
@@ -167,11 +207,7 @@ const EQUIPES   = {{ equipesJson|raw }};
 const selChef           = document.getElementById('saisie_chefNom');
 const selTache          = document.getElementById('saisie_tacheNom');
 const selParcelle       = document.getElementById('saisie_parcelleNom');
-const heuresInput       = document.getElementById('saisie_heures');
-const modePauseInput    = document.getElementById('saisie_modePause');
-const minutesPauseInput = document.getElementById('saisie_minutesPause');
 const parcelleBlock     = document.getElementById('parcelleBlock');
-const minutesPauseBlock = document.getElementById('minutesPauseBlock');
 const avancementRange   = document.getElementById('saisie_avancement');
 const advDisplay        = document.getElementById('avancement-display');
 const piedsInput        = document.getElementById('saisie_pieds');
@@ -188,6 +224,7 @@ function syncPiedsFromAdv() {
         piedsInput.value = Math.round(parseFloat(avancementRange.value) / 100 * total);
         _sync = false;
     }
+    updateAdvPieds();
 }
 
 function syncAdvFromPieds() {
@@ -200,6 +237,23 @@ function syncAdvFromPieds() {
         if (advDisplay) advDisplay.textContent = adv + '%';
         _sync = false;
     }
+    updateAdvPieds();
+}
+
+// Avancement exprimé en pieds réalisés / pieds total
+function updateAdvPieds() {
+    const el = document.getElementById('avancement-pieds');
+    if (!el || !piedsInput || !piedsTotalInput) return;
+    if (isMultiParcelle()) {
+        const total = piedsParcellesCochees();
+        el.textContent = total > 0 ? total.toLocaleString('fr') + ' / ' + total.toLocaleString('fr') + ' pieds' : '';
+        return;
+    }
+    const total = parseFloat(piedsTotalInput.value) || 0;
+    const pieds = parseFloat(piedsInput.value) || 0;
+    el.textContent = total > 0
+        ? pieds.toLocaleString('fr') + ' / ' + total.toLocaleString('fr') + ' pieds'
+        : '';
 }
 
 // ── Fonctions de filtrage / mise à jour ───────────────────────────────────
@@ -270,17 +324,132 @@ document.getElementById('btn-toute-equipe').addEventListener('click', () => {
 
 function updateParcelleVisibility() {
     const tache = TACHES[selTache.value];
-    if (tache && tache.sansParcel) {
-        parcelleBlock.style.display = 'none';
-        selParcelle.value = '';
-        document.getElementById('piedsBlock').style.display = 'none';
-        document.getElementById('piedsTotalBlock').style.display = 'none';
-    } else {
-        parcelleBlock.style.display = '';
-        document.getElementById('piedsBlock').style.display = '';
-        document.getElementById('piedsTotalBlock').style.display = '';
-    }
+    const sansParcel = tache && tache.sansParcel;
+    if (sansParcel) selParcelle.value = '';
+    parcelleBlock.style.display = sansParcel ? 'none' : '';
+    // En multi-parcelles, les pieds sont ceux de chaque parcelle (pas de saisie manuelle)
+    const piedsCaches = sansParcel || multiParcelleInput.checked;
+    document.getElementById('piedsBlock').style.display = piedsCaches ? 'none' : '';
+    document.getElementById('piedsTotalBlock').style.display = piedsCaches ? 'none' : '';
 }
+
+// ── Saisie multi-parcelles (avancement bloqué à 100 %) ─────────────────────
+
+const multiParcelleInput = document.getElementById('multiParcelle');
+
+function isMultiParcelle() {
+    return multiParcelleInput.checked && parcelleBlock.style.display !== 'none';
+}
+
+function parcellesCochees() {
+    return [...document.querySelectorAll('#parcelle-chips .btn-check:checked')].map(cb => cb.value);
+}
+
+function piedsParcellesCochees() {
+    return parcellesCochees().reduce((s, slug) => s + ((PARCELLES[slug] && PARCELLES[slug].nombrePieds) || 0), 0);
+}
+
+function updateParcellesResume() {
+    const n = parcellesCochees().length;
+    const pieds = piedsParcellesCochees();
+    document.getElementById('parcelles-resume').textContent = n
+        ? n + ' parcelle(s) sélectionnée(s)' + (pieds ? ' · ' + pieds.toLocaleString('fr') + ' pieds' : '')
+        : '';
+    renderVentilation();
+    updateAdvPieds();
+}
+
+// ── Ventilation des heures : une ligne par parcelle cochée ─────────────────
+
+const heuresInput = document.getElementById('saisie_heures');
+// Heures déjà saisies par parcelle (conservées si on décoche puis recoche, et après une erreur serveur)
+const heuresVentilees = Object.assign({}, {{ heuresParcelles|json_encode|raw }});
+
+function renderVentilation() {
+    const tbody = document.getElementById('ventilation-lignes');
+    tbody.querySelectorAll('input').forEach(inp => { heuresVentilees[inp.dataset.slug] = inp.value; });
+    tbody.innerHTML = '';
+    const slugs = parcellesCochees();
+    slugs.forEach(slug => {
+        const p  = PARCELLES[slug] || {};
+        const tr = document.createElement('tr');
+
+        const tdNom = document.createElement('td');
+        tdNom.className = 'small fw-semibold';
+        tdNom.textContent = slug;
+
+        const tdPieds = document.createElement('td');
+        tdPieds.className = 'small text-end text-muted d-none d-sm-table-cell';
+        tdPieds.textContent = p.nombrePieds ? p.nombrePieds.toLocaleString('fr') : '—';
+
+        const tdH = document.createElement('td');
+        const inp = document.createElement('input');
+        inp.type = 'number';
+        inp.min  = 0;
+        inp.step = 0.25;
+        inp.name = 'heuresParcelles[' + slug + ']';
+        inp.dataset.slug = slug;
+        inp.className = 'form-control form-control-sm ventilation-heures';
+        inp.value = heuresVentilees[slug] ?? '';
+        inp.addEventListener('input', updateTotalVentile);
+        tdH.appendChild(inp);
+
+        tr.append(tdNom, tdPieds, tdH);
+        tbody.appendChild(tr);
+    });
+    document.getElementById('ventilation-vide').style.display = slugs.length ? 'none' : '';
+    const pieds = piedsParcellesCochees();
+    document.getElementById('ventilation-pieds').textContent = pieds ? pieds.toLocaleString('fr') : '';
+    updateTotalVentile();
+}
+
+// Le total ventilé alimente le champ « Heures travaillées » (non modifiable en multi-parcelles)
+function updateTotalVentile() {
+    let total = 0;
+    document.querySelectorAll('#ventilation-lignes input').forEach(inp => {
+        total += parseFloat(inp.value.replace(',', '.')) || 0;
+    });
+    total = Math.round(total * 100) / 100;
+    document.getElementById('ventilation-total').textContent = total.toFixed(2).replace('.', ',') + 'h';
+    if (isMultiParcelle()) heuresInput.value = total;
+}
+
+function setMultiParcelle() {
+    updateParcelleVisibility();
+    const multi = multiParcelleInput.checked;
+    document.getElementById('parcelleSimple').style.display = multi ? 'none' : '';
+    document.getElementById('parcelleMulti').style.display  = multi ? '' : 'none';
+
+    const bloque = isMultiParcelle();
+    if (bloque) {
+        avancementRange.value = 100;
+        if (advDisplay) advDisplay.textContent = '100%';
+    }
+    // Le curseur reste soumis (un champ désactivé ne serait pas envoyé) mais n'est plus manipulable
+    avancementRange.style.pointerEvents = bloque ? 'none' : '';
+    avancementRange.style.opacity       = bloque ? '0.5' : '';
+    avancementRange.tabIndex            = bloque ? -1 : 0;
+
+    // Heures : saisies parcelle par parcelle, le champ principal devient le total
+    document.getElementById('ventilationBlock').style.display = bloque ? '' : 'none';
+    heuresInput.readOnly = bloque;
+    heuresInput.classList.toggle('bg-light', bloque);
+
+    if (bloque) updateParcellesResume();
+    else syncPiedsFromAdv();
+}
+
+document.getElementById('parcelle-search').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll('#parcelle-chips .btn-check').forEach(cb => {
+        const lbl = document.querySelector('label[for="' + cb.id + '"]');
+        const visible = !q || lbl.textContent.toLowerCase().includes(q);
+        lbl.style.display = visible ? '' : 'none';
+    });
+});
+
+document.getElementById('parcelle-chips').addEventListener('change', updateParcellesResume);
+multiParcelleInput.addEventListener('change', setMultiParcelle);
 
 function updateParcelleInfo() {
     const slug = selParcelle.value;
@@ -300,20 +469,22 @@ function updateParcelleInfo() {
     }
 }
 
-function updatePause() {
-    minutesPauseBlock.style.display = (modePauseInput.value === 'manuel') ? '' : 'none';
-}
-
-function updateHeuresNettes() {
-    const h = parseFloat(heuresInput.value) || 0;
-    let m = 0;
-    const mode = modePauseInput.value;
-    if (mode === 'hiver') m = 15;
-    else if (mode === 'ete') m = 20;
-    else if (mode === 'manuel') m = parseInt(minutesPauseInput.value) || 0;
-    else if (mode === 'aucune') m = 0;
-    else { const mn = new Date().getMonth() + 1; m = (mn >= 4 && mn <= 9) ? 20 : 15; }
-    document.getElementById('heuresNettesInfo').textContent = Math.max(0, h - m / 60).toFixed(2) + 'h';
+// Tâches déjà en cours sur la parcelle (plusieurs tâches possibles en parallèle)
+function updateParcelleTaches() {
+    const el = document.getElementById('parcelle-taches');
+    const p  = PARCELLES[selParcelle.value];
+    const advs = (p && p.avancements) || {};
+    const taches = Object.keys(advs).sort((a, b) => a.localeCompare(b, 'fr'));
+    el.innerHTML = '';
+    if (!taches.length) return;
+    el.append('Tâches sur cette parcelle : ');
+    taches.forEach((t, i) => {
+        const item = document.createElement('span');
+        item.textContent = t + ' ' + Math.round(advs[t]) + '%';
+        if (t === selTache.value) item.className = 'fw-bold text-dark';
+        if (i > 0) el.append(' · ');
+        el.appendChild(item);
+    });
 }
 
 // ── Setup slider avancement ───────────────────────────────────────────────
@@ -348,19 +519,16 @@ if (piedsTotalInput) {
 // ── Événements ────────────────────────────────────────────────────────────
 
 selChef.addEventListener('change', () => filterPersonnel(selChef.value, []));
-selTache.addEventListener('change', updateParcelleVisibility);
-selParcelle.addEventListener('change', updateParcelleInfo);
-modePauseInput.addEventListener('change', () => { updatePause(); updateHeuresNettes(); });
-heuresInput.addEventListener('input', updateHeuresNettes);
+selTache.addEventListener('change', () => { setMultiParcelle(); updateParcelleTaches(); });
+selParcelle.addEventListener('change', () => { updateParcelleInfo(); updateParcelleTaches(); });
 nbSaisonniersInput.addEventListener('input', updateEffectif);
-minutesPauseInput.addEventListener('input', updateHeuresNettes);
 
 // Init
 if (selChef.value) filterPersonnel(selChef.value, []);
-updateParcelleVisibility();
 updateParcelleInfo();
-updatePause();
-updateHeuresNettes();
+updateParcelleTaches();
+setMultiParcelle();
+updateAdvPieds();
 </script>
 {{ include('tracabilite/saisie/_validation.html.twig') }}
 {% endblock %}

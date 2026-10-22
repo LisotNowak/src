@@ -15,20 +15,26 @@
             <i class="fas fa-map-marked-alt me-2"></i>Carte des parcelles
         </h4>
         <div class="d-flex flex-wrap gap-1 align-items-center">
-            {# ── Filtre par tâche ── #}
-            {% if taches|length > 0 %}
-            <select id="tache-filter" class="form-select form-select-sm me-2" style="width:auto; max-width:220px;" title="Filtrer par tâche">
-                <option value="">Toutes les tâches</option>
-                {% for t in taches %}
-                    <option value="{{ t.nom }}">{{ t.nom }}</option>
-                {% endfor %}
-            </select>
-            {% endif %}
+            {# ── Filtres période + tâche (le changement de mois recharge la page, la tâche filtre en direct) ── #}
+            <form method="get" id="carte-filtres" class="d-flex flex-wrap gap-1 align-items-center me-2">
+                <div class="input-group input-group-sm" style="width:auto;">
+                    <input type="month" name="mois" value="{{ mois }}" class="form-control form-control-sm" onchange="this.form.submit()" title="Période">
+                    <a href="{{ path('app_tracabilite_carte', {mois: '', tache: tache}) }}"
+                       class="btn {{ mois == '' ? 'btn-secondary' : 'btn-outline-secondary' }}">Tous les mois</a>
+                </div>
+                <select id="tache-filter" name="tache" class="form-select form-select-sm" style="width:auto; max-width:220px;" title="Filtrer par tâche">
+                    <option value="">Toutes les tâches</option>
+                    {% for t in taches %}
+                        <option value="{{ t }}" {{ tache == t ? 'selected' : '' }}>{{ t }}</option>
+                    {% endfor %}
+                </select>
+            </form>
             <span class="badge text-bg-light border"><span class="d-inline-block me-1" style="width:10px;height:10px;background:#198754;border-radius:2px;"></span>100%</span>
             <span class="badge text-bg-light border"><span class="d-inline-block me-1" style="width:10px;height:10px;background:#0dcaf0;border-radius:2px;"></span>≥75%</span>
             <span class="badge text-bg-light border"><span class="d-inline-block me-1" style="width:10px;height:10px;background:#ffc107;border-radius:2px;"></span>≥50%</span>
             <span class="badge text-bg-light border"><span class="d-inline-block me-1" style="width:10px;height:10px;background:#dc3545;border-radius:2px;"></span>&lt;50%</span>
             <span class="badge text-bg-light border"><span class="d-inline-block me-1" style="width:10px;height:10px;background:#adb5bd;border-radius:2px;"></span>—</span>
+            <span class="badge text-bg-light border" title="Toutes tâches : la couleur suit la tâche la moins avancée"><span class="d-inline-block me-1" style="width:10px;height:10px;border:2px dashed #333;border-radius:2px;"></span>Plusieurs tâches</span>
         </div>
     </div>
 
@@ -205,23 +211,50 @@ map.getPane('highlight').style.pointerEvents = 'none'; // ne capte pas les clics
 
 let highlightLayer = null;   // calque de contour séparé
 let selectedLayer  = null;   // calque polygon original sélectionné
-let selectedOriginalColor = null;
 let selectedProps  = null;   // propriétés de la parcelle sélectionnée
 let globalBounds = null;
 
 // ── Filtre par tâche ─────────────────────────────────────────────────────────
-let currentTache = '';       // '' = toutes les tâches
+let currentTache = {{ tache|json_encode|raw }};   // '' = toutes les tâches
 const parcelLayers = [];     // { layer, p }
 
 // Avancement d'une parcelle selon le filtre de tâche actif
+// (toutes tâches : avancement de la tâche la moins avancée)
 function advFor(p) {
     if (!currentTache) return p.avancement || 0;
     return (p.avancements && p.avancements[currentTache]) || 0;
 }
 
-function setAdvBadge(adv) {
+function nbTaches(p) {
+    return Object.keys(p.avancements || {}).length;
+}
+
+// Plusieurs tâches menées en parallèle sur la parcelle (visible seulement sans filtre de tâche)
+function isMultiTaches(p) {
+    return !currentTache && nbTaches(p) > 1;
+}
+
+function baseStyle(p) {
+    const multi = isMultiTaches(p);
+    return {
+        color: multi ? '#333' : '#fff',
+        weight: multi ? 2.5 : 1.5,
+        dashArray: multi ? '6 4' : null,
+        fillColor: advColor(advFor(p)),
+        fillOpacity: 0.72
+    };
+}
+
+function tooltipText(p) {
+    const n = nbTaches(p);
+    return p.slug + (n > 1 ? ' · ' + n + ' tâches' : '');
+}
+
+function setAdvBadge(p) {
+    const adv   = Math.round(advFor(p));
     const advEl = document.getElementById('infoAdv');
     advEl.textContent = adv + '%';
+    advEl.title = isMultiTaches(p) ? 'Tâche la moins avancée (' + nbTaches(p) + ' tâches en cours)' : '';
     advEl.className   = 'badge fs-6 ' + (
         adv >= 100 ? 'text-bg-success' :
         adv >= 75  ? 'text-bg-info'    :
@@ -232,35 +265,71 @@ function setAdvBadge(adv) {
 
 function setTacheFilter(tache) {
     currentTache = tache;
-    parcelLayers.forEach(({ layer, p }) => {
-        const color = advColor(advFor(p));
-        layer.setStyle({ fillColor: color });
-        if (layer === selectedLayer) selectedOriginalColor = color;
-    });
+    parcelLayers.forEach(({ layer, p }) => layer.setStyle(baseStyle(p)));
     if (selectedProps) {
-        setAdvBadge(advFor(selectedProps));
+        setAdvBadge(selectedProps);
         setTachesInfo(selectedProps);
     }
 }
 
-// Tâches réalisées sur la parcelle avec leur avancement (ou la tâche filtrée)
+// Tâches de la parcelle (en parallèle) avec leur avancement, ou la seule tâche filtrée
 function setTachesInfo(p) {
     const el = document.getElementById('infoTaches');
     const advs = p.avancements || {};
-    const taches = currentTache ? [currentTache] : Object.keys(advs).sort((a, b) => a.localeCompare(b, 'fr'));
+    // Les moins avancées d'abord : ce qui reste à faire en tête
+    const taches = currentTache
+        ? [currentTache]
+        : Object.keys(advs).sort((a, b) => (advs[a] - advs[b]) || a.localeCompare(b, 'fr'));
     el.innerHTML = '';
     if (!taches.length) { el.textContent = '—'; return; }
     taches.forEach(t => {
+        const adv = advs[t] || 0;
         const ligne = document.createElement('div');
-        ligne.textContent = t + ' : ' + Math.round(advs[t] || 0) + '%';
+        ligne.className = 'mb-1';
+
+        const titre = document.createElement('div');
+        titre.className = 'd-flex justify-content-between gap-2';
+        const nom = document.createElement('span');
+        nom.textContent = t;
+        const pct = document.createElement('span');
+        pct.className = 'text-nowrap';
+        pct.textContent = Math.round(adv) + '%';
+        titre.append(nom, pct);
+        ligne.appendChild(titre);
+
+        const barre = document.createElement('div');
+        barre.className = 'progress';
+        barre.style.height = '4px';
+        const rempli = document.createElement('div');
+        rempli.className = 'progress-bar';
+        rempli.style.width = Math.min(100, adv) + '%';
+        rempli.style.background = advColor(adv);
+        barre.appendChild(rempli);
+        ligne.appendChild(barre);
+
+        if (p.nombrePieds) {
+            const realises = Math.round(adv / 100 * p.nombrePieds);
+            const pieds = document.createElement('div');
+            pieds.className = 'text-muted fw-normal';
+            pieds.style.fontSize = '0.7rem';
+            pieds.textContent = realises.toLocaleString('fr') + ' / ' + p.nombrePieds.toLocaleString('fr') + ' pieds';
+            ligne.appendChild(pieds);
+        }
         el.appendChild(ligne);
     });
 }
 
 document.getElementById('tache-filter')
-    ?.addEventListener('change', e => setTacheFilter(e.target.value));
+    ?.addEventListener('change', e => {
+        setTacheFilter(e.target.value);
+        // Garde la tâche dans l'URL pour qu'un rechargement la conserve
+        const url = new URL(window.location.href);
+        url.searchParams.set('mois', {{ mois|json_encode|raw }});
+        url.searchParams.set('tache', e.target.value);
+        history.replaceState(null, '', url);
+    });
 
-fetch('{{ path("app_tracabilite_carte_geojson") }}')
+fetch('{{ path("app_tracabilite_carte_geojson", {mois: mois}) }}')
     .then(r => r.json())
     .then(data => {
         data.features.forEach(f => {
@@ -268,18 +337,11 @@ fetch('{{ path("app_tracabilite_carte_geojson") }}')
                 const geomWgs        = convertGeom(f.geometry);
                 const p              = f.properties;
 
-                const layer = buildLayer(geomWgs, {
-                    style: {
-                        color: '#fff',
-                        weight: 1.5,
-                        fillColor: advColor(advFor(p)),
-                        fillOpacity: 0.72
-                    }
-                }).addTo(map);
+                const layer = buildLayer(geomWgs, { style: baseStyle(p) }).addTo(map);
                 parcelLayers.push({ layer, p });
 
                 // Tooltip au survol
-                layer.bindTooltip(p.slug, {
+                layer.bindTooltip(() => tooltipText(p), {
                     permanent: false,
                     direction: 'center',
                     className: 'leaflet-tooltip-parcel'
@@ -291,14 +353,10 @@ fetch('{{ path("app_tracabilite_carte_geojson") }}')
                     if (highlightLayer) { map.removeLayer(highlightLayer); highlightLayer = null; }
                     // Remet le style d'origine sur l'ancien polygone sélectionné
                     if (selectedLayer && selectedLayer !== layer) {
-                        selectedLayer.setStyle({
-                            color: '#fff', weight: 1.5,
-                            fillColor: selectedOriginalColor, fillOpacity: 0.72
-                        });
+                        selectedLayer.setStyle(baseStyle(selectedProps));
                     }
-                    selectedLayer         = layer;
-                    selectedOriginalColor = advColor(advFor(p));
-                    selectedProps         = p;
+                    selectedLayer = layer;
+                    selectedProps = p;
 
                     // Calque de contour noir épais dans le pane highlight (par-dessus tout)
                     highlightLayer = buildLayer(geomWgs, {
@@ -313,7 +371,7 @@ fetch('{{ path("app_tracabilite_carte_geojson") }}')
                     document.getElementById('infoPieds').textContent   = p.nombrePieds ? p.nombrePieds.toLocaleString('fr') : '—';
                     document.getElementById('infoSurface').textContent = p.surface   || '—';
 
-                    setAdvBadge(advFor(p));
+                    setAdvBadge(p);
                     setTachesInfo(p);
 
                     // Anime la bulle
@@ -351,10 +409,7 @@ document.getElementById('infoClose').addEventListener('click', () => {
     document.getElementById('parcelleInfo').style.display = 'none';
     if (highlightLayer) { map.removeLayer(highlightLayer); highlightLayer = null; }
     if (selectedLayer) {
-        selectedLayer.setStyle({
-            color: '#fff', weight: 1.5,
-            fillColor: selectedOriginalColor, fillOpacity: 0.72
-        });
+        selectedLayer.setStyle(baseStyle(selectedProps));
         selectedLayer = null;
     }
     selectedProps = null;

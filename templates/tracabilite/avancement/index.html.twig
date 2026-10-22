@@ -19,7 +19,7 @@
                     <label class="form-label mb-1 small fw-semibold">Mois</label>
                     <div class="input-group input-group-sm">
                         <input type="month" name="mois" value="{{ mois }}" class="form-control form-control-sm" onchange="this.form.submit()">
-                        <a href="{{ path('app_tracabilite_avancement', {mois: '', chef: chef}) }}"
+                        <a href="{{ path('app_tracabilite_avancement', {mois: '', chef: chef, tache: tache}) }}"
                            class="btn {{ mois == '' ? 'btn-secondary' : 'btn-outline-secondary' }}">Tous les mois</a>
                     </div>
                 </div>
@@ -29,6 +29,15 @@
                         <option value="">Toutes les équipes</option>
                         {% for e in equipes %}
                             <option value="{{ e.nom }}" {{ chef == e.nom ? 'selected' : '' }}>{{ e.nom }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-sm-4">
+                    <label class="form-label mb-1 small fw-semibold">Tâche</label>
+                    <select name="tache" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <option value="">Toutes les tâches</option>
+                        {% for t in taches %}
+                            <option value="{{ t }}" {{ tache == t ? 'selected' : '' }}>{{ t }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -47,14 +56,6 @@
     {# Tableau avancement #}
     {% if avancements|length > 0 %}
 
-    {# Résumé par tâche #}
-    {% set tacheGroups = {} %}
-    {% for a in avancements %}
-        {% set tnom = a.tacheNom %}
-        {% if tacheGroups[tnom] is not defined %}
-            {% set tacheGroups = tacheGroups|merge({(tnom): []}) %}
-        {% endif %}
-    {% endfor %}
 
     <div class="card border-0 shadow-sm">
         <div class="card-header bg-white d-flex justify-content-between">
@@ -74,11 +75,18 @@
                     </tr>
                 </thead>
                 <tbody>
+                    {% set lastParcelle = null %}
                     {% for a in avancements %}
                     {% set adv = a.maxAdv|number_format(0) %}
-                    <tr>
+                    {% set nouvelleParcelle = lastParcelle != a.parcelleNom %}
+                    <tr class="{{ lastParcelle and nouvelleParcelle ? 'border-top' : '' }}">
                         <td class="fw-semibold small">
-                            {{ a.parcelleNom }}
+                            {% if nouvelleParcelle %}
+                                {{ a.parcelleNom }}
+                                {% if nbTachesParcelle[a.parcelleNom] > 1 %}
+                                    <span class="badge text-bg-dark ms-1" title="Tâches menées en parallèle sur cette parcelle">{{ nbTachesParcelle[a.parcelleNom] }} tâches</span>
+                                {% endif %}
+                            {% endif %}
                             <div class="d-sm-none text-muted fw-normal" style="font-size:0.7rem;">{{ a.tacheNom }}</div>
                         </td>
                         <td class="small text-muted d-none d-sm-table-cell">{{ a.tacheNom }}</td>
@@ -103,10 +111,16 @@
                                 {% else %}text-bg-danger{% endif %}">
                                 {{ adv }}%
                             </span>
+                            {% if a.piedsTotal > 0 %}
+                                <div class="text-muted text-nowrap" style="font-size:0.7rem;">
+                                    {{ (a.maxAdv * a.piedsTotal / 100)|round|number_format(0, ',', ' ') }} / {{ a.piedsTotal|number_format(0, ',', ' ') }} pieds
+                                </div>
+                            {% endif %}
                         </td>
                         <td class="text-center small d-none d-md-table-cell">{{ a.totalHeures ? a.totalHeures|number_format(1, ',') ~ 'h' : '—' }}</td>
                         <td class="small text-muted d-none d-md-table-cell">{{ a.dernierDate ? a.dernierDate|date('d/m/Y') : '—' }}</td>
                     </tr>
+                    {% set lastParcelle = a.parcelleNom %}
                     {% endfor %}
                 </tbody>
             </table>
