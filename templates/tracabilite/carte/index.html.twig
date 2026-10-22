@@ -19,7 +19,7 @@
             <form method="get" id="carte-filtres" class="d-flex flex-wrap gap-1 align-items-center me-2">
                 <div class="input-group input-group-sm" style="width:auto;">
                     <input type="month" name="mois" value="{{ mois }}" class="form-control form-control-sm" onchange="this.form.submit()" title="Période">
-                    <a href="{{ path('app_tracabilite_carte', {mois: '', tache: tache}) }}"
+                    <a href="{{ path('app_tracabilite_carte', {mois: '', tache: tache, carte: cartePerso ? cartePerso.id : ''}) }}"
                        class="btn {{ mois == '' ? 'btn-secondary' : 'btn-outline-secondary' }}">Tous les mois</a>
                 </div>
                 <select id="tache-filter" name="tache" class="form-select form-select-sm" style="width:auto; max-width:220px;" title="Filtrer par tâche">
@@ -28,6 +28,15 @@
                         <option value="{{ t }}" {{ tache == t ? 'selected' : '' }}>{{ t }}</option>
                     {% endfor %}
                 </select>
+                {% if cartesPerso|length > 0 %}
+                <select name="carte" class="form-select form-select-sm" style="width:auto; max-width:220px;" onchange="this.form.submit()"
+                        title="Disposition des parcelles : positions réelles ou carte personnalisée">
+                    <option value="">Positions réelles</option>
+                    {% for c in cartesPerso %}
+                        <option value="{{ c.id }}" {{ cartePerso and cartePerso.id == c.id ? 'selected' : '' }}>Carte perso : {{ c.nom }}</option>
+                    {% endfor %}
+                </select>
+                {% endif %}
             </form>
             <span class="badge text-bg-light border"><span class="d-inline-block me-1" style="width:10px;height:10px;background:#198754;border-radius:2px;"></span>100%</span>
             <span class="badge text-bg-light border"><span class="d-inline-block me-1" style="width:10px;height:10px;background:#0dcaf0;border-radius:2px;"></span>≥75%</span>
@@ -37,6 +46,14 @@
             <span class="badge text-bg-light border" title="Toutes tâches : la couleur suit la tâche la moins avancée"><span class="d-inline-block me-1" style="width:10px;height:10px;border:2px dashed #333;border-radius:2px;"></span>Plusieurs tâches</span>
         </div>
     </div>
+
+    {% if cartePerso %}
+    <div class="alert alert-info py-1 px-2 small mb-2">
+        <i class="fas fa-object-group me-1"></i>
+        Disposition de la carte personnalisée <strong>{{ cartePerso.nom }}</strong> :
+        seules ses {{ cartePerso.disposition|length }} parcelle(s) sont affichées, certaines peuvent être repositionnées
+        (distances entre parcelles non réelles, fond de plan désactivé).    </div>
+    {% endif %}
 
     <div class="card border-0 shadow-sm" style="position:relative;" id="map-print-zone">
         <div class="card-body p-0">
@@ -159,25 +176,41 @@ function setBasemap(type) {
     currentBase = type;
 }
 
+// ── Disposition d'une carte personnalisée ────────────────────────────────────
+// { slug: [dx, dy] } en mètres Lambert 93, ou null pour les positions réelles
+const DISPOSITION = {{ cartePerso ? cartePerso.disposition|json_encode|raw : 'null' }};
+const OPTIONS_PERSO = {{ cartePerso ? cartePerso.options|json_encode|raw : 'null' }};
+
+if (DISPOSITION) {
+    // Positions non géographiques : un fond de plan serait trompeur
+    setBasemap('blanc');
+    ['btn-osm', 'btn-sat'].forEach(id => {
+        const b = document.getElementById(id);
+        if (b) { b.disabled = true; b.title = 'Indisponible : les parcelles de cette carte personnalisée peuvent être repositionnées'; b.style.opacity = 0.4; }
+    });
+}
+
 // ── Helpers géométrie ────────────────────────────────────────────────────────
-function convertCoords(coords) {
-    const [lng, lat] = proj4('EPSG:2154', 'WGS84', coords);
+function convertCoords(coords, dx = 0, dy = 0) {
+    const [lng, lat] = proj4('EPSG:2154', 'WGS84', [coords[0] + dx, coords[1] + dy]);
     return [lng, lat];
 }
 
-function convertGeom(geom) {
+// dx, dy : décalage en mètres (Lambert 93) appliqué avant conversion
+function convertGeom(geom, dx = 0, dy = 0) {
+    const conv = c => convertCoords(c, dx, dy);
     if (geom.type === 'MultiPolygon') {
         return {
             type: 'MultiPolygon',
             coordinates: geom.coordinates.map(poly =>
-                poly.map(ring => ring.map(convertCoords))
+                poly.map(ring => ring.map(conv))
             )
         };
     }
     if (geom.type === 'Polygon') {
         return {
             type: 'Polygon',
-            coordinates: geom.coordinates.map(ring => ring.map(convertCoords))
+            coordinates: geom.coordinates.map(ring => ring.map(conv))
         };
     }
     return geom;
@@ -334,11 +367,24 @@ fetch('{{ path("app_tracabilite_carte_geojson", {mois: mois}) }}')
     .then(data => {
         data.features.forEach(f => {
             try {
-                const geomWgs        = convertGeom(f.geometry);
-                const p              = f.properties;
+                const p = f.properties;
+                // Carte personnalisée : uniquement ses parcelles, à leur position modifiée
+                if (DISPOSITION && !DISPOSITION[p.slug]) return;
+                const [dx, dy]       = DISPOSITION ? DISPOSITION[p.slug] : [0, 0];
+                const geomWgs        = convertGeom(f.geometry, dx, dy);
 
                 const layer = buildLayer(geomWgs, { style: baseStyle(p) }).addTo(map);
                 parcelLayers.push({ layer, p });
+
+                // Noms permanents, comme sur la carte personnalisée
+                if (OPTIONS_PERSO && OPTIONS_PERSO.afficherNoms !== false) {
+                    const span = document.createElement('span');
+                    span.textContent = p.slug;
+                    L.marker(layer.getBounds().getCenter(), {
+                        icon: L.divIcon({ className: 'cp-label', html: span.outerHTML, iconSize: null }),
+                        interactive: false, keyboard: false,
+                    }).addTo(map);
+                }
 
                 // Tooltip au survol
                 layer.bindTooltip(() => tooltipText(p), {
@@ -399,10 +445,32 @@ fetch('{{ path("app_tracabilite_carte_geojson", {mois: mois}) }}')
     .catch(e => console.error('Erreur chargement GeoJSON', e));
 
 // ── Impression ───────────────────────────────────────────────────────────────
-function printCarte() {
-    map.invalidateSize();          // recalcule les tuiles si la fenêtre a changé
-    setTimeout(() => window.print(), 250);
+// La zone prend la taille exacte de la feuille (A4 paysage, sans marge) puis la vue est
+// recadrée au centre sur les parcelles affichées : l'impression reproduit ce cadrage.
+const printZone = document.getElementById('map-print-zone');
+let vueAvantImpression = null;
+
+function preparerImpression() {
+    if (document.body.classList.contains('carte-printing')) return;
+    vueAvantImpression = { centre: map.getCenter(), zoom: map.getZoom() };
+    document.body.classList.add('carte-printing');
+    map.invalidateSize(false);
+    if (globalBounds) map.fitBounds(globalBounds, { padding: [25, 25], animate: false });
 }
+
+function finImpression() {
+    if (!document.body.classList.contains('carte-printing')) return;
+    document.body.classList.remove('carte-printing');
+    map.invalidateSize(false);
+    if (vueAvantImpression) map.setView(vueAvantImpression.centre, vueAvantImpression.zoom, { animate: false });
+}
+
+function printCarte() {
+    preparerImpression();
+    setTimeout(() => window.print(), 400);   // laisse le temps aux tuiles du fond de se charger
+}
+window.addEventListener('beforeprint', preparerImpression);
+window.addEventListener('afterprint', finImpression);
 
 // ── Fermer la bulle ──────────────────────────────────────────────────────────
 document.getElementById('infoClose').addEventListener('click', () => {
@@ -464,11 +532,37 @@ document.getElementById('infoClose').addEventListener('click', () => {
         print-color-adjust: exact;
         -webkit-print-color-adjust: exact;
     }
-    /* Masque les contrôles à l'intérieur de la zone carte */
+    /* Masque les contrôles à l'intérieur de la zone carte.
+       display (et non visibility) : la règle « #map-print-zone * » rendrait leurs boutons visibles */
     #basemap-ctrl,
     #parcelleInfo,
     .leaflet-control-zoom,
-    .leaflet-control-attribution { visibility: hidden !important; }
+    .leaflet-control-attribution { display: none !important; }
+}
+
+/* Préparation à l'impression, à l'écran : même taille que la feuille A4 paysage */
+body.carte-printing #map-print-zone {
+    position: fixed !important;
+    left: 0; top: 0;
+    width: 297mm !important;
+    height: 210mm !important;
+    z-index: 2000;
+    background: #fff;
+}
+body.carte-printing #map {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: unset !important;
+}
+
+/* Noms des parcelles (disposition d'une carte personnalisée) */
+#map { --cp-police: {{ cartePerso ? (cartePerso.options.taillePolice ?? 11) : 11 }}px; }
+.cp-label { background: none; border: none; }
+.cp-label span {
+    position: absolute; transform: translate(-50%, -50%);
+    white-space: nowrap; font-size: var(--cp-police); font-weight: 600; color: #222;
+    text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 2px #fff;
+    pointer-events: none;
 }
 
 .leaflet-tooltip-parcel {

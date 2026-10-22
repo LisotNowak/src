@@ -2,6 +2,7 @@
 
 namespace App\Controller\tracabilite;
 
+use App\Repository\tracabilite\CartePersoRepository;
 use App\Repository\tracabilite\ParcelleRepository;
 use App\Repository\tracabilite\SaisieRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -17,6 +18,7 @@ class CarteController extends AbstractController
     public function __construct(
         private readonly ParcelleRepository $parcelleRepo,
         private readonly SaisieRepository   $saisieRepo,
+        private readonly CartePersoRepository $cartePersoRepo,
     ) {}
 
     #[Route('/tracabilite/carte', name: 'app_tracabilite_carte')]
@@ -34,11 +36,16 @@ class CarteController extends AbstractController
             $tache = '';
         }
 
+        // Disposition d'une carte personnalisée (parcelles repositionnées) au lieu des positions réelles
+        $cartePerso = $request->query->getInt('carte') ? $this->cartePersoRepo->find($request->query->getInt('carte')) : null;
+
         return $this->render('tracabilite/carte/index.html.twig', [
             'active_link' => 'carte',
             'mois'        => $mois,
             'tache'       => $tache,
             'taches'      => $taches,
+            'cartesPerso' => $this->cartePersoRepo->findAllSorted(),
+            'cartePerso'  => $cartePerso,
         ]);
     }
 
