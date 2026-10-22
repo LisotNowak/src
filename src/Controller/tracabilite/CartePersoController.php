@@ -14,7 +14,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/tracabilite/cartes-perso', name: 'app_tracabilite_carte_perso_')]
-#[IsGranted('ROLE_MANAGER_TRACABILITE')]
+#[IsGranted('ROLE_ADMIN')]
 class CartePersoController extends AbstractController
 {
     private const OPTIONS_DEFAUT = [
@@ -34,7 +34,8 @@ class CartePersoController extends AbstractController
     public function index(Request $request): Response
     {
         $cartes = $this->carteRepo->findAllSorted();
-        $carte  = $request->query->has('id') ? $this->carteRepo->find($request->query->getInt('id')) : null;
+        $id     = $request->query->filter('id', 0, FILTER_VALIDATE_INT, ['options' => ['default' => 0]]);
+        $carte  = $id > 0 ? $this->carteRepo->find($id) : null;
         $carte ??= $cartes[0] ?? null;
 
         return $this->render('tracabilite/carte_perso/index.html.twig', [

@@ -21,7 +21,17 @@ class CarteController extends AbstractController
         private readonly CartePersoRepository $cartePersoRepo,
     ) {}
 
+    /** Page d'accueil de la carte : choix entre les positions réelles et les cartes personnalisées */
     #[Route('/tracabilite/carte', name: 'app_tracabilite_carte')]
+    public function choix(): Response
+    {
+        return $this->render('tracabilite/carte/choix.html.twig', [
+            'active_link' => 'carte',
+            'cartesPerso' => $this->cartePersoRepo->findAllSorted(),
+        ]);
+    }
+
+    #[Route('/tracabilite/carte/vue', name: 'app_tracabilite_carte_vue')]
     public function index(Request $request): Response
     {
         // Sans paramètre : mois courant ; paramètre vide : tous les mois
@@ -31,7 +41,9 @@ class CarteController extends AbstractController
         }
 
         // Disposition d'une carte personnalisée (parcelles repositionnées) au lieu des positions réelles
-        $cartePerso = $request->query->getInt('carte') ? $this->cartePersoRepo->find($request->query->getInt('carte')) : null;
+        // filter() plutôt que getInt() : une valeur vide ou invalide (?carte=) ne doit pas provoquer d'erreur
+        $idCarte    = $request->query->filter('carte', 0, FILTER_VALIDATE_INT, ['options' => ['default' => 0]]);
+        $cartePerso = $idCarte > 0 ? $this->cartePersoRepo->find($idCarte) : null;
 
         // Avec une carte personnalisée, seules les tâches de ses parcelles sont proposées
         $parcelles = $cartePerso ? array_map('strval', array_keys($cartePerso->getDisposition())) : null;
@@ -46,7 +58,6 @@ class CarteController extends AbstractController
             'mois'        => $mois,
             'tache'       => $tache,
             'taches'      => $taches,
-            'cartesPerso' => $this->cartePersoRepo->findAllSorted(),
             'cartePerso'  => $cartePerso,
         ]);
     }

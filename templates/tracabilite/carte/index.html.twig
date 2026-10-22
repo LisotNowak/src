@@ -11,15 +11,20 @@
 <div class="p-2 p-md-3">
 
     <div class="d-flex flex-wrap align-items-center justify-content-between mb-2 gap-2">
-        <h4 class="mb-0 fw-bold" style="color:#800000;">
-            <i class="fas fa-map-marked-alt me-2"></i>Carte des parcelles
-        </h4>
+        <div class="d-flex align-items-center gap-2">
+            <a href="{{ path('app_tracabilite_carte') }}" class="btn btn-sm btn-outline-secondary" title="Choisir une autre carte">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <h4 class="mb-0 fw-bold" style="color:#800000;">
+                <i class="fas fa-map-marked-alt me-2"></i>{{ cartePerso ? cartePerso.nom : 'Carte des parcelles' }}
+            </h4>
+        </div>
         <div class="d-flex flex-wrap gap-1 align-items-center">
             {# ── Filtres période + tâche (le changement de mois recharge la page, la tâche filtre en direct) ── #}
             <form method="get" id="carte-filtres" class="d-flex flex-wrap gap-1 align-items-center me-2">
                 <div class="input-group input-group-sm" style="width:auto;">
                     <input type="month" name="mois" value="{{ mois }}" class="form-control form-control-sm" onchange="this.form.submit()" title="Période">
-                    <a href="{{ path('app_tracabilite_carte', {mois: '', tache: tache, carte: cartePerso ? cartePerso.id : ''}) }}"
+                    <a href="{{ path('app_tracabilite_carte_vue', {mois: '', tache: tache}|merge(cartePerso ? {carte: cartePerso.id} : {})) }}"
                        class="btn {{ mois == '' ? 'btn-secondary' : 'btn-outline-secondary' }}">Tous les mois</a>
                 </div>
                 <select id="tache-filter" name="tache" class="form-select form-select-sm" style="width:auto; max-width:220px;" title="Filtrer par tâche">
@@ -28,14 +33,9 @@
                         <option value="{{ t }}" {{ tache == t ? 'selected' : '' }}>{{ t }}</option>
                     {% endfor %}
                 </select>
-                {% if cartesPerso|length > 0 %}
-                <select name="carte" class="form-select form-select-sm" style="width:auto; max-width:220px;" onchange="this.form.submit()"
-                        title="Disposition des parcelles : positions réelles ou carte personnalisée">
-                    <option value="">Positions réelles</option>
-                    {% for c in cartesPerso %}
-                        <option value="{{ c.id }}" {{ cartePerso and cartePerso.id == c.id ? 'selected' : '' }}>Carte perso : {{ c.nom }}</option>
-                    {% endfor %}
-                </select>
+                {# La carte choisie sur la page d'accueil est conservée quand on change de mois #}
+                {% if cartePerso %}
+                <input type="hidden" name="carte" value="{{ cartePerso.id }}">
                 {% endif %}
             </form>
             <span class="badge text-bg-light border"><span class="d-inline-block me-1" style="width:10px;height:10px;background:#198754;border-radius:2px;"></span>100%</span>

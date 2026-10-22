@@ -1,0 +1,118 @@
+{% extends 'tracabilite/layout.html.twig' %}
+
+{% block title %}Tracabilité – Choix de la carte{% endblock %}
+
+{% block body %}
+<div class="p-3 p-lg-4">
+
+    <div class="d-flex flex-wrap align-items-center justify-content-between mb-3 gap-2">
+        <h4 class="mb-0 fw-bold" style="color:#800000;">
+            <i class="fas fa-map-marked-alt me-2"></i>Cartes
+        </h4>
+    </div>
+
+    <div class="row g-3">
+        {# Toutes les parcelles à leur position réelle #}
+        <div class="col-sm-6 col-lg-4 col-xl-3">
+            <div class="card border-0 shadow-sm h-100 carte-choix">
+                <div class="carte-apercu" data-disposition="tout"></div>
+                <div class="card-body py-2">
+                    <a href="{{ path('app_tracabilite_carte_vue') }}" class="stretched-link fw-semibold text-decoration-none" style="color:#800000;">
+                        Toutes les parcelles
+                    </a>
+                    <div class="small text-muted">Positions réelles</div>
+                </div>
+            </div>
+        </div>
+
+        {% for c in cartesPerso %}
+        <div class="col-sm-6 col-lg-4 col-xl-3">
+            <div class="card border-0 shadow-sm h-100 carte-choix">
+                <div class="carte-apercu" data-disposition="{{ c.disposition|json_encode|e('html_attr') }}"></div>
+                <div class="card-body py-2">
+                    <a href="{{ path('app_tracabilite_carte_vue', {carte: c.id}) }}" class="stretched-link fw-semibold text-decoration-none" style="color:#800000;">
+                        {{ c.nom }}
+                    </a>
+                    <div class="small text-muted">
+                        Carte personnalisée · {{ c.disposition|length }} parcelle(s)
+                    </div>
+                    <div class="text-muted" style="font-size:0.7rem;">
+                        {{ c.modifieA ? 'Modifiée le ' ~ c.modifieA|date('d/m/Y') : 'Créée le ' ~ c.creeA|date('d/m/Y') }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if cartesPerso|length == 0 %}
+    <div class="text-muted small mt-3">
+        <i class="fas fa-info-circle me-1"></i>
+        Aucune carte personnalisée pour le moment : créez-en une pour rapprocher des parcelles éloignées et l'imprimer.
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.carte-choix { transition: transform .12s, box-shadow .12s; }
+.carte-choix:hover { transform: translateY(-2px); box-shadow: 0 .5rem 1rem rgba(0,0,0,.12) !important; }
+.carte-apercu {
+    height: 170px; background: #fff; border-bottom: 1px solid #eee;
+    border-radius: .375rem .375rem 0 0; display: flex; align-items: center; justify-content: center;
+    color: #adb5bd; font-size: .8rem;
+}
+.carte-apercu svg { width: 100%; height: 100%; }
+.carte-apercu polygon { fill: #e9ecef; stroke: #800000; stroke-width: 1; vector-effect: non-scaling-stroke; }
+</style>
+
+<script>
+(function () {
+    const apercus = document.querySelectorAll('.carte-apercu');
+    apercus.forEach(el => { el.textContent = 'Chargement…'; });
+
+    // Aperçu miniature : parcelles (Lambert 93, en mètres) avec le décalage de chaque carte personnalisée
+    fetch({{ path('app_tracabilite_carte_geojson', {mois: ''})|json_encode|raw }})
+        .then(r => r.json())
+        .then(data => {
+            const parcelles = {};
+            data.features.forEach(f => {
+                const g = f.geometry;
+                if (!g || !['Polygon', 'MultiPolygon'].includes(g.type)) return;
+                parcelles[f.properties.slug] = g.type === 'Polygon' ? [g.coordinates] : g.coordinates;
+            });
+
+            apercus.forEach(el => {
+                const brut = el.dataset.disposition;
+                const disposition = brut === 'tout'
+                    ? Object.fromEntries(Object.keys(parcelles).map(s => [s, [0, 0]]))
+                    : JSON.parse(brut || '{}');
+
+                // Anneaux extérieurs décalés ; l'axe y est inversé (nord en haut)
+                const anneaux = [];
+                Object.entries(disposition).forEach(([slug, [dx, dy]]) => {
+                    (parcelles[slug] || []).forEach(rings => anneaux.push(rings[0].map(([x, y]) => [x + dx, -(y + dy)])));
+                });
+                if (!anneaux.length) { el.textContent = 'Aucune parcelle'; return; }
+
+                const xs = anneaux.flat().map(p => p[0]), ys = anneaux.flat().map(p => p[1]);
+                const xmin = Math.min(...xs), ymin = Math.min(...ys);
+                const w = Math.max(Math.max(...xs) - xmin, 1), h = Math.max(Math.max(...ys) - ymin, 1);
+                const marge = Math.max(w, h) * 0.05;
+
+                const ns = 'http://www.w3.org/2000/svg';
+                const svg = document.createElementNS(ns, 'svg');
+                svg.setAttribute('viewBox', [xmin - marge, ymin - marge, w + 2 * marge, h + 2 * marge].join(' '));
+                svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+                anneaux.forEach(a => {
+                    const poly = document.createElementNS(ns, 'polygon');
+                    poly.setAttribute('points', a.map(p => p.join(',')).join(' '));
+                    svg.appendChild(poly);
+                });
+                el.textContent = '';
+                el.appendChild(svg);
+            });
+        })
+        .catch(() => apercus.forEach(el => { el.textContent = 'Aperçu indisponible'; }));
+})();
+</script>
+{% endblock %}
