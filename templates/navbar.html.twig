@@ -104,7 +104,7 @@
                     </span>
                 {% else %}
                     <span class="text-white">
-                        <button class="btn btn-success me-2" onclick="window.location.href='/login'">Connexion</button>
+                        <button class="btn btn-success me-2" onclick="window.location.href='{{ path('app_login', {_target_path: app.request.requestUri})|e('js') }}'">Connexion</button>
                     </span>
                 {% endif %}
             </div>

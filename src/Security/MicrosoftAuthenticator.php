@@ -13,10 +13,13 @@ use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Security\Http\Authenticator\Passport\Badge\UserBadge;
 use Symfony\Component\Security\Http\Authenticator\Passport\SelfValidatingPassport;
+use Symfony\Component\Security\Http\Util\TargetPathTrait;
 use Psr\Log\LoggerInterface;
 
 class MicrosoftAuthenticator extends OAuth2Authenticator
 {
+    use TargetPathTrait;
+
     private ClientRegistry $clientRegistry;
     private EntityManagerInterface $em;
     private UrlGeneratorInterface $urlGenerator;
@@ -82,7 +85,13 @@ class MicrosoftAuthenticator extends OAuth2Authenticator
 
     public function onAuthenticationSuccess(Request $request, TokenInterface $token, string $firewallName): ?Response
     {
-        return new Response('<script>window.location="/";</script>');
+        // Retour vers la page demandée avant connexion, sinon l'accueil
+        $targetPath = $this->getTargetPath($request->getSession(), $firewallName);
+        $this->removeTargetPath($request->getSession(), $firewallName);
+
+        $url = $targetPath ?: $this->urlGenerator->generate('app_accueil');
+
+        return new Response('<script>window.location=' . json_encode($url, JSON_HEX_TAG | JSON_UNESCAPED_SLASHES) . ';</script>');
     }
 
     public function onAuthenticationFailure(Request $request, AuthenticationException $exception): ?Response
