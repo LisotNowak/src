@@ -163,5 +163,30 @@
                 {% endblock %}
             </div>
         </div>
+
+        {# Logs d'activité : envoie le temps actif passé sur la page (onglet visible + interaction < 5 min) #}
+        {% set log_visite_id = app.request.attributes.get('_log_visite_id') %}
+        {% if app.user and log_visite_id %}
+            <script>
+                (function () {
+                    var id = '{{ log_visite_id|e('js') }}', url = '{{ path('app_log_temps')|e('js') }}';
+                    var actif = 0, derniereActivite = Date.now(), INACTIVITE_MS = 5 * 60 * 1000;
+                    ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(function (e) {
+                        document.addEventListener(e, function () { derniereActivite = Date.now(); }, {passive: true});
+                    });
+                    setInterval(function () {
+                        if (document.visibilityState === 'visible' && Date.now() - derniereActivite < INACTIVITE_MS) actif++;
+                    }, 1000);
+                    function envoyer() {
+                        if (actif > 0 && navigator.sendBeacon) navigator.sendBeacon(url, JSON.stringify({id: id, s: actif}));
+                    }
+                    document.addEventListener('visibilitychange', function () {
+                        if (document.visibilityState === 'hidden') envoyer();
+                        else derniereActivite = Date.now();
+                    });
+                    window.addEventListener('pagehide', envoyer);
+                })();
+            </script>
+        {% endif %}
     </body>
 </html>

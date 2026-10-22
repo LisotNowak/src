@@ -61,4 +61,5 @@ security:
         - { path: ^/tracabilite, roles: ROLE_MANAGER_TRACABILITE }
         - { path: ^/admin/portail, roles: ROLE_ADMIN }
         - { path: ^/admin/users, roles: ROLE_ADMIN }
+        - { path: ^/admin/logs, roles: ROLE_ADMIN }
         - { path: ^/profil, roles: ROLE_USER }

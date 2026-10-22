@@ -1,0 +1,238 @@
+{% extends 'base.html.twig' %}
+{% block title %}Logs d'activité{% endblock %}
+
+{% macro duree(s) %}
+    {%- set s = s|default(0) -%}
+    {%- if s >= 3600 -%}{{ (s // 3600) }} h {{ '%02d'|format((s % 3600) // 60) }} min
+    {%- elseif s >= 60 -%}{{ s // 60 }} min {{ '%02d'|format(s % 60) }} s
+    {%- else -%}{{ s }} s
+    {%- endif -%}
+{% endmacro %}
+
+{% block body %}
+{% import _self as m %}
+<div class="container-fluid mt-4 px-4">
+    <h1 class="mb-3">Logs d'activité</h1>
+
+    {% for message in app.flashes('success') %}
+        <div class="alert alert-success">{{ message }}</div>
+    {% endfor %}
+
+    {# Filtres #}
+    <form method="get" class="row g-2 align-items-end mb-4">
+        <div class="col-auto">
+            <label class="form-label mb-0 small">Du</label>
+            <input type="date" name="du" value="{{ du|date('Y-m-d') }}" class="form-control form-control-sm">
+        </div>
+        <div class="col-auto">
+            <label class="form-label mb-0 small">Au</label>
+            <input type="date" name="au" value="{{ au|date('Y-m-d') }}" class="form-control form-control-sm">
+        </div>
+        <div class="col-auto">
+            <label class="form-label mb-0 small">Utilisateur</label>
+            <input type="text" name="email" value="{{ email }}" placeholder="email..." class="form-control form-control-sm">
+        </div>
+        <div class="col-auto">
+            <button class="btn btn-primary btn-sm">Filtrer</button>
+            <a href="{{ path('admin_logs_index') }}" class="btn btn-outline-secondary btn-sm">Réinitialiser</a>
+        </div>
+        <div class="col-auto ms-auto">
+            <button form="form-purge" class="btn btn-outline-danger btn-sm">Purger les logs de plus de {{ conservationJours }} jours</button>
+        </div>
+    </form>
+    <form id="form-purge" method="post" action="{{ path('admin_logs_purge') }}" onsubmit="return confirm('Supprimer définitivement les logs de plus de {{ conservationJours }} jours ?');">
+        <input type="hidden" name="_token" value="{{ csrf_token('purge_logs') }}">
+    </form>
+
+    {# Indicateurs #}
+    <div class="row g-3 mb-4">
+        {% set kpis = [
+            {label: 'Connexions', valeur: statsConnexion.connexions},
+            {label: 'Utilisateurs distincts', valeur: statsConnexion.utilisateurs},
+            {label: 'Échecs de connexion', valeur: statsConnexion.echecs, alerte: statsConnexion.echecs > 0},
+            {label: 'Pages vues', valeur: statsPages.pages},
+            {label: 'Temps actif cumulé', valeur: m.duree(statsPages.temps_total)},
+            {label: 'Erreurs serveur (5xx)', valeur: statsPages.erreurs_serveur, alerte: statsPages.erreurs_serveur > 0},
+        ] %}
+        {% for k in kpis %}
+            <div class="col-6 col-md-4 col-xl-2">
+                <div class="card h-100 {{ k.alerte|default(false) ? 'border-danger' }}">
+                    <div class="card-body py-2">
+                        <div class="small text-muted">{{ k.label }}</div>
+                        <div class="fs-4 fw-semibold {{ k.alerte|default(false) ? 'text-danger' }}">{{ k.valeur }}</div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    {% if echecsRepetes is not empty %}
+        <div class="alert alert-warning">
+            <strong><i class="fas fa-triangle-exclamation me-1"></i>Échecs de connexion répétés</strong>
+            <ul class="mb-0 mt-1">
+                {% for e in echecsRepetes %}
+                    <li>{{ e.email ?: '(inconnu)' }} depuis {{ e.ip }} : {{ e.nb }} échecs (dernier le {{ e.dernier|date('d/m/Y H:i') }})</li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+
+    <ul class="nav nav-tabs" role="tablist">
+        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-utilisateurs" type="button">Par utilisateur</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-pages" type="button">Par page</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-connexions" type="button">Connexions</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-journal" type="button">Journal des pages</button></li>
+    </ul>
+
+    <div class="tab-content border border-top-0 p-3 mb-5">
+
+        {# Activité par utilisateur #}
+        <div class="tab-pane fade show active" id="tab-utilisateurs">
+            <table class="table table-sm table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Utilisateur</th>
+                        <th class="text-end">Jours actifs</th>
+                        <th class="text-end">Sessions</th>
+                        <th class="text-end">Pages vues</th>
+                        <th class="text-end">Actions</th>
+                        <th class="text-end">Temps actif</th>
+                        <th>Première activité</th>
+                        <th>Dernière activité</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in utilisateurs %}
+                        <tr>
+                            <td><a href="{{ path('admin_logs_index', {du: du|date('Y-m-d'), au: au|date('Y-m-d'), email: u.email}) }}">{{ u.email }}</a></td>
+                            <td class="text-end">{{ u.jours }}</td>
+                            <td class="text-end">{{ u.sessions }}</td>
+                            <td class="text-end">{{ u.pages }}</td>
+                            <td class="text-end">{{ u.actions }}</td>
+                            <td class="text-end">{{ m.duree(u.temps_total) }}</td>
+                            <td>{{ u.premiere|date('d/m/Y H:i') }}</td>
+                            <td>{{ u.derniere|date('d/m/Y H:i') }}</td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="8" class="text-muted">Aucune activité sur la période</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {# Statistiques par page #}
+        <div class="tab-pane fade" id="tab-pages">
+            <table class="table table-sm table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Page (route)</th>
+                        <th class="text-end">Vues</th>
+                        <th class="text-end">Utilisateurs</th>
+                        <th class="text-end">Temps total</th>
+                        <th class="text-end">Temps moyen / vue</th>
+                        <th class="text-end" title="Temps de génération côté serveur">Chargement moyen</th>
+                        <th class="text-end">Chargement max</th>
+                        <th class="text-end">Erreurs</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in pages %}
+                        <tr>
+                            <td>
+                                <div>{{ p.route }}</div>
+                                <div class="small text-muted text-truncate" style="max-width: 400px;">{{ p.exemple }}</div>
+                            </td>
+                            <td class="text-end">{{ p.vues }}</td>
+                            <td class="text-end">{{ p.utilisateurs }}</td>
+                            <td class="text-end">{{ m.duree(p.temps_total) }}</td>
+                            <td class="text-end">{{ p.temps_moyen is not null ? m.duree(p.temps_moyen) : '-' }}</td>
+                            <td class="text-end {{ p.serveur_moyen > 1000 ? 'text-danger fw-semibold' }}">{{ p.serveur_moyen is not null ? p.serveur_moyen ~ ' ms' : '-' }}</td>
+                            <td class="text-end">{{ p.serveur_max is not null ? p.serveur_max ~ ' ms' : '-' }}</td>
+                            <td class="text-end {{ p.erreurs > 0 ? 'text-danger fw-semibold' }}">{{ p.erreurs }}</td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="8" class="text-muted">Aucune page vue sur la période</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {# Journal des connexions #}
+        <div class="tab-pane fade" id="tab-connexions">
+            <table class="table table-sm table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Événement</th>
+                        <th>Utilisateur</th>
+                        <th>Méthode</th>
+                        <th>IP</th>
+                        <th>Navigateur</th>
+                        <th>Détail</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% set badges = {connexion: 'success', echec: 'danger', deconnexion: 'secondary'} %}
+                    {% set libelles = {connexion: 'Connexion', echec: 'Échec', deconnexion: 'Déconnexion'} %}
+                    {% set methodes = {formulaire: 'Formulaire', microsoft: 'Microsoft', remember_me: 'Reprise de session'} %}
+                    {% set motifs = {
+                        'Invalid credentials.': 'Identifiants invalides',
+                        'Bad credentials.': 'Identifiants invalides',
+                        'Account is disabled.': 'Compte désactivé',
+                        'Account is locked.': 'Compte verrouillé',
+                        'Invalid CSRF token.': 'Jeton CSRF invalide (page expirée)',
+                        'Too many failed login attempts, please try again later.': 'Trop de tentatives',
+                    } %}
+                    {% for c in connexions %}
+                        <tr>
+                            <td class="text-nowrap">{{ c.cree_le|date('d/m/Y H:i:s') }}</td>
+                            <td><span class="badge bg-{{ badges[c.evenement]|default('light') }}">{{ libelles[c.evenement]|default(c.evenement) }}</span></td>
+                            <td>{{ c.email ?: '-' }}</td>
+                            <td>{{ c.methode ? methodes[c.methode]|default(c.methode) : '-' }}</td>
+                            <td>{{ c.ip }}</td>
+                            <td class="small text-muted text-truncate" style="max-width: 250px;" title="{{ c.user_agent }}">{{ c.user_agent }}</td>
+                            <td class="small">{{ c.motif ? motifs[c.motif]|default(c.motif) : '' }}</td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="7" class="text-muted">Aucune connexion sur la période</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% if connexions|length >= 300 %}<div class="small text-muted">Seules les 300 dernières entrées sont affichées.</div>{% endif %}
+        </div>
+
+        {# Journal détaillé des pages #}
+        <div class="tab-pane fade" id="tab-journal">
+            <table class="table table-sm table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Utilisateur</th>
+                        <th>Type</th>
+                        <th>Chemin</th>
+                        <th class="text-end">Statut</th>
+                        <th class="text-end">Chargement</th>
+                        <th class="text-end">Temps passé</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for v in journal %}
+                        <tr>
+                            <td class="text-nowrap">{{ v.visite_le|date('d/m/Y H:i:s') }}</td>
+                            <td>{{ v.email }}</td>
+                            <td><span class="badge {{ v.methode_http == 'GET' ? 'bg-light text-dark' : 'bg-info text-dark' }}">{{ v.methode_http == 'GET' ? 'Page' : 'Action ' ~ v.methode_http }}</span></td>
+                            <td class="small text-truncate" style="max-width: 400px;" title="{{ v.chemin }}">{{ v.chemin }}</td>
+                            <td class="text-end {{ v.statut >= 400 ? 'text-danger fw-semibold' }}">{{ v.statut }}</td>
+                            <td class="text-end">{{ v.duree_serveur_ms is not null ? v.duree_serveur_ms ~ ' ms' : '-' }}</td>
+                            <td class="text-end">{{ v.temps_actif_s is not null ? m.duree(v.temps_actif_s) : '-' }}</td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="7" class="text-muted">Aucune page vue sur la période</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% if journal|length >= 300 %}<div class="small text-muted">Seules les 300 dernières entrées sont affichées.</div>{% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
