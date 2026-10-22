@@ -340,10 +340,21 @@ function setTacheFilter(tache) {
     currentTache = tache;
     majCartouche();
     parcelLayers.forEach(({ layer, p }) => layer.setStyle(baseStyle(p)));
+    ordonnerCalques();
     if (selectedProps) {
         setAdvBadge(selectedProps);
         setTachesInfo(selectedProps);
     }
+}
+
+// Ordre de dessin : sans saisie, puis avec avancement, puis plusieurs tâches.
+// Une parcelle voisine dessinée après recouvrirait sinon la limite commune (et la bordure en pointillés).
+function ordonnerCalques() {
+    const rang = p => isMultiTaches(p) ? 2 : (advFor(p) > 0 ? 1 : 0);
+    parcelLayers
+        .slice()
+        .sort((a, b) => rang(a.p) - rang(b.p))
+        .forEach(({ layer }) => layer.bringToFront());
 }
 
 // Tâches de la parcelle (en parallèle) avec leur avancement, ou la seule tâche filtrée
@@ -477,6 +488,8 @@ fetch('{{ path("app_tracabilite_carte_geojson", {mois: mois}) }}')
                 console.warn('Parcelle ignorée :', f.properties?.slug, e.message);
             }
         });
+
+        ordonnerCalques();
 
         // Zoom initial sur toutes les parcelles
         if (globalBounds) {

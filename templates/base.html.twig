@@ -124,7 +124,7 @@
                     <i class="fas fa-tools fa-3x text-warning mb-3"></i>
                     <h2 class="h4">Section en Maintenance</h2>
                     <p class="text-muted">
-                        {{ maintenance.getMessageForCategory(current_category) }}
+                        {{ maintenance.getMessageForCategory(current_category)|e|replace({'&lt;br&gt;': '<br>', '&lt;br/&gt;': '<br>', '&lt;br /&gt;': '<br>'})|nl2br|raw }}
                     </p>
                     {% if is_granted('ROLE_ADMIN') %}
                         <small class="d-block mt-3 text-info">Vous pouvez fermer cette fenêtre car vous êtes administrateur.</small>
@@ -143,7 +143,7 @@
                         <button class="warning-modal-close-btn" onclick="document.getElementById('warning-modal-container').style.display='none'">&times;</button>
                     </div>
                     <div class="warning-modal-content">
-                        {{ maintenance.getMessageForCategory(current_category) }}
+                        {{ maintenance.getMessageForCategory(current_category)|e|replace({'&lt;br&gt;': '<br>', '&lt;br/&gt;': '<br>', '&lt;br /&gt;': '<br>'})|nl2br|raw }}
                     </div>
                 </div>
             </div>
