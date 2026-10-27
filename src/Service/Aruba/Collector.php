@@ -86,12 +86,25 @@ class Collector
     public function status(): array
     {
         $st = self::loadJson($this->file('status.json'), []);
-        $running = $this->lockHeld()
-            // lancée depuis la page mais le processus n'a pas encore pris le verrou
-            || (($st['state'] ?? '') === 'queued' && time() - ($st['requested_at'] ?? 0) < 30);
+        $queued = ($st['state'] ?? '') === 'queued' && time() - ($st['requested_at'] ?? 0) < 30;
+        // lancée depuis la page mais le processus n'a pas encore pris le verrou
+        $running = $this->lockHeld() || $queued;
+        $show = $running || ($st['state'] ?? '') === 'done';
+        $details = $show ? ($st['details'] ?? []) : [];
+        foreach ($details as &$d) {
+            if (isset($d['start']) && !isset($d['duration'])) {
+                $d['elapsed'] = time() - $d['start'];
+            }
+            unset($d['start']);
+        }
+        unset($d);
         return [
             'running' => $running,
-            'progress' => (object) ($running || ($st['state'] ?? '') === 'done' ? ($st['progress'] ?? []) : []),
+            // demarrage → collecte (switchs interrogés en parallèle) → analyse (construction de l'inventaire) → fin
+            'phase' => $queued ? 'demarrage' : ($running ? ($st['phase'] ?? 'collecte') : 'fin'),
+            'elapsed' => $show && isset($st['started_at']) ? (($st['finished_at'] ?? time()) - $st['started_at']) : null,
+            'progress' => (object) ($show ? ($st['progress'] ?? []) : []),
+            'details' => (object) $details,
             'collected_at' => $this->snapshot()['collected_at'] ?? null,
         ];
     }
@@ -134,19 +147,6 @@ class Collector
         return true;
     }
 
-    /** Collecte automatique si la dernière date de plus de refresh_minutes (appelé par la page). */
-    public function autoRefresh(): void
-    {
-        $minutes = (int) $this->config->get('refresh_minutes', 15);
-        if ($minutes <= 0) {
-            return;
-        }
-        $last = strtotime((string) ($this->snapshot()['collected_at'] ?? '')) ?: 0;
-        if (time() - $last >= $minutes * 60) {
-            $this->launch();
-        }
-    }
-
     // ------------------------------------------------------------ collecte (ligne de commande)
     /** Collecte complète. Retourne false si une collecte est déjà en cours. */
     public function run(?callable $log = null): bool
@@ -160,13 +160,16 @@ class Collector
         set_time_limit(0);
         try {
             $switches = $this->config->switches();
-            $progress = [];
+            $progress = $details = [];
             foreach ($switches as $sw) {
                 $progress[$sw['id']] = 'en attente';
+                $details[$sw['id']] = ['name' => ($sw['name'] ?? '') ?: $sw['host']];
             }
-            $saveStatus = function (string $state) use (&$progress) {
-                self::saveJson($this->file('status.json'),
-                    ['state' => $state, 'requested_at' => time(), 'progress' => $progress]);
+            $startedAt = time();
+            $saveStatus = function (string $state, string $phase = 'collecte') use (&$progress, &$details, $startedAt) {
+                self::saveJson($this->file('status.json'), ['state' => $state, 'phase' => $phase,
+                    'requested_at' => time(), 'started_at' => $startedAt,
+                    'finished_at' => $state === 'done' ? time() : null, 'progress' => $progress, 'details' => $details]);
             };
             $saveStatus('running');
 
@@ -179,6 +182,7 @@ class Collector
                     $sw = array_shift($queue);
                     $workers[$sw['id']] = $this->startWorker($sw);
                     $progress[$sw['id']] = 'en cours';
+                    $details[$sw['id']]['start'] = time();
                     $saveStatus('running');
                 }
                 usleep(200_000);
@@ -202,12 +206,17 @@ class Collector
                     @unlink($w['err']);
                     $raw[$id] = $data;
                     $progress[$id] = isset($data['error']) ? 'erreur' : 'ok';
+                    $details[$id]['duration'] = $data['duration'] ?? time() - $w['start'];
+                    if (isset($data['error'])) {
+                        $details[$id]['error'] = $data['error'];
+                    }
                     $log(sprintf('%-30s %s', $id, $data['error'] ?? "ok ({$data['duration']} s)"));
                     unset($workers[$id]);
                     $saveStatus('running');
                 }
             }
 
+            $saveStatus('running', 'analyse');
             $oui = $this->config->path('oui.csv');
             if (is_file($oui)) {
                 Inventory::loadOui($oui);
@@ -235,19 +244,43 @@ class Collector
             'max' => max(120, (int) ($sw['timeout'] ?? 15) * 40)];
     }
 
+    private function client(string $id): AosCxClient|AosSwitchClient
+    {
+        $sw = $this->config->switch($id);
+        [$user, $pwd] = $this->config->credentials($sw);
+        // "os": "aos-switch" pour un ArubaOS-Switch (2930F…), AOS-CX par défaut
+        return ($sw['os'] ?? 'aos-cx') === 'aos-switch'
+            ? new AosSwitchClient($sw['host'], $user, $pwd, (bool) ($sw['verify_ssl'] ?? false),
+                (string) ($sw['api_version'] ?? 'auto'), (int) ($sw['timeout'] ?? 15), (string) ($sw['protocol'] ?? 'https'))
+            : new AosCxClient($sw['host'], $user, $pwd, (bool) ($sw['verify_ssl'] ?? false),
+                (string) ($sw['api_version'] ?? 'auto'), (int) ($sw['timeout'] ?? 15));
+    }
+
+    /** Test de connexion (écran Configuration) : login, identification, logout. */
+    public function testSwitch(string $id): array
+    {
+        $t0 = microtime(true);
+        try {
+            $c = $this->client($id);
+            $c->login();
+            try {
+                $system = $c->system();
+            } finally {
+                $c->logout();
+            }
+            return ['ok' => true, 'system' => $system, 'api_version' => $c->apiVersion,
+                'duration' => round(microtime(true) - $t0, 1)];
+        } catch (\Throwable $e) {
+            return ['ok' => false, 'error' => mb_substr($e->getMessage(), 0, 300)];
+        }
+    }
+
     /** Interroge un seul switch (exécuté dans un processus dédié). */
     public function collectSwitch(string $id): array
     {
         $t0 = microtime(true);
         try {
-            $sw = $this->config->switch($id);
-            [$user, $pwd] = $this->config->credentials($sw);
-            // "os": "aos-switch" pour un ArubaOS-Switch (2930F…), AOS-CX par défaut
-            $c = ($sw['os'] ?? 'aos-cx') === 'aos-switch'
-                ? new AosSwitchClient($sw['host'], $user, $pwd, (bool) ($sw['verify_ssl'] ?? false),
-                    (string) ($sw['api_version'] ?? 'auto'), (int) ($sw['timeout'] ?? 15), (string) ($sw['protocol'] ?? 'https'))
-                : new AosCxClient($sw['host'], $user, $pwd, (bool) ($sw['verify_ssl'] ?? false),
-                    (string) ($sw['api_version'] ?? 'auto'), (int) ($sw['timeout'] ?? 15));
+            $c = $this->client($id);
             $c->login();
             try {
                 $data = $c->collect();

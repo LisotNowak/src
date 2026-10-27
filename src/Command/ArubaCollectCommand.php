@@ -1,6 +1,6 @@
 <?php
 /**
- * php bin/console aruba:collect                  collecte complète (à planifier : tâche Windows / cron)
+ * php bin/console aruba:collect                  collecte complète (lancée par le bouton « Actualiser »)
  * php bin/console aruba:collect --switch <id>    un seul switch, résultat JSON brut (usage interne)
  */
 declare(strict_types=1);

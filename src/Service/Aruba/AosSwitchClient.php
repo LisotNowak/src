@@ -37,6 +37,10 @@ class AosSwitchClient
             CURLOPT_TIMEOUT => $timeout * 4,
             CURLOPT_PROXY => '',               // ne pas passer par un proxy système pour joindre les switchs
             CURLOPT_NOPROXY => '*',
+            // une connexion par requête : sur une connexion réutilisée (keep-alive), le 2530 met ~5 s à répondre
+            // à chaque requête, contre 0,1 à 0,5 s sur une connexion neuve
+            CURLOPT_FORBID_REUSE => true,
+            CURLOPT_FRESH_CONNECT => true,
         ]);
     }
 

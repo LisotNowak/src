@@ -1,0 +1,100 @@
+{% extends 'aruba/layout.html.twig' %}
+{% form_theme form 'bootstrap_5_layout.html.twig' %}
+{% block title %}{{ switch ? 'Modifier le switch' : 'Ajouter un switch' }}{% endblock %}
+{% block body %}
+<div class="container mt-4 mb-5" style="max-width:960px">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ path('app_gestion_switch_index') }}">Gestion switch</a></li>
+            <li class="breadcrumb-item"><a href="{{ path('app_gestion_switch_admin_index') }}">Configuration</a></li>
+            <li class="breadcrumb-item active">{{ switch ? ((switch.name ?? '') ?: switch.id) : 'Nouveau switch' }}</li>
+        </ol>
+    </nav>
+
+    {% if effective is defined %}
+        <div class="card shadow-sm mb-3">
+            <div class="card-body py-3">
+                <div class="d-flex align-items-baseline justify-content-between flex-wrap gap-2 mb-2">
+                    <h2 class="h6 text-muted text-uppercase mb-0">Valeurs utilisées lors de la collecte</h2>
+                    <a href="{{ path('app_gestion_switch_admin_settings') }}" class="small">Modifier les valeurs par défaut</a>
+                </div>
+                <div class="d-flex flex-wrap gap-4">
+                    {% for row in effective %}
+                        <div>
+                            <span class="text-muted small d-block">{{ row[0] }}</span>
+                            <b>{{ row[1] }}</b>
+                            {% if row[2] %}
+                                <span class="badge bg-primary-subtle text-primary-emphasis ms-1">spécifique</span>
+                            {% else %}
+                                <span class="badge bg-light text-muted border ms-1">par défaut</span>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-white">
+            <h1 class="h4 mb-0">
+                {% if switch %}
+                    <i class="fas fa-pen text-primary me-2"></i>Modifier : {{ (switch.name ?? '') ?: switch.id }}
+                {% else %}
+                    <i class="fas fa-plus text-success me-2"></i>Ajouter un switch
+                {% endif %}
+            </h1>
+        </div>
+        <div class="card-body">
+            {{ form_start(form, {attr: {novalidate: 'novalidate'}}) }}
+                {{ form_errors(form) }}
+                <h2 class="h6 text-muted text-uppercase mb-3">Switch</h2>
+                <div class="row g-3">
+                    <div class="col-md-4">{{ form_row(form.id) }}</div>
+                    <div class="col-md-8">{{ form_row(form.name) }}</div>
+                    <div class="col-md-4">{{ form_row(form.host) }}</div>
+                    <div class="col-md-8">{{ form_row(form.site) }}</div>
+                    <div class="col-md-8">{{ form_row(form.os) }}</div>
+                    <div class="col-md-4" id="protocol-row">{{ form_row(form.protocol) }}</div>
+                </div>
+
+                <h2 class="h6 text-muted text-uppercase mt-4 mb-3">Identifiants</h2>
+                <div class="row g-3">
+                    <div class="col-md-4">{{ form_row(form.username) }}</div>
+                    <div class="col-md-4">{{ form_row(form.password_mode) }}</div>
+                    <div class="col-md-4" id="password-row">{{ form_row(form.password) }}</div>
+                </div>
+
+                <details class="mt-4" {{ form.timeout.vars.errors|length or form.api_version.vars.errors|length ? 'open' }}>
+                    <summary class="h6 text-muted text-uppercase">Options avancées</summary>
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-4">{{ form_row(form.timeout) }}</div>
+                        <div class="col-md-4">{{ form_row(form.api_version) }}</div>
+                        <div class="col-md-4">{{ form_row(form.verify_ssl) }}</div>
+                    </div>
+                </details>
+
+                <hr class="my-4">
+                <button class="btn btn-success"><i class="fas fa-check me-1"></i>Enregistrer</button>
+                <a href="{{ path('app_gestion_switch_admin_index') }}" class="btn btn-outline-secondary">Annuler</a>
+            {{ form_end(form) }}
+        </div>
+    </div>
+</div>
+
+<script>
+    // Protocole : ArubaOS-Switch seulement ; mot de passe : seulement s'il est spécifique au switch
+    (() => {
+        const os = document.getElementById('{{ form.os.vars.id }}');
+        const modes = document.querySelectorAll('input[name="{{ form.password_mode.vars.full_name }}"]');
+        const sync = () => {
+            document.getElementById('protocol-row').hidden = os.value !== 'aos-switch';
+            const own = [...modes].some(m => m.checked && m.value === 'own');
+            document.getElementById('password-row').style.visibility = own ? 'visible' : 'hidden';
+        };
+        os.addEventListener('change', sync);
+        modes.forEach(m => m.addEventListener('change', sync));
+        sync();
+    })();
+</script>
+{% endblock %}

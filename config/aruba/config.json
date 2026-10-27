@@ -1,38 +1,123 @@
 {
-  "refresh_minutes": 15,
-  "parallel": 6,
-
-  "defaults": {
-    "username": "admin",
-    "verify_ssl": false,
-    "api_version": "auto",
-    "timeout": 15
-  },
-
-  "switches": [
-    { "id": "coeur",             "host": "192.168.1.1",   "name": "sw-coeur",                      "site": "Bureaux RDC (cœur de réseau)",
-      "os": "aos-switch", "protocol": "http" },
-    { "id": "fdl",               "host": "10.10.97.250",  "name": "sw-chlatour-fdl",               "site": "FDL" },
-    { "id": "bureaux-etage01",   "host": "192.168.1.131", "name": "sw-chlatour-bureaux-etage01",   "site": "Bureaux étage 1" },
-    { "id": "labo",              "host": "192.168.1.132", "name": "sw-chlatour-labo",              "site": "Labo" },
-    { "id": "vitivini-baie",     "host": "192.168.1.133", "name": "sw-chlatour-vitivini-baie",     "site": "Vitivini (baie)" },
-    { "id": "palu",              "host": "192.168.1.134", "name": "sw-chlatour-palu",              "site": "Palu" },
-    { "id": "poleagri",          "host": "192.168.1.135", "name": "sw-chlatour-poleagri",          "site": "Pôle agri" },
-    { "id": "gardien",           "host": "192.168.1.136", "name": "sw-chlatour-gardien",           "site": "Gardien" },
-    { "id": "pavillon",          "host": "192.168.1.137", "name": "sw-chlatour-pavillon",          "site": "Pavillon" },
-    { "id": "mise-baie",         "host": "192.168.1.138", "name": "sw-chlatour-mise-baie",         "site": "Mise (baie)" },
-    { "id": "mise-bureau",       "host": "192.168.1.127", "name": "sw-chlatour-mise-bureau",       "site": "Mise (bureau)" },
-    { "id": "chateau-buanderie", "host": "192.168.1.140", "name": "sw-chlatour-chateau-buanderie", "site": "Château (buanderie)" },
-    { "id": "lavage",            "host": "192.168.1.142", "name": "sw-chlatour-lavage",            "site": "Lavage" },
-    { "id": "serre",             "host": "192.168.1.143", "name": "sw-chlatour-serre",             "site": "Serre" },
-    { "id": "mise-armoire",      "host": "192.168.1.144", "name": "sw-chlatour-mise-armoire",      "site": "Mise (armoire)" },
-    { "id": "bureaux-etage02",   "host": "192.168.1.213", "name": "sw-chlatour-bureaux-etage02",   "site": "Bureaux étage 2",
-      "os": "aos-switch", "protocol": "http" },
-    { "id": "refectoire-etage", "host": "192.168.1.130", "name": "sw-chlatour-refectoire-etage",  "site": "Réfectoire étage" }
-  ],
-
-  "other_switches": [
-    { "host": "192.168.1.128", "name": "sw-chlatour-video" },
-    { "host": "192.168.1.129", "name": "sw-chlatour-chateau-cuisine" }
-  ]
+    "parallel": 6,
+    "defaults": {
+        "username": "admin",
+        "verify_ssl": false,
+        "api_version": "auto",
+        "timeout": 15
+    },
+    "switches": [
+        {
+            "username": "manager",
+            "id": "coeur",
+            "host": "192.168.1.1",
+            "name": "sw-coeur",
+            "site": "Bureaux RDC (cœur de réseau)",
+            "os": "aos-switch",
+            "protocol": "http"
+        },
+        {
+            "id": "fdl",
+            "host": "10.10.97.250",
+            "name": "sw-chlatour-fdl",
+            "site": "FDL"
+        },
+        {
+            "id": "bureaux-etage01",
+            "host": "192.168.1.131",
+            "name": "sw-chlatour-bureaux-etage01",
+            "site": "Bureaux étage 1"
+        },
+        {
+            "id": "labo",
+            "host": "192.168.1.132",
+            "name": "sw-chlatour-labo",
+            "site": "Labo"
+        },
+        {
+            "id": "vitivini-baie",
+            "host": "192.168.1.133",
+            "name": "sw-chlatour-vitivini-baie",
+            "site": "Vitivini (baie)"
+        },
+        {
+            "id": "palu",
+            "host": "192.168.1.134",
+            "name": "sw-chlatour-palu",
+            "site": "Palu"
+        },
+        {
+            "id": "poleagri",
+            "host": "192.168.1.135",
+            "name": "sw-chlatour-poleagri",
+            "site": "Pôle agri"
+        },
+        {
+            "id": "gardien",
+            "host": "192.168.1.136",
+            "name": "sw-chlatour-gardien",
+            "site": "Gardien"
+        },
+        {
+            "id": "pavillon",
+            "host": "192.168.1.137",
+            "name": "sw-chlatour-pavillon",
+            "site": "Pavillon"
+        },
+        {
+            "id": "mise-baie",
+            "host": "192.168.1.138",
+            "name": "sw-chlatour-mise-baie",
+            "site": "Mise (baie)"
+        },
+        {
+            "id": "mise-bureau",
+            "host": "192.168.1.127",
+            "name": "sw-chlatour-mise-bureau",
+            "site": "Mise (bureau)"
+        },
+        {
+            "id": "chateau-buanderie",
+            "host": "192.168.1.140",
+            "name": "sw-chlatour-chateau-buanderie",
+            "site": "Château (buanderie)"
+        },
+        {
+            "id": "lavage",
+            "host": "192.168.1.142",
+            "name": "sw-chlatour-lavage",
+            "site": "Lavage"
+        },
+        {
+            "id": "serre",
+            "host": "192.168.1.143",
+            "name": "sw-chlatour-serre",
+            "site": "Serre"
+        },
+        {
+            "id": "mise-armoire",
+            "host": "192.168.1.144",
+            "name": "sw-chlatour-mise-armoire",
+            "site": "Mise (armoire)"
+        },
+        {
+            "username": "manager",
+            "id": "bureaux-etage02",
+            "host": "192.168.1.213",
+            "name": "sw-chlatour-bureaux-etage02",
+            "site": "Bureaux étage 2",
+            "os": "aos-switch",
+            "protocol": "http"
+        }
+    ],
+    "other_switches": [
+        {
+            "host": "192.168.1.128",
+            "name": "sw-chlatour-video"
+        },
+        {
+            "host": "192.168.1.129",
+            "name": "sw-chlatour-chateau-cuisine"
+        }
+    ]
 }

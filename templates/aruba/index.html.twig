@@ -115,6 +115,22 @@
     #aruba-app .map-tools{position:absolute;top:10px;left:10px;display:flex;gap:10px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12.5px}
     #aruba-app .map-tools label{display:flex;gap:4px;align-items:center;margin:0}
     #map-info{position:absolute;right:10px;top:10px;width:300px;max-height:calc(100% - 20px);overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px;font-size:13px;display:none}
+    /* suivi de l'actualisation */
+    #aruba-app .ax-progress{background:var(--panel);border-bottom:1px solid var(--line);padding:12px 20px 14px}
+    #aruba-app .ax-progress-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+    #aruba-app .ax-progress-head strong{font-size:14.5px}
+    #aruba-app .ax-progress-head .ax-close{margin-left:auto;border:0;background:none;color:var(--muted);font-size:18px;line-height:1;padding:0 4px}
+    #aruba-app .ax-progress .bar{height:8px;margin:10px 0}
+    #aruba-app .ax-progress .bar i{background:var(--accent);transition:width .6s ease}
+    #aruba-app .ax-progress.done .bar i{background:var(--up)}
+    #aruba-app .ax-progress.has-err .bar i{background:var(--ext)}
+    #aruba-app .ax-steps{display:flex;flex-wrap:wrap;gap:6px}
+    #aruba-app .ax-step{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;font-size:12px;border:1px solid var(--line);background:var(--bg);color:var(--muted);white-space:nowrap}
+    #aruba-app .ax-step small{font-size:11px;opacity:.8}
+    #aruba-app .ax-step.run{border-color:var(--uplink);color:var(--uplink);background:#eef4ff}
+    #aruba-app .ax-step.ok{border-color:#bfe5cf;color:var(--up);background:#effaf3}
+    #aruba-app .ax-step.err{border-color:#f5c2c2;color:var(--admin);background:#fdf0f0}
+    #aruba-app .ax-errors{margin:10px 0 0;padding-left:18px;font-size:12.5px;color:var(--admin)}
     #aruba-app .ax-toast{position:fixed;bottom:18px;right:18px;z-index:1040;background:var(--text);color:var(--bg);padding:10px 14px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
     #aruba-app .ax-toast.on{opacity:1}
     @media (max-width:991px){ #aruba-app .ax-toast{bottom:84px} }
@@ -127,14 +143,27 @@
             <p id="last">Chargement…</p>
         </div>
         <div class="right">
-            <button class="ax-btn primary" id="refresh" type="button">Actualiser</button>
+            <button class="ax-btn primary" id="refresh" type="button"
+                    title="Interroger maintenant tous les switchs (environ 30 secondes)"><i class="fas fa-rotate me-1"></i>Actualiser</button>
         </div>
+    </div>
+    <div class="ax-progress" id="progress" hidden>
+        <div class="ax-progress-head">
+            <strong id="pg-title"></strong>
+            <span class="muted" id="pg-sub"></span>
+            <button type="button" class="ax-close" id="pg-close" title="Masquer" hidden>&times;</button>
+        </div>
+        <div class="bar"><i id="pg-bar" style="width:0"></i></div>
+        <div class="ax-steps" id="pg-steps"></div>
+        <ul class="ax-errors" id="pg-errors" hidden></ul>
     </div>
 
     <div class="aruba-main">
         <section class="view on" id="v-overview">
             <div class="kpis" id="kpis"></div>
-            <h2>Switchs</h2>
+            <h2 class="d-flex align-items-center">Switchs
+                <a href="{{ path('app_gestion_switch_admin_index') }}" class="ms-auto fw-normal" style="font-size:13px;color:var(--accent)">
+                    <i class="fas fa-sliders me-1"></i>Configurer</a></h2>
             <div class="cards" id="cards"></div>
         </section>
 
@@ -170,12 +199,13 @@
 
         <section class="view" id="v-search">
             <form class="bigsearch" id="sform">
-                <input id="sq" placeholder="ex. 3c:52:82:1a:2b, 3C52-821A, 10.20.1.45, imprimante, AP-BAT…" autocomplete="off">
+                <input id="sq" placeholder="ex. 3c:52:82:1a:2b, 3C52-821A, 10.20.1.45, PORT-KATE2, imprimante, AP-BAT…" autocomplete="off">
                 <button class="ax-btn primary">Rechercher</button>
             </form>
             <div class="muted" style="font-size:12.5px;margin:-6px 0 14px">
-                La MAC est recherchée dans les tables de tous les switchs. La localisation retenue est le port d'accès
-                (les ports d'uplink entre switchs ne voient l'équipement qu'en transit). Saisie partielle acceptée (4 caractères hexadécimaux min.).
+                Recherche par adresse MAC, IP ou nom d'appareil annoncé en LLDP (PC, bornes, téléphones), dans les tables de tous les switchs.
+                La localisation retenue est le port d'accès (les ports d'uplink entre switchs ne voient l'équipement qu'en transit).
+                Saisie partielle acceptée (3 caractères min., 4 caractères hexadécimaux pour une MAC).
             </div>
             <div id="sresults"></div>
         </section>
@@ -226,6 +256,18 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
     function fmtSpeed(b){ if(!b) return ""; return b>=1e9 ? (b/1e9)+" Gb/s" : (b/1e6)+" Mb/s"; }
     function fmtDate(iso){ if(!iso) return "jamais"; const d=new Date(iso); return d.toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"}); }
     function hexOf(s){ return (s||"").toLowerCase().replace(/[^0-9a-f]/g,""); }
+    function fmtSec(s){ if(s==null) return ""; s=Math.round(s); return s<60 ? `${s} s` : `${Math.floor(s/60)} min ${String(s%60).padStart(2,"0")} s`; }
+    function fmtAgo(iso){
+      if(!iso) return "";
+      const m = Math.round((Date.now()-new Date(iso))/60000);
+      return m<1 ? "à l'instant" : m<60 ? `il y a ${m} min` : m<1440 ? `il y a ${Math.round(m/60)} h` : `il y a ${Math.round(m/1440)} j`;
+    }
+    // « AosCxException: Connexion à … impossible : Connection timed out after 15004 milliseconds » → message lisible
+    function errFr(e){
+      return String(e||"").replace(/^\w+Exception:\s*/,"")
+        .replace(/\s*:?\s*Connection timed out after \d+ milliseconds/i," : pas de réponse (délai dépassé)")
+        .replace(/\s*:?\s*Failed to connect[^:]*: Connection refused/i," : connexion refusée");
+    }
 
     /* ---------------- navigation ---------------- */
     const VIEWS = ["overview","ports","search","map"];
@@ -241,7 +283,8 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
     /* ---------------- chargement ---------------- */
     async function load(){
       S = await getJson(API.snapshot);
-      $("#last").textContent = "Dernière collecte : " + fmtDate(S.collected_at);
+      buildNames();
+      setLast();
       renderOverview();
       if(!curSw && S.switches.length) curSw = (S.switches.find(s=>!s.error)||S.switches[0]).id;
       renderPorts();
@@ -250,20 +293,76 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
       if($("#sq").value) doSearch($("#sq").value);
     }
 
+    function setLast(){
+      if(!S) return;
+      $("#last").textContent = S.collected_at
+        ? `Dernière collecte : ${fmtDate(S.collected_at)} (${fmtAgo(S.collected_at)})`
+        : "Aucune collecte : cliquez sur Actualiser pour interroger les switchs";
+    }
+
+    /* ---------------- actualisation (uniquement à la demande) ---------------- */
+    const REFRESH_LABEL = $("#refresh").innerHTML;
+    const STEP = {"en attente":["wait","far fa-clock","en attente"], "en cours":["run","fas fa-spinner fa-spin",""],
+                  ok:["ok","fas fa-check",""], erreur:["err","fas fa-xmark","erreur"]};
+    let watching = false, hideTimer = null;
+
+    function renderProgress(st){
+      const prog = st.progress||{}, det = st.details||{}, ids = Object.keys(prog);
+      const n = ids.length, ok = ids.filter(i=>prog[i]==="ok").length, ko = ids.filter(i=>prog[i]==="erreur").length;
+      const busy = ids.filter(i=>prog[i]==="en cours").map(i=>det[i]?.name||i);
+      let title, sub = "", pct;
+      if(st.phase==="demarrage" || !n){ title = "Démarrage de la collecte…"; pct = 2; }
+      else if(st.phase==="analyse"){ title = "Analyse des données…"; sub = "construction de l'inventaire et de la carte"; pct = 97; }
+      else if(st.running){ title = `Collecte en cours : ${ok+ko} / ${n} switchs interrogés`;
+        sub = busy.length ? "en cours : " + busy.join(", ") : ""; pct = 3 + 92*(ok+ko)/n; }
+      else { title = `Collecte terminée : ${ok} switch${ok>1?"s":""} à jour` + (ko ? `, ${ko} en erreur` : ""); pct = 100; }
+      $("#pg-title").textContent = title;
+      $("#pg-sub").textContent = [st.elapsed!=null ? (st.running ? "depuis " : "en ") + fmtSec(st.elapsed) : "", sub].filter(Boolean).join(" · ");
+      $("#pg-bar").style.width = pct + "%";
+      const box = $("#progress");
+      box.classList.toggle("done", !st.running && !ko);
+      box.classList.toggle("has-err", !st.running && ko>0);
+      $("#pg-steps").innerHTML = ids.map(i=>{
+        const [cls, icon, txt] = STEP[prog[i]] || STEP["en attente"]; const d = det[i]||{};
+        const time = d.duration!=null ? fmtSec(d.duration) : d.elapsed!=null ? fmtSec(d.elapsed) : txt;
+        return `<span class="ax-step ${cls}" title="${esc(d.error ? errFr(d.error) : prog[i])}"><i class="${icon}"></i>${esc(d.name||i)}${time?` <small>${esc(time)}</small>`:""}</span>`;
+      }).join("");
+      const errs = ids.filter(i=>prog[i]==="erreur" && det[i]?.error);
+      $("#pg-errors").hidden = !errs.length;
+      $("#pg-errors").innerHTML = errs.map(i=>`<li><b>${esc(det[i].name||i)}</b> : ${esc(errFr(det[i].error))}</li>`).join("");
+      return ko;
+    }
+
+    async function watch(){
+      if(watching) return;
+      watching = true; clearTimeout(hideTimer);
+      const b = $("#refresh"); b.disabled = true;
+      $("#progress").hidden = false; $("#pg-close").hidden = true;
+      let ko = 0;
+      try{
+        for(;;){
+          const st = await getJson(API.status);
+          ko = renderProgress(st);
+          const p = Object.values(st.progress||{}), done = p.filter(x=>x==="ok"||x==="erreur").length;
+          b.innerHTML = `<i class="fas fa-spinner fa-spin me-1"></i>` + (st.phase==="analyse" ? "Analyse…" : p.length && st.phase!=="demarrage" ? `Collecte ${done}/${p.length}` : "Démarrage…");
+          if(!st.running) break;
+          await new Promise(r=>setTimeout(r, 1000));
+        }
+        await load();
+        toast(ko ? "Données actualisées (certains switchs en erreur)" : "Données actualisées");
+        if(!ko) hideTimer = setTimeout(()=>{ $("#progress").hidden = true; }, 10000);
+      }catch(e){ toast(e.message); }
+      finally{ watching = false; b.disabled = false; b.innerHTML = REFRESH_LABEL; $("#pg-close").hidden = false; }
+    }
+
+    $("#pg-close").onclick = ()=>{ clearTimeout(hideTimer); $("#progress").hidden = true; };
     $("#refresh").onclick = async ()=>{
-      const b=$("#refresh"); b.disabled=true; b.textContent="Collecte…";
+      const b = $("#refresh"); b.disabled = true;
       try{
         const res = await postJson(API.refresh);
-        if(!res.started && res.message) toast(res.message);
-      }catch(e){ b.disabled=false; b.textContent="Actualiser"; toast(e.message); return; }
-      const poll = async ()=>{
-        const st = await getJson(API.status);
-        const p = Object.values(st.progress||{}); const done = p.filter(x=>x==="ok"||x==="erreur").length;
-        if(p.length) b.textContent = `Collecte ${done}/${p.length}`;
-        if(st.running) return setTimeout(poll, 1000);
-        b.disabled=false; b.textContent="Actualiser"; await load(); toast("Collecte terminée");
-      };
-      setTimeout(poll, 800);
+        if(!res.started && res.message) toast(res.message);   // déjà lancée (par un autre utilisateur) : on suit celle-ci
+      }catch(e){ b.disabled = false; toast(e.message); return; }
+      watch();
     };
 
     /* ---------------- vue d'ensemble ---------------- */
@@ -282,7 +381,7 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
         return `<div class="ax-card ${s.error?"err":""}" data-id="${esc(s.id)}">
           <h3><span>${esc(s.name)}</span><span class="ax-badge">${esc(s.site||"")}</span></h3>
           <div class="mono muted">${esc(s.host)} ${s.platform?"· "+esc(s.platform):""}</div>
-          ${s.error ? `<div class="err-msg">${esc(s.error)}</div>` : `
+          ${s.error ? `<div class="err-msg">${esc(errFr(s.error))}</div>` : `
           <div class="bar"><i style="width:${pct}%"></i></div>
           <div class="ax-row"><span>${st.ports_up}/${st.ports_total} ports actifs</span><span>${st.macs} MAC</span><span>${st.vlans} VLAN</span><span>${st.lldp} voisins LLDP</span></div>
           <div class="ax-row" style="margin-top:4px"><span class="mono">${esc(s.version)}</span><span>API ${esc(s.api_version)}</span></div>`}
@@ -384,14 +483,21 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
            return `<tr><td>${known?`<a href="#" data-goto="${esc(known.id)}" data-port="${esc(n.port_id)}" style="color:var(--accent)">${esc(n.name)}</a>`:esc(n.name)}</td><td class="mono">${esc(n.port_id)}</td><td class="mono">${esc(n.mgmt_ip)}</td><td>${esc(n.capabilities)}</td><td class="muted">${esc(n.description)}</td></tr>`;}).join("")}</tbody></table>`:""}
        <h2 style="font-size:14px;margin-top:14px">Adresses MAC apprises (${p.mac_count})</h2>
        ${p.role==="uplink"?`<div class="muted" style="font-size:12.5px;margin-bottom:6px">Port d'uplink : ces MAC sont vues en transit, les équipements sont branchés ailleurs.</div>`:""}
-       ${p.mac_count?`<div class="scroll" style="max-height:300px"><table><thead><tr><th>MAC</th><th>VLAN</th><th>IP</th><th>Constructeur</th></tr></thead><tbody>${
-         p.macs.map(m=>`<tr><td class="mono">${esc(m.mac)}</td><td class="mono">${esc(m.vlan)}</td><td class="mono">${esc(m.ip)}</td><td>${esc(m.vendor)}</td></tr>`).join("")}</tbody></table></div>`:'<div class="muted">Aucune.</div>'}`;
+       ${p.mac_count?`<div class="scroll" style="max-height:300px"><table><thead><tr><th>MAC</th><th>Nom</th><th>VLAN</th><th>IP</th><th>Constructeur</th></tr></thead><tbody>${
+         p.macs.map(m=>`<tr><td class="mono">${esc(m.mac)}</td><td>${esc(NAMES.get(m.mac)||"")}</td><td class="mono">${esc(m.vlan)}</td><td class="mono">${esc(m.ip)}</td><td>${esc(m.vendor)}</td></tr>`).join("")}</tbody></table></div>`:'<div class="muted">Aucune.</div>'}`;
       el.querySelectorAll("[data-goto]").forEach(a=>a.onclick=e=>{ e.preventDefault(); curSw=a.dataset.goto; renderPorts(); selectPort(a.dataset.port,true); });
     }
 
     function gotoPort(sw, port){ curSw=sw; show("ports"); renderPorts(); selectPort(port,true); }
 
     /* ---------------- recherche ---------------- */
+    // nom annoncé en LLDP par l'appareil lui-même (PC Windows, bornes, téléphones…), par adresse MAC
+    let NAMES = new Map();
+    function buildNames(){
+      NAMES = new Map();
+      for(const s of S.switches) for(const p of (s.ports||[])) for(const n of p.lldp)
+        if(n.name && n.name!==n.chassis_id && /^([0-9a-f]{2}:){5}[0-9a-f]{2}$/.test(n.chassis_id)) NAMES.set(n.chassis_id, n.name);
+    }
     function searchAll(q){
       q = q.trim(); if(!q) return [];
       const ql = q.toLowerCase(), hx = hexOf(q);
@@ -399,6 +505,7 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
       const byMac = new Map();
       for(const m of S.macs){
         const hit = (isHex && m.mac.replace(/:/g,"").includes(hx)) || (m.ip && (m.ip===q || (q.includes(".") && m.ip.startsWith(q))))
+          || (ql.length>=3 && (NAMES.get(m.mac)||"").toLowerCase().includes(ql))
           || (!isHex && ql.length>=3 && (m.port_desc.toLowerCase().includes(ql) || m.vendor.toLowerCase().includes(ql) || m.via.toLowerCase().includes(ql)));
         if(hit){ if(!byMac.has(m.mac)) byMac.set(m.mac,[]); byMac.get(m.mac).push(m); }
       }
@@ -410,7 +517,10 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
       const res = searchAll(q); const out = $("#sresults");
       // voisins LLDP correspondants (AP, switchs, téléphones par nom)
       const ql=q.trim().toLowerCase();
-      const nbHits = ql.length>=3 ? S.switches.flatMap(s=>(s.ports||[]).flatMap(p=>p.lldp.filter(n=>(n.name+" "+n.mgmt_ip+" "+n.chassis_id).toLowerCase().includes(ql)).map(n=>({s,p,n})))) : [];
+      // les appareils déjà trouvés par leur MAC (avec IP, VLAN…) ne sont pas répétés dans les voisins LLDP
+      const found = new Set(res.map(([mac])=>mac));
+      const nbHits = ql.length>=3 ? S.switches.flatMap(s=>(s.ports||[]).flatMap(p=>p.lldp.filter(n=>!found.has(n.chassis_id)
+        && [n.name, n.mgmt_ip, n.chassis_id, n.description, n.port_description].join(" ").toLowerCase().includes(ql)).map(n=>({s,p,n})))) : [];
       let html="";
       if(nbHits.length){
         html += `<h2>Voisins LLDP (${nbHits.length})</h2>` + nbHits.slice(0,50).map(({s,p,n})=>`<div class="result">
@@ -424,6 +534,7 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
           const others = list.filter(m=>m!==prim);
           const transitOnly = prim.role==="uplink";
           return `<div class="result">
+            ${NAMES.has(mac)?`<div style="font-size:15px;font-weight:650"><i class="fas fa-desktop me-1" style="color:var(--muted)"></i>${esc(NAMES.get(mac))}</div>`:""}
             <div class="mono"><b>${esc(mac)}</b> ${prim.ip?"· "+esc(prim.ip):""} ${prim.vendor?`<span class="muted">· ${esc(prim.vendor)}</span>`:""}</div>
             <div class="loc">${transitOnly?"Vue seulement en transit sur ":"Connecté sur "}<a data-sw="${esc(prim.switch)}" data-p="${esc(prim.port)}">${esc(prim.switch_name)} · port ${esc(prim.port)}</a>
               <span class="tag ${prim.role}">${ROLE_FR[prim.role]}</span> · VLAN ${esc(prim.vlan)} ${prim.vlan_name?`(${esc(prim.vlan_name)})`:""}</div>
@@ -618,7 +729,17 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
 
     /* ---------------- démarrage ---------------- */
     load().then(()=>show(location.hash.slice(1))).catch(e=>{ show(location.hash.slice(1)); $("#last").textContent=e.message; toast(e.message); });
-    setInterval(async ()=>{ try{ const st=await getJson(API.status); if(S && st.collected_at && st.collected_at!==S.collected_at && !st.running) load(); }catch(e){} }, 30000);
+    // aucune collecte automatique : on suit seulement celle lancée par un utilisateur (ici ou sur un autre poste)
+    const checkStatus = async ()=>{
+      try{
+        const st = await getJson(API.status);
+        if(st.running) watch();
+        else if(S && st.collected_at && st.collected_at!==S.collected_at) load();
+        else setLast();
+      }catch(e){}
+    };
+    checkStatus();
+    setInterval(()=>{ if(!watching) checkStatus(); }, 30000);
 {% endverbatim %}
 })();
 </script>

@@ -6,6 +6,9 @@
  *
  * 1) Déchiffrement direct en PHP (extension openssl) ;
  * 2) à défaut, sous Windows, on demande à PowerShell de le faire, comme vos scripts.
+ *
+ * write() produit les mêmes fichiers (bin/console aruba:password) : ils restent lisibles par
+ * ConvertTo-SecureString -Key dans les scripts PowerShell.
  */
 declare(strict_types=1);
 
@@ -80,6 +83,31 @@ class SecurePassword
             }
         }
         throw new \RuntimeException("PowerShell n'a pas pu déchiffrer le mot de passe");
+    }
+
+    /** Chiffre $password comme ConvertFrom-SecureString -Key ; la clé AES-256 est créée si elle n'existe pas. */
+    public static function write(string $password, string $passwordFile, string $keyFile): void
+    {
+        if (!is_file($keyFile)) {
+            self::writeFile($keyFile, implode("\r\n", array_map('ord', str_split(random_bytes(32)))) . "\r\n");
+        }
+        $key = self::readKey($keyFile);
+        $iv = random_bytes(16);
+        $cipher = openssl_encrypt(mb_convert_encoding($password, 'UTF-16LE', 'UTF-8'),
+            'aes-' . (strlen($key) * 8) . '-cbc', $key, OPENSSL_RAW_DATA, $iv);
+        $inner = '2|' . base64_encode($iv) . '|' . bin2hex((string) $cipher);
+        self::writeFile($passwordFile, self::HEADER . base64_encode(mb_convert_encoding($inner, 'UTF-16LE', 'UTF-8')) . "\r\n");
+    }
+
+    private static function writeFile(string $path, string $content): void
+    {
+        if (!is_dir(dirname($path))) {
+            mkdir(dirname($path), 0700, true);
+        }
+        if (file_put_contents($path, $content, LOCK_EX) === false) {
+            throw new \RuntimeException("Écriture impossible : {$path}");
+        }
+        @chmod($path, 0600);
     }
 
     public static function read(string $passwordFile, string $keyFile): string

@@ -112,21 +112,19 @@ class AosCxClient
         if ($this->apiVersion && $this->apiVersion !== 'auto') {
             return $this->apiVersion;
         }
-        try {
-            [, $body] = $this->request('GET', "{$this->base}/rest");
-            $data = json_decode($body, true);
-            if (is_array($data)) {
-                if (is_array($data['latest'] ?? null) && !empty($data['latest']['version'])) {
-                    return $data['latest']['version'];
-                }
-                $versions = array_values(array_filter(array_keys($data),
-                    fn($k) => is_string($k) && preg_match('/^v\d+\.\d+$/', $k)));
-                if ($versions) {
-                    usort($versions, fn($a, $b) => version_compare(substr($a, 1), substr($b, 1)));
-                    return end($versions);
-                }
+        // un switch injoignable lève l'exception ici : inutile d'attendre un second délai au login
+        [, $body] = $this->request('GET', "{$this->base}/rest");
+        $data = json_decode($body, true);
+        if (is_array($data)) {
+            if (is_array($data['latest'] ?? null) && !empty($data['latest']['version'])) {
+                return $data['latest']['version'];
             }
-        } catch (AosCxException) {
+            $versions = array_values(array_filter(array_keys($data),
+                fn($k) => is_string($k) && preg_match('/^v\d+\.\d+$/', $k)));
+            if ($versions) {
+                usort($versions, fn($a, $b) => version_compare(substr($a, 1), substr($b, 1)));
+                return end($versions);
+            }
         }
         return '';
     }

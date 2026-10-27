@@ -21,7 +21,6 @@ class Api
 
     public function status(): array
     {
-        $this->collector->autoRefresh();
         return $this->collector->status();
     }
 

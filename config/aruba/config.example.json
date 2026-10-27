@@ -1,5 +1,4 @@
 {
-  "refresh_minutes": 15,
   "parallel": 8,
 
   "defaults": {

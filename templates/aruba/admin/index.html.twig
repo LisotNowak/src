@@ -1,0 +1,144 @@
+{% extends 'aruba/layout.html.twig' %}
+{% block title %}Configuration des switchs{% endblock %}
+{% block body %}
+<div class="container-fluid mt-4 mb-5 px-4" style="max-width:1400px">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <div>
+            <h1 class="h3 mb-1"><i class="fas fa-sliders me-2" style="color:#800000"></i>Configuration des switchs</h1>
+            <span class="text-muted small">Les modifications sont prises en compte à la prochaine actualisation.</span>
+        </div>
+        <a href="{{ path('app_gestion_switch_admin_new') }}" class="btn btn-success">
+            <i class="fas fa-plus me-1"></i>Ajouter un switch
+        </a>
+    </div>
+
+    {% for type in ['success', 'danger'] %}
+        {% for message in app.flashes(type) %}
+            <div class="alert alert-{{ type }} alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fermer"></button>
+            </div>
+        {% endfor %}
+    {% endfor %}
+    {% if running %}
+        <div class="alert alert-info"><i class="fas fa-spinner fa-spin me-2"></i>Une collecte est en cours : les modifications s'appliqueront à la suivante.</div>
+    {% endif %}
+
+    {# ── Paramètres communs ── #}
+    <div class="card shadow-sm mb-4">
+        <div class="card-body d-flex flex-wrap align-items-center gap-4">
+            <div><span class="text-muted small d-block">Utilisateur par défaut</span><b>{{ defaults.username ?? '—' }}</b>
+                {% if not common_password %}<span class="badge bg-danger ms-1">mot de passe manquant</span>{% endif %}
+            </div>
+            <div><span class="text-muted small d-block">Délai / API</span>{{ defaults.timeout ?? 15 }} s · {{ defaults.api_version ?? 'auto' }}</div>
+            <div><span class="text-muted small d-block">En parallèle</span>{{ parallel }} switchs</div>
+            <div><span class="text-muted small d-block">Non interrogés</span>{{ other_switches|length }} switch{{ other_switches|length > 1 ? 's' }}</div>
+            <a href="{{ path('app_gestion_switch_admin_settings') }}" class="btn btn-outline-secondary ms-auto">
+                <i class="fas fa-gear me-1"></i>Valeurs par défaut et options
+            </a>
+        </div>
+    </div>
+
+    {# ── Switchs ── #}
+    <div class="card shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width:70px"></th>
+                        <th>Switch</th>
+                        <th>Adresse</th>
+                        <th>Système</th>
+                        <th>Identifiants</th>
+                        <th>Dernière collecte</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sw in switches %}
+                        <tr id="sw-{{ sw.id }}">
+                            <td class="text-nowrap">
+                                {% for sens in ['haut', 'bas'] %}
+                                    <form method="post" action="{{ path('app_gestion_switch_admin_move', {id: sw.id, sens: sens}) }}" class="d-inline">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('move' ~ sw.id) }}">
+                                        <button class="btn btn-link btn-sm p-0 px-1 text-secondary" title="Monter / descendre"
+                                            {% if (sens == 'haut' and loop.parent.loop.first) or (sens == 'bas' and loop.parent.loop.last) %}disabled{% endif %}>
+                                            <i class="fas fa-arrow-{{ sens == 'haut' ? 'up' : 'down' }}"></i>
+                                        </button>
+                                    </form>
+                                {% endfor %}
+                            </td>
+                            <td>
+                                <div class="fw-semibold">{{ sw.name ?: sw.id }}</div>
+                                <div class="small text-muted"><code>{{ sw.id }}</code>{% if sw.site is defined and sw.site %} · {{ sw.site }}{% endif %}</div>
+                            </td>
+                            <td class="font-monospace small">{{ sw.host }}</td>
+                            <td>
+                                {% if (sw.os ?? 'aos-cx') == 'aos-switch' %}
+                                    <span class="badge bg-secondary">ArubaOS-Switch</span>
+                                    {% if (sw.protocol ?? 'https') == 'http' %}
+                                        <span class="badge bg-light text-dark border">HTTP</span>
+                                    {% else %}
+                                        <span class="badge bg-light text-dark border">HTTPS</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="badge" style="background:#800000">AOS-CX</span>
+                                    <span class="badge bg-light text-dark border">HTTPS</span>
+                                {% endif %}
+                                {% if sw.last and sw.last.platform %}
+                                    <div class="small text-muted mt-1">{{ sw.last.platform }}</div>
+                                {% endif %}
+                            </td>
+                            <td class="small">
+                                {% set own_user = sw.own.username ?? '' %}
+                                <i class="fas fa-user me-1 text-muted"></i>{{ own_user ?: defaults.username ?? '' }}
+                            </td>
+                            <td class="small">
+                                {% if not sw.last %}
+                                    <span class="text-muted">jamais interrogé</span>
+                                {% elseif sw.last.error %}
+                                    <span class="text-danger" title="{{ sw.last.error }}"><i class="fas fa-xmark me-1"></i>erreur</span>
+                                    <div class="text-muted text-truncate" style="max-width:260px" title="{{ sw.last.error }}">{{ sw.last.error }}</div>
+                                {% else %}
+                                    <span class="text-success"><i class="fas fa-check me-1"></i>OK</span>
+                                    {% if sw.last.collected_at %}<span class="text-muted">· {{ sw.last.collected_at|date('d/m/Y H:i', 'Europe/Paris') }}</span>{% endif %}
+                                {% endif %}
+                            </td>
+                            <td class="text-end text-nowrap">
+                                <form method="post" action="{{ path('app_gestion_switch_admin_test', {id: sw.id}) }}" class="d-inline js-test">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('test' ~ sw.id) }}">
+                                    <button class="btn btn-outline-secondary btn-sm" title="Tester la connexion"><i class="fas fa-plug"></i></button>
+                                </form>
+                                <a href="{{ path('app_gestion_switch_admin_edit', {id: sw.id}) }}" class="btn btn-primary btn-sm" title="Modifier">
+                                    <i class="fas fa-pen"></i>
+                                </a>
+                                <form method="post" action="{{ path('app_gestion_switch_admin_delete', {id: sw.id}) }}" class="d-inline"
+                                      onsubmit="return confirm('Supprimer le switch « {{ (sw.name ?: sw.id)|e('js') }} » et son mot de passe ?');">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ sw.id) }}">
+                                    <button class="btn btn-danger btn-sm" title="Supprimer"><i class="fas fa-trash"></i></button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-4">
+                                <i class="fas fa-network-wired fa-2x mb-2 d-block"></i>
+                                Aucun switch configuré
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // le test de connexion prend jusqu'à 15 s si le switch ne répond pas : on le signale sur le bouton
+    document.querySelectorAll('form.js-test').forEach(f => f.addEventListener('submit', () => {
+        const b = f.querySelector('button');
+        b.disabled = true;
+        b.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Test…';
+    }));
+</script>
+{% endblock %}

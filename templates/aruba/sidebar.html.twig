@@ -60,21 +60,22 @@
 </style>
 
 {# Les vues sont affichées côté navigateur (#overview, #ports…) : le lien actif est mis à jour en JS #}
+{% set admin_active = app.request.attributes.get('_route') starts with 'app_gestion_switch_admin_' %}
 
 {# ── Sidebar desktop ────────────────────────────────────────────────────── #}
 <div class="sidebar-aruba d-none d-lg-flex flex-column">
     <div class="sidebar-title mt-2">Gestion switch</div>
 
-    <a href="#overview" class="nav-link" data-aruba-view="overview">
+    <a href="{{ path('app_gestion_switch_index') }}#overview" class="nav-link" data-aruba-view="overview">
         <i class="fas fa-gauge"></i> Vue d'ensemble
     </a>
-    <a href="#ports" class="nav-link" data-aruba-view="ports">
+    <a href="{{ path('app_gestion_switch_index') }}#ports" class="nav-link" data-aruba-view="ports">
         <i class="fas fa-ethernet"></i> Switchs &amp; ports
     </a>
-    <a href="#search" class="nav-link" data-aruba-view="search">
+    <a href="{{ path('app_gestion_switch_index') }}#search" class="nav-link" data-aruba-view="search">
         <i class="fas fa-magnifying-glass"></i> Recherche MAC / IP
     </a>
-    <a href="#map" class="nav-link" data-aruba-view="map">
+    <a href="{{ path('app_gestion_switch_index') }}#map" class="nav-link" data-aruba-view="map">
         <i class="fas fa-diagram-project"></i> Carte
     </a>
 
@@ -82,12 +83,18 @@
     <a href="{{ path('app_gestion_switch_export_csv') }}" class="nav-link">
         <i class="fas fa-file-csv"></i> Adresses MAC (CSV)
     </a>
+
+    <div class="sidebar-title mt-3">Administration</div>
+    <a href="{{ path('app_gestion_switch_admin_index') }}" class="nav-link {{ admin_active ? 'active' }}">
+        <i class="fas fa-sliders"></i> Configuration
+    </a>
 </div>
 
 {# ── Barre de navigation fixe en bas (mobile) ───────────────────────────── #}
 <nav class="mobile-bottombar">
-    <a href="#overview" data-aruba-view="overview"><i class="fas fa-gauge"></i>Vue</a>
-    <a href="#ports" data-aruba-view="ports"><i class="fas fa-ethernet"></i>Ports</a>
-    <a href="#search" data-aruba-view="search"><i class="fas fa-magnifying-glass"></i>Recherche</a>
-    <a href="#map" data-aruba-view="map"><i class="fas fa-diagram-project"></i>Carte</a>
+    <a href="{{ path('app_gestion_switch_index') }}#overview" data-aruba-view="overview"><i class="fas fa-gauge"></i>Vue</a>
+    <a href="{{ path('app_gestion_switch_index') }}#ports" data-aruba-view="ports"><i class="fas fa-ethernet"></i>Ports</a>
+    <a href="{{ path('app_gestion_switch_index') }}#search" data-aruba-view="search"><i class="fas fa-magnifying-glass"></i>Recherche</a>
+    <a href="{{ path('app_gestion_switch_index') }}#map" data-aruba-view="map"><i class="fas fa-diagram-project"></i>Carte</a>
+    <a href="{{ path('app_gestion_switch_admin_index') }}" class="{{ admin_active ? 'active' }}"><i class="fas fa-sliders"></i>Config</a>
 </nav>
