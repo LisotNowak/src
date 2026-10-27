@@ -39,5 +39,16 @@ services:
             $sqlserverDb: '%env(SQLSERVER_DB)%'
             $sqlserverUser: '%env(SQLSERVER_USER)%'
             $sqlserverPassword: '%env(SQLSERVER_PASSWORD)%'
+
+    # Gestion switch (Aruba CX) : switchs dans config/aruba/config.json,
+    # identifiants ARUBA_USER / ARUBA_PASSWORD dans .env.local, données collectées dans var/aruba
+    App\Service\Aruba\Config:
+        arguments:
+            $configFile: '%kernel.project_dir%/config/aruba/config.json'
+
+    App\Service\Aruba\Collector:
+        arguments:
+            $dataDir: '%kernel.project_dir%/var/aruba'
+            $collectCommand: ['%kernel.project_dir%/bin/console', 'aruba:collect']
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

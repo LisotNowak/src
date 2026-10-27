@@ -1,0 +1,93 @@
+<style>
+    /* ── Sidebar desktop ── */
+    .sidebar-aruba {
+        width: 220px;
+        min-height: calc(100vh - 56px);
+        background-color: #f8f9fa;
+        border-right: 1px solid #dee2e6;
+        padding: 1rem 0;
+        flex-shrink: 0;
+    }
+    .sidebar-aruba .sidebar-title {
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        color: #6c757d;
+        text-transform: uppercase;
+        padding: 0.5rem 1.2rem 0.25rem;
+    }
+    .sidebar-aruba .nav-link {
+        color: #343a40;
+        padding: 0.5rem 1.2rem;
+        border-radius: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        font-size: 0.9rem;
+    }
+    .sidebar-aruba .nav-link:hover { background-color: #e9ecef; color: #800000; }
+    .sidebar-aruba .nav-link.active { background-color: #800000; color: #fff; font-weight: 600; }
+    .sidebar-aruba .nav-link.active i { color: #fff; }
+    .sidebar-aruba i { width: 16px; text-align: center; color: #800000; }
+
+    /* ── Barre mobile fixe en bas ── */
+    .mobile-bottombar {
+        display: none;
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        background: #800000;
+        z-index: 1030;
+        padding: 6px 0;
+        box-shadow: 0 -2px 8px rgba(0,0,0,0.2);
+    }
+    .mobile-bottombar a {
+        color: rgba(255,255,255,0.7);
+        text-decoration: none;
+        font-size: 0.7rem;
+        display: flex; flex-direction: column; align-items: center; gap: 2px;
+        flex: 1;
+        padding: 4px 0;
+    }
+    .mobile-bottombar a.active { color: #fff; }
+    .mobile-bottombar a i { font-size: 1.2rem; }
+
+    @media (max-width: 991px) {
+        .sidebar-aruba    { display: none !important; }
+        .mobile-bottombar { display: flex !important; }
+        /* Espace pour la barre bottom */
+        body { padding-bottom: 70px; }
+    }
+</style>
+
+{# Les vues sont affichées côté navigateur (#overview, #ports…) : le lien actif est mis à jour en JS #}
+
+{# ── Sidebar desktop ────────────────────────────────────────────────────── #}
+<div class="sidebar-aruba d-none d-lg-flex flex-column">
+    <div class="sidebar-title mt-2">Gestion switch</div>
+
+    <a href="#overview" class="nav-link" data-aruba-view="overview">
+        <i class="fas fa-gauge"></i> Vue d'ensemble
+    </a>
+    <a href="#ports" class="nav-link" data-aruba-view="ports">
+        <i class="fas fa-ethernet"></i> Switchs &amp; ports
+    </a>
+    <a href="#search" class="nav-link" data-aruba-view="search">
+        <i class="fas fa-magnifying-glass"></i> Recherche MAC / IP
+    </a>
+    <a href="#map" class="nav-link" data-aruba-view="map">
+        <i class="fas fa-diagram-project"></i> Carte
+    </a>
+
+    <div class="sidebar-title mt-3">Export</div>
+    <a href="{{ path('app_gestion_switch_export_csv') }}" class="nav-link">
+        <i class="fas fa-file-csv"></i> Adresses MAC (CSV)
+    </a>
+</div>
+
+{# ── Barre de navigation fixe en bas (mobile) ───────────────────────────── #}
+<nav class="mobile-bottombar">
+    <a href="#overview" data-aruba-view="overview"><i class="fas fa-gauge"></i>Vue</a>
+    <a href="#ports" data-aruba-view="ports"><i class="fas fa-ethernet"></i>Ports</a>
+    <a href="#search" data-aruba-view="search"><i class="fas fa-magnifying-glass"></i>Recherche</a>
+    <a href="#map" data-aruba-view="map"><i class="fas fa-diagram-project"></i>Carte</a>
+</nav>

@@ -1,0 +1,319 @@
+<?php
+/**
+ * Agrège les données brutes de chaque switch en un inventaire unique :
+ * ports classés (accès / uplink / AP / LAG), table MAC globale localisée,
+ * topologie LLDP.
+ */
+declare(strict_types=1);
+
+namespace App\Service\Aruba;
+
+class Inventory
+{
+    private const RANK = ['access' => 0, 'ap' => 1, 'ext' => 1, 'lag' => 2, 'uplink' => 3];
+
+    // ------------------------------------------------------------------ OUI
+    private static array $oui = [];
+
+    /** Charge le fichier IEEE oui.csv (facultatif) : https://standards-oui.ieee.org/oui/oui.csv */
+    public static function loadOui(string $path): int
+    {
+        if (!is_file($path) || !($f = fopen($path, 'r'))) {
+            return 0;
+        }
+        while (($row = fgetcsv($f, 0, ',', '"', '')) !== false) {
+            if (count($row) >= 3 && preg_match('/^[0-9A-Fa-f]{6}$/', (string) $row[1])) {
+                self::$oui[strtolower($row[1])] = trim($row[2]);
+            }
+        }
+        fclose($f);
+        return count(self::$oui);
+    }
+
+    public static function vendor(string $mac): string
+    {
+        $h = str_replace(':', '', $mac);
+        if (strlen($h) !== 12 || !ctype_xdigit($h)) {
+            return '';
+        }
+        if (hexdec($h[1]) & 0x2) {
+            return 'MAC aléatoire / locale';
+        }
+        return self::$oui[substr($h, 0, 6)] ?? '';
+    }
+
+    // ------------------------------------------------------------------ helpers
+    private static function isAp(?string $caps, ?string $desc): bool
+    {
+        $c = strtolower((string) $caps);
+        $d = strtolower((string) $desc);
+        return str_contains($c, 'wlan') || str_contains($c, 'access point') || str_contains($d, 'access point')
+            || preg_match('/\bap-?\d{3}/', $d);
+    }
+
+    private static function isBridge(?string $caps): bool
+    {
+        $c = strtolower((string) $caps);
+        return str_contains($c, 'bridge') || str_contains($c, 'router');
+    }
+
+    private static function isPhone(?string $caps): bool
+    {
+        return str_contains(strtolower((string) $caps), 'telephone');
+    }
+
+    public static function portSortKey(string $name): array
+    {
+        if (str_starts_with($name, 'lag') || str_starts_with($name, 'Trk')) {  // agrégats AOS-CX / ArubaOS-Switch
+            return [9, (int) (preg_replace('/\D/', '', $name) ?: 0), 0, 0];
+        }
+        $parts = array_map(fn($p) => ctype_digit($p) ? (int) $p : 0, preg_split('#[/:]#', $name));
+        $parts = array_pad($parts, 3, 0);
+        return [0, $parts[0], $parts[1], $parts[2]];
+    }
+
+    // ------------------------------------------------------------------ build
+    /**
+     * $switchCfgs : config des switchs (id, host, name)
+     * $raw        : {id: résultat de AosCxClient::collect() ou {"error": "..."}}
+     * $history    : mac -> dernière localisation (mis à jour en place)
+     */
+    public static function build(array $switchCfgs, array $raw, array &$history, array $otherSwitches = []): array
+    {
+        $now = gmdate('Y-m-d\TH:i:s') . '+00:00';
+
+        // Index des switchs gérés pour reconnaître les voisins LLDP
+        $known = [];
+        foreach ($switchCfgs as $cfg) {
+            $sid = $cfg['id'];
+            $known[strtolower($cfg['host'])] = $sid;
+            $sysd = $raw[$sid]['system'] ?? [];
+            if (!empty($sysd['hostname'])) {
+                $known[strtolower($sysd['hostname'])] = $sid;
+            }
+            if (!empty($sysd['system_mac'])) {
+                $known[$sysd['system_mac']] = $sid;
+            }
+        }
+
+        // Switchs d'infrastructure non interrogés (sans API REST) : reconnus par nom ou IP
+        $nodes = [];
+        foreach ($otherSwitches as $o) {
+            $oid = 'infra:' . (($o['host'] ?? '') ?: ($o['name'] ?? ''));
+            $nodes[$oid] = ['id' => $oid, 'label' => ($o['name'] ?? '') ?: ($o['host'] ?? ''), 'kind' => 'switch',
+                'managed' => false, 'infra' => true, 'status' => 'unmanaged',
+                'detail' => 'Switch sans API REST (non interrogé)', 'ip' => $o['host'] ?? ''];
+            foreach ([$o['host'] ?? '', $o['name'] ?? ''] as $k) {
+                if ($k) {
+                    $known[strtolower($k)] = $oid;
+                }
+            }
+        }
+
+        $matchKnown = function (array $nb) use (&$known): ?string {
+            foreach ([$nb['chassis_id'] ?? '', $nb['name'] ?? '', $nb['mgmt_ip'] ?? ''] as $k) {
+                $k = strtolower((string) $k);
+                if ($k !== '' && isset($known[$k])) {
+                    return $known[$k];
+                }
+            }
+            return null;
+        };
+
+        // ARP global (un cœur de réseau voit souvent les IP de tout le monde)
+        $arp = [];
+        foreach ($raw as $r) {
+            foreach ($r['arp'] ?? [] as $mac => $ip) {
+                $arp[(string) $mac] = $ip;
+            }
+        }
+
+        $switches = [];
+        $allMacs = [];
+        $links = [];
+
+        foreach ($switchCfgs as $cfg) {
+            $sid = $cfg['id'];
+            $r = $raw[$sid] ?? ['error' => 'Pas encore interrogé'];
+            $sysd = $r['system'] ?? [];
+            $sw = [
+                'id' => $sid,
+                'host' => $cfg['host'],
+                'name' => ($cfg['name'] ?? '') ?: (($sysd['hostname'] ?? '') ?: $cfg['host']),
+                'hostname' => $sysd['hostname'] ?? '',
+                'platform' => $sysd['platform'] ?? '',
+                'version' => $sysd['version'] ?? '',
+                'system_mac' => $sysd['system_mac'] ?? '',
+                'api_version' => $r['api_version'] ?? '',
+                'site' => $cfg['site'] ?? '',
+                'error' => $r['error'] ?? null,
+                'collected_at' => $r['collected_at'] ?? null,
+                'ports' => [],
+            ];
+            $nodes[$sid] = ['id' => $sid, 'label' => $sw['name'], 'kind' => 'switch', 'managed' => true,
+                'status' => $sw['error'] ? 'error' : 'ok',
+                'detail' => trim("{$sw['platform']} {$sw['version']}") ?: $cfg['host'],
+                'ip' => $cfg['host']];
+            if ($sw['error']) {
+                $switches[] = $sw;
+                continue;
+            }
+
+            $itfs = $r['interfaces'] ?? [];
+            $lldp = $r['lldp'] ?? [];
+            $vlans = $r['vlans'] ?? [];
+            $macsByPort = [];
+            foreach ($r['macs'] ?? [] as $m) {
+                $macsByPort[$m['port']][] = $m;
+            }
+
+            // Rôle de chaque port
+            $roles = [];
+            foreach ($lldp as $pname => $nbs) {
+                $role = 'access';
+                foreach ($nbs as $nb) {
+                    if ($matchKnown($nb)) {
+                        $role = 'uplink';
+                        break;
+                    }
+                    if (self::isAp($nb['capabilities'] ?? '', $nb['description'] ?? '')) {
+                        $role = 'ap';
+                    } elseif (self::isBridge($nb['capabilities'] ?? '') && !self::isPhone($nb['capabilities'] ?? '')
+                        && $role !== 'ap') {
+                        $role = 'ext';  // switch tiers / non géré en aval
+                    }
+                }
+                $roles[(string) $pname] = $role;
+            }
+            foreach ($itfs as $pname => $itf) {
+                if (!empty($itf['members'])) {
+                    $mr = array_map(fn($m) => $roles[$m] ?? 'access', $itf['members']);
+                    $roles[(string) $pname] = in_array('uplink', $mr, true) ? 'uplink'
+                        : (in_array('ap', $mr, true) ? 'ap' : (in_array('ext', $mr, true) ? 'ext' : 'lag'));
+                }
+            }
+            // membres de LAG -> on hérite du rôle du LAG
+            $lagOf = [];
+            foreach ($itfs as $pname => $itf) {
+                foreach ($itf['members'] ?? [] as $m) {
+                    $lagOf[$m] = (string) $pname;
+                }
+            }
+            $roleOf = fn(string $p) => ($roles[$p] ?? null) ?: (isset($lagOf[$p]) ? ($roles[$lagOf[$p]] ?? null) : null)
+                ?: 'access';
+
+            $pnames = array_map('strval', array_keys($itfs));
+            usort($pnames, fn($a, $b) => self::portSortKey($a) <=> self::portSortKey($b));
+            foreach ($pnames as $pname) {
+                $pmacs = $macsByPort[$pname] ?? [];
+                $sw['ports'][] = $itfs[$pname] + [
+                    'role' => $roleOf($pname),
+                    'lag' => $lagOf[$pname] ?? '',
+                    'mac_count' => count($pmacs),
+                    'macs' => array_map(fn($m) => ['mac' => $m['mac'], 'vlan' => $m['vlan'],
+                        'ip' => $arp[$m['mac']] ?? '', 'vendor' => self::vendor($m['mac'])],
+                        array_slice($pmacs, 0, 500)),
+                    'lldp' => $lldp[$pname] ?? [],
+                ];
+            }
+
+            // MAC globales
+            foreach ($r['macs'] ?? [] as $m) {
+                $prole = $roleOf($m['port']);
+                $nbs = $lldp[$m['port']] ?? [];
+                if (!$nbs) {
+                    foreach ($itfs[$m['port']]['members'] ?? [] as $x) {
+                        if (!empty($lldp[$x])) {
+                            $nbs = $lldp[$x];
+                            break;
+                        }
+                    }
+                }
+                $allMacs[] = [
+                    'mac' => $m['mac'], 'vlan' => $m['vlan'], 'vlan_name' => $vlans[$m['vlan']] ?? '',
+                    'switch' => $sid, 'switch_name' => $sw['name'], 'port' => $m['port'],
+                    'port_desc' => $itfs[$m['port']]['description'] ?? '',
+                    'role' => $prole, 'type' => $m['type'] ?? '',
+                    'ip' => $arp[$m['mac']] ?? '', 'vendor' => self::vendor($m['mac']),
+                    'via' => $nbs && in_array($prole, ['ap', 'ext', 'uplink'], true) ? $nbs[0]['name'] : '',
+                ];
+            }
+
+            // Topologie
+            foreach ($lldp as $pname => $nbs) {
+                foreach ($nbs as $nb) {
+                    $target = $matchKnown($nb);
+                    if (!$target) {
+                        $key = ($nb['chassis_id'] ?? '') ?: (($nb['name'] ?? '') ?: "{$sid}:{$pname}");
+                        $caps = $nb['capabilities'] ?? '';
+                        $kind = self::isAp($caps, $nb['description'] ?? '') ? 'ap'
+                            : (self::isPhone($caps) ? 'phone' : (self::isBridge($caps) ? 'switch' : 'host'));
+                        $target = 'ext:' . $key;
+                        $nodes[$target] ??= ['id' => $target,
+                            'label' => ($nb['name'] ?? '') ?: (($nb['chassis_id'] ?? '') ?: '?'),
+                            'kind' => $kind, 'managed' => false, 'status' => 'unmanaged',
+                            'detail' => mb_substr((string) ($nb['description'] ?? ''), 0, 120),
+                            'ip' => $nb['mgmt_ip'] ?? ''];
+                    }
+                    $pair = [[$sid, (string) $pname], [$target, ($nb['port_id'] ?? '') ?: '?']];
+                    usort($pair, fn($a, $b) => strcmp($a[0], $b[0]) ?: strcmp($a[1], $b[1]));
+                    $k = json_encode($pair);
+                    $links[$k] ??= ['a' => $pair[0][0], 'a_port' => $pair[0][1],
+                        'b' => $pair[1][0], 'b_port' => $pair[1][1]];
+                }
+            }
+
+            $up = $phys = 0;
+            foreach ($sw['ports'] as $p) {
+                if ($p['type'] !== 'lag') {
+                    $phys++;
+                    $up += $p['link'] === 'up' ? 1 : 0;
+                }
+            }
+            $sw['stats'] = ['ports_up' => $up, 'ports_total' => $phys,
+                'macs' => count($r['macs'] ?? []),
+                'lldp' => array_sum(array_map('count', $lldp)),
+                'vlans' => count($vlans)];
+            $switches[] = $sw;
+        }
+
+        // Localisation : pour chaque MAC, quelles observations sont sur un port d'accès ?
+        $best = [];
+        foreach ($allMacs as $i => $m) {
+            $cur = $best[$m['mac']] ?? null;
+            if ($cur === null || self::RANK[$m['role']] < self::RANK[$allMacs[$cur]['role']]) {
+                $best[$m['mac']] = $i;
+            }
+        }
+        foreach ($allMacs as $i => &$m) {
+            $m['primary'] = $best[$m['mac']] === $i;
+        }
+        unset($m);
+        foreach ($best as $mac => $i) {
+            $m = $allMacs[$i];
+            $h = $history[$mac] ?? ['first_seen' => $now];
+            $h = array_merge($h, ['last_seen' => $now, 'switch' => $m['switch'], 'switch_name' => $m['switch_name'],
+                'port' => $m['port'], 'vlan' => $m['vlan'], 'role' => $m['role']]);
+            if ($m['ip']) {
+                $h['ip'] = $m['ip'];
+            }
+            $history[(string) $mac] = $h;
+        }
+
+        // Les liens entre switchs gérés en double (chaque côté le voit) sont déjà fusionnés par la clé triée
+        $sum = fn(string $k) => array_sum(array_map(fn($s) => $s['stats'][$k] ?? 0, $switches));
+        return [
+            'collected_at' => $now,
+            'switches' => $switches,
+            'macs' => $allMacs,
+            'topology' => ['nodes' => array_values($nodes), 'links' => array_values($links)],
+            'summary' => [
+                'switches' => count($switches),
+                'switches_ok' => count(array_filter($switches, fn($s) => !$s['error'])),
+                'macs_unique' => count($best),
+                'ports_up' => $sum('ports_up'),
+                'ports_total' => $sum('ports_total'),
+            ],
+        ];
+    }
+}

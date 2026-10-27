@@ -1,0 +1,625 @@
+{% extends 'aruba/layout.html.twig' %}
+{% block title %}Gestion switch{% endblock %}
+
+{% block body %}
+<style>
+    /* Styles limités à #aruba-app (classes préfixées ax- quand elles existent aussi dans Bootstrap) */
+    #aruba-app {
+        --bg:#f4f5f7; --panel:#ffffff; --panel2:#eef0f3; --line:#d9dde3; --text:#1b1f24; --muted:#5f6b7a;
+        --accent:#800000; --accent-ink:#ffffff;
+        --up:#1f9d55; --uplink:#2563eb; --ap:#8b5cf6; --ext:#d97706; --down:#c4cad3; --admin:#dc2626; --lag:#0891b2;
+        --mono: ui-monospace, "Cascadia Mono", Consolas, "SFMono-Regular", Menlo, monospace;
+        --radius:10px;
+        background:var(--bg); color:var(--text); font-size:14px; line-height:1.45;
+        min-height:calc(100vh - 56px);
+    }
+    #aruba-app *{box-sizing:border-box}
+    #aruba-app button{font:inherit;cursor:pointer}
+    #aruba-app .mono{font-family:var(--mono);font-size:12.5px}
+    #aruba-app .muted{color:var(--muted)}
+
+    /* ── En-tête de page (clair, pour ne pas doubler la navbar du site) ── */
+    .aruba-header{
+        background:var(--panel); border-bottom:1px solid var(--line);
+        padding:.85rem 20px; display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+    }
+    .aruba-header h1{font-size:1.2rem;margin:0;font-weight:600;color:var(--text)}
+    .aruba-header h1 i{color:var(--accent)}
+    .aruba-header p{margin:.1rem 0 0;font-size:.8rem;color:var(--muted)}
+    .aruba-header .right{margin-left:auto}
+
+    #aruba-app .ax-btn{border:1px solid var(--line);background:var(--panel);color:var(--text);padding:7px 12px;border-radius:8px}
+    #aruba-app .ax-btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+    #aruba-app .ax-btn:disabled{opacity:.6;cursor:progress}
+    #aruba-app .ax-badge{display:inline-block;padding:1px 7px;border-radius:999px;font-size:11.5px;font-weight:600;background:var(--panel2);color:var(--muted)}
+    #aruba-app .aruba-main{padding:20px;max-width:1500px;margin:0 auto}
+    #aruba-app .view{display:none}
+    #aruba-app .view.on{display:block}
+    #aruba-app h2{font-size:17px;margin:0 0 14px;font-weight:600}
+    #aruba-app .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:20px}
+    #aruba-app .kpi{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:6px;padding:12px 16px}
+    #aruba-app .kpi b{display:block;font-size:24px;font-variant-numeric:tabular-nums;color:var(--accent)}
+    #aruba-app .kpi span{color:var(--muted);font-size:12.5px}
+    #aruba-app .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px}
+    #aruba-app .ax-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;cursor:pointer;transition:border-color .15s}
+    #aruba-app .ax-card:hover{border-color:var(--accent)}
+    #aruba-app .ax-card.err{border-left:4px solid var(--admin)}
+    #aruba-app .ax-card h3{margin:0 0 2px;font-size:15px;font-weight:600;display:flex;justify-content:space-between;gap:8px}
+    #aruba-app .bar{height:6px;background:var(--panel2);border-radius:4px;overflow:hidden;margin:10px 0 6px}
+    #aruba-app .bar i{display:block;height:100%;background:var(--up)}
+    #aruba-app .ax-row{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--muted)}
+    #aruba-app .err-msg{color:var(--admin);font-size:12.5px;margin-top:8px;word-break:break-word}
+
+    /* ports */
+    #aruba-app .ports-layout{display:grid;grid-template-columns:230px 1fr;gap:16px}
+    @media (max-width:900px){ #aruba-app .ports-layout{grid-template-columns:1fr}}
+    #aruba-app .swlist{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:6px;align-self:start;position:sticky;top:12px}
+    #aruba-app .swlist button{display:flex;justify-content:space-between;width:100%;text-align:left;border:0;background:none;color:var(--text);padding:8px 10px;border-radius:7px}
+    #aruba-app .swlist button.on{background:var(--panel2);font-weight:600}
+    #aruba-app .swlist .st{width:8px;height:8px;border-radius:50%;background:var(--up);align-self:center}
+    #aruba-app .swlist .st.err{background:var(--admin)}
+    #aruba-app .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:16px}
+    #aruba-app .face{overflow-x:auto;padding:6px 2px 2px}
+    #aruba-app .face-grid{display:grid;grid-auto-flow:column;grid-template-rows:repeat(2,34px);gap:5px;width:max-content}
+    #aruba-app .face-sep{width:10px}
+    #aruba-app .port{width:34px;height:34px;border-radius:6px;border:0;background:var(--down);color:#fff;font:600 10.5px var(--mono);
+      display:flex;align-items:center;justify-content:center;position:relative}
+    #aruba-app .port.up{background:var(--up)}
+    #aruba-app .port.uplink{background:var(--uplink)}
+    #aruba-app .port.ap{background:var(--ap)}
+    #aruba-app .port.ext{background:var(--ext)}
+    #aruba-app .port.down{color:var(--muted)}
+    #aruba-app .port.admin{background:transparent;outline:2px dashed var(--admin);outline-offset:-2px;color:var(--admin)}
+    #aruba-app .port.sel{box-shadow:0 0 0 3px var(--accent)}
+    #aruba-app .port.hl{animation:aruba-pulse 1s ease-in-out 3}
+    @keyframes aruba-pulse{50%{box-shadow:0 0 0 5px var(--accent)}}
+    #aruba-app .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:12px}
+    #aruba-app .legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:5px}
+    #aruba-app .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+    #aruba-app .toolbar input[type=text]{padding:6px 10px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--text);font:inherit;min-width:220px}
+    #aruba-app .toolbar label{font-size:13px;color:var(--muted);display:flex;gap:5px;align-items:center;margin:0}
+    #aruba-app table{width:100%;border-collapse:collapse}
+    #aruba-app th, #aruba-app td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+    #aruba-app th{font-size:12px;color:var(--muted);font-weight:600;position:sticky;top:0;background:var(--panel)}
+    #aruba-app tbody tr:hover{background:var(--panel2)}
+    #aruba-app tr.clk{cursor:pointer}
+    #aruba-app .tag{display:inline-block;white-space:nowrap;padding:0 6px;border-radius:5px;font-size:11.5px;font-weight:600;color:#fff}
+    #aruba-app .tag.access{background:var(--up)}
+    #aruba-app .tag.uplink{background:var(--uplink)}
+    #aruba-app .tag.ap{background:var(--ap)}
+    #aruba-app .tag.ext{background:var(--ext)}
+    #aruba-app .tag.lag{background:var(--lag)}
+    #aruba-app .detail{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px 20px;margin-bottom:12px}
+    #aruba-app .detail div span{display:block;font-size:11.5px;color:var(--muted)}
+    #aruba-app .scroll{max-height:520px;overflow:auto}
+
+    /* recherche */
+    #aruba-app .bigsearch{display:flex;gap:10px;margin-bottom:16px}
+    #aruba-app .bigsearch input{flex:1;padding:12px 14px;font-size:16px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--text)}
+    #aruba-app .bigsearch input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(128,0,0,.12)}
+    #aruba-app .result{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px}
+    #aruba-app .result .loc{font-size:15px;margin:4px 0}
+    #aruba-app .result .loc a{color:var(--accent);font-weight:650;cursor:pointer;text-decoration:none}
+    #aruba-app .result details{margin-top:6px;font-size:12.5px;color:var(--muted)}
+    #aruba-app .empty{padding:30px;text-align:center;color:var(--muted)}
+
+    /* carte */
+    #map-wrap{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);height:calc(100vh - 230px);min-height:460px;overflow:hidden}
+    #map{width:100%;height:100%;touch-action:none;cursor:grab}
+    #map text{font-family:system-ui,sans-serif;fill:var(--text);pointer-events:none}
+    #map .plabel{font:10px var(--mono);fill:var(--muted)}
+    #map line{stroke:var(--muted);stroke-opacity:.55}
+    #map line.uplink{stroke:var(--uplink);stroke-opacity:.9;stroke-width:2.2}
+    #map g.node{cursor:pointer}
+    #map g.node.dim{opacity:.18}
+    #aruba-app .map-tools{position:absolute;top:10px;left:10px;display:flex;gap:10px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12.5px}
+    #aruba-app .map-tools label{display:flex;gap:4px;align-items:center;margin:0}
+    #map-info{position:absolute;right:10px;top:10px;width:300px;max-height:calc(100% - 20px);overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px;font-size:13px;display:none}
+    #aruba-app .ax-toast{position:fixed;bottom:18px;right:18px;z-index:1040;background:var(--text);color:var(--bg);padding:10px 14px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
+    #aruba-app .ax-toast.on{opacity:1}
+    @media (max-width:991px){ #aruba-app .ax-toast{bottom:84px} }
+</style>
+
+<div id="aruba-app">
+    <div class="aruba-header">
+        <div>
+            <h1><i class="fas fa-network-wired me-2"></i>Gestion switch</h1>
+            <p id="last">Chargement…</p>
+        </div>
+        <div class="right">
+            <button class="ax-btn primary" id="refresh" type="button">Actualiser</button>
+        </div>
+    </div>
+
+    <div class="aruba-main">
+        <section class="view on" id="v-overview">
+            <div class="kpis" id="kpis"></div>
+            <h2>Switchs</h2>
+            <div class="cards" id="cards"></div>
+        </section>
+
+        <section class="view" id="v-ports">
+            <div class="ports-layout">
+                <div class="swlist" id="swlist"></div>
+                <div>
+                    <div class="panel">
+                        <h2 id="sw-title" style="margin-bottom:4px"></h2>
+                        <div class="muted" id="sw-sub" style="font-size:12.5px;margin-bottom:12px"></div>
+                        <div class="face"><div class="face-grid" id="face"></div></div>
+                        <div class="legend">
+                            <span><i style="background:var(--up)"></i>Équipement</span>
+                            <span><i style="background:var(--uplink)"></i>Uplink switch</span>
+                            <span><i style="background:var(--ap)"></i>Borne Wi-Fi</span>
+                            <span><i style="background:var(--ext)"></i>Switch non géré</span>
+                            <span><i style="background:var(--down)"></i>Déconnecté</span>
+                            <span><i style="outline:2px dashed var(--admin);outline-offset:-2px"></i>Désactivé</span>
+                        </div>
+                    </div>
+                    <div class="panel" id="port-detail" hidden></div>
+                    <div class="panel">
+                        <div class="toolbar">
+                            <input type="text" id="pfilter" placeholder="Filtrer (port, description, VLAN, voisin, MAC)">
+                            <label><input type="checkbox" id="pup"> Ports actifs seulement</label>
+                            <label><input type="checkbox" id="pmac"> Avec MAC</label>
+                        </div>
+                        <div class="scroll"><table id="ptable"></table></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="view" id="v-search">
+            <form class="bigsearch" id="sform">
+                <input id="sq" placeholder="ex. 3c:52:82:1a:2b, 3C52-821A, 10.20.1.45, imprimante, AP-BAT…" autocomplete="off">
+                <button class="ax-btn primary">Rechercher</button>
+            </form>
+            <div class="muted" style="font-size:12.5px;margin:-6px 0 14px">
+                La MAC est recherchée dans les tables de tous les switchs. La localisation retenue est le port d'accès
+                (les ports d'uplink entre switchs ne voient l'équipement qu'en transit). Saisie partielle acceptée (4 caractères hexadécimaux min.).
+            </div>
+            <div id="sresults"></div>
+        </section>
+
+        <section class="view" id="v-map">
+            <div id="map-wrap">
+                <svg id="map"></svg>
+                <div class="map-tools">
+                    <label><input type="checkbox" data-k="ap"> Bornes Wi-Fi</label>
+                    <label><input type="checkbox" data-k="switch" checked> Switchs non gérés</label>
+                    <label><input type="checkbox" data-k="phone"> Téléphones</label>
+                    <label><input type="checkbox" data-k="host"> Autres LLDP</label>
+                    <label><input type="checkbox" id="plabels" checked> Ports</label>
+                    <button class="ax-btn" id="relayout" type="button" style="padding:2px 8px">Réorganiser</button>
+                </div>
+                <div id="map-info"></div>
+            </div>
+        </section>
+    </div>
+    <div class="ax-toast" id="toast"></div>
+</div>
+
+<script>
+(() => {
+const API = {
+    snapshot: '{{ path('app_gestion_switch_snapshot')|e('js') }}',
+    status:   '{{ path('app_gestion_switch_status')|e('js') }}',
+    refresh:  '{{ path('app_gestion_switch_refresh')|e('js') }}',
+    history:  '{{ path('app_gestion_switch_history')|e('js') }}',
+};
+const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
+{% verbatim %}
+    const $ = s => document.querySelector(s);
+    const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+    let S = null;             // snapshot
+    async function getJson(url, opts){
+      const r = await fetch(url, Object.assign({credentials:"same-origin", headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"}}, opts||{}));
+      if(!(r.headers.get("Content-Type")||"").includes("application/json")) throw new Error("Session expirée : rechargez la page");
+      const data = await r.json();
+      if(!r.ok) throw new Error(data.message || ("Erreur "+r.status));
+      return data;
+    }
+    const postJson = url => getJson(url, {method:"POST", credentials:"same-origin", headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json","X-CSRF-TOKEN":CSRF_REFRESH}});
+    let curSw = null, curPort = null;
+    const ROLE_FR = {access:"accès", uplink:"uplink", ap:"borne Wi-Fi", ext:"switch non géré", lag:"LAG"};
+
+    function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("on"); setTimeout(()=>t.classList.remove("on"),2600); }
+    function fmtSpeed(b){ if(!b) return ""; return b>=1e9 ? (b/1e9)+" Gb/s" : (b/1e6)+" Mb/s"; }
+    function fmtDate(iso){ if(!iso) return "jamais"; const d=new Date(iso); return d.toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"}); }
+    function hexOf(s){ return (s||"").toLowerCase().replace(/[^0-9a-f]/g,""); }
+
+    /* ---------------- navigation ---------------- */
+    const VIEWS = ["overview","ports","search","map"];
+    function show(v){
+      if(!VIEWS.includes(v)) v = "overview";
+      document.querySelectorAll("[data-aruba-view]").forEach(a=>a.classList.toggle("active", a.dataset.arubaView===v));
+      document.querySelectorAll("#aruba-app .view").forEach(s=>s.classList.toggle("on", s.id==="v-"+v));
+      if(v==="map") drawMap();
+      history.replaceState(null,"","#"+v);
+    }
+    window.addEventListener("hashchange", ()=>show(location.hash.slice(1)));
+
+    /* ---------------- chargement ---------------- */
+    async function load(){
+      S = await getJson(API.snapshot);
+      $("#last").textContent = "Dernière collecte : " + fmtDate(S.collected_at);
+      renderOverview();
+      if(!curSw && S.switches.length) curSw = (S.switches.find(s=>!s.error)||S.switches[0]).id;
+      renderPorts();
+      mapState.built = false;
+      if($("#v-map").classList.contains("on")) drawMap();
+      if($("#sq").value) doSearch($("#sq").value);
+    }
+
+    $("#refresh").onclick = async ()=>{
+      const b=$("#refresh"); b.disabled=true; b.textContent="Collecte…";
+      try{
+        const res = await postJson(API.refresh);
+        if(!res.started && res.message) toast(res.message);
+      }catch(e){ b.disabled=false; b.textContent="Actualiser"; toast(e.message); return; }
+      const poll = async ()=>{
+        const st = await getJson(API.status);
+        const p = Object.values(st.progress||{}); const done = p.filter(x=>x==="ok"||x==="erreur").length;
+        if(p.length) b.textContent = `Collecte ${done}/${p.length}`;
+        if(st.running) return setTimeout(poll, 1000);
+        b.disabled=false; b.textContent="Actualiser"; await load(); toast("Collecte terminée");
+      };
+      setTimeout(poll, 800);
+    };
+
+    /* ---------------- vue d'ensemble ---------------- */
+    function renderOverview(){
+      const sm = S.summary||{};
+      const ap = S.topology.nodes.filter(n=>n.kind==="ap").length;
+      $("#kpis").innerHTML = [
+        [`${sm.switches_ok??0}/${sm.switches??0}`,"switchs joignables"],
+        [`${sm.ports_up??0}/${sm.ports_total??0}`,"ports actifs"],
+        [sm.macs_unique??0,"adresses MAC uniques"],
+        [ap,"bornes Wi-Fi (LLDP)"],
+        [S.topology.links.filter(l=>!l.a.startsWith("ext:")&&!l.b.startsWith("ext:")).length,"liens entre switchs"],
+      ].map(([v,l])=>`<div class="kpi"><b>${esc(v)}</b><span>${l}</span></div>`).join("");
+      $("#cards").innerHTML = S.switches.map(s=>{
+        const st = s.stats||{}; const pct = st.ports_total ? Math.round(100*st.ports_up/st.ports_total) : 0;
+        return `<div class="ax-card ${s.error?"err":""}" data-id="${esc(s.id)}">
+          <h3><span>${esc(s.name)}</span><span class="ax-badge">${esc(s.site||"")}</span></h3>
+          <div class="mono muted">${esc(s.host)} ${s.platform?"· "+esc(s.platform):""}</div>
+          ${s.error ? `<div class="err-msg">${esc(s.error)}</div>` : `
+          <div class="bar"><i style="width:${pct}%"></i></div>
+          <div class="ax-row"><span>${st.ports_up}/${st.ports_total} ports actifs</span><span>${st.macs} MAC</span><span>${st.vlans} VLAN</span><span>${st.lldp} voisins LLDP</span></div>
+          <div class="ax-row" style="margin-top:4px"><span class="mono">${esc(s.version)}</span><span>API ${esc(s.api_version)}</span></div>`}
+        </div>`;}).join("") || `<div class="empty">Aucun switch configuré.</div>`;
+      document.querySelectorAll("#cards .ax-card").forEach(c=>c.onclick=()=>{ curSw=c.dataset.id; curPort=null; renderPorts(); show("ports"); });
+    }
+
+    /* ---------------- ports ---------------- */
+    function portClass(p){
+      if(p.admin==="down") return "admin";
+      if(p.link!=="up") return "down";
+      return {uplink:"uplink", ap:"ap", ext:"ext"}[p.role] || "up";
+    }
+    function shortPort(n){ return n.split("/").pop(); }
+
+    function renderPorts(){
+      $("#swlist").innerHTML = S.switches.map(s=>`<button data-id="${esc(s.id)}" class="${s.id===curSw?"on":""}">
+         <span>${esc(s.name)}</span><span class="st ${s.error?"err":""}"></span></button>`).join("");
+      document.querySelectorAll("#swlist button").forEach(b=>b.onclick=()=>{ curSw=b.dataset.id; curPort=null; renderPorts(); });
+      const s = S.switches.find(x=>x.id===curSw);
+      if(!s){ $("#sw-title").textContent="—"; return; }
+      $("#sw-title").textContent = s.name;
+      $("#sw-sub").innerHTML = `<span class="mono">${esc(s.host)}</span> · ${esc(s.platform)} · ${esc(s.version)} · collecté ${fmtDate(s.collected_at)}`;
+      if(s.error){
+        $("#face").innerHTML = `<div class="err-msg">${esc(s.error)}</div>`; $("#ptable").innerHTML=""; $("#port-detail").hidden=true; return;
+      }
+      // Façade : ports physiques par membre/slot, impairs en haut, pairs en bas
+      const phys = s.ports.filter(p=>p.type!=="lag");
+      const groups = {};
+      phys.forEach(p=>{ const k=p.name.split("/").slice(0,-1).join("/"); (groups[k]=groups[k]||[]).push(p); });
+      let html="";
+      Object.values(groups).forEach((g,gi)=>{
+        if(gi) html += `<div class="face-sep"></div><div class="face-sep"></div>`;
+        g.forEach((p,i)=>{
+          if(i && i%12===0 && i%2===0) html += `<div class="face-sep"></div><div class="face-sep"></div>`;
+          html += `<button class="port ${portClass(p)} ${p.name===curPort?"sel":""}" data-p="${esc(p.name)}"
+            title="${esc(p.name)} ${esc(p.description)}&#10;${p.link==="up"?"actif":"inactif"} · VLAN ${esc(p.native_vlan)} · ${p.mac_count} MAC${p.lldp.length?"&#10;LLDP : "+esc(p.lldp[0].name):""}">${esc(shortPort(p.name))}</button>`;
+        });
+      });
+      $("#face").innerHTML = html;
+      document.querySelectorAll("#face .port").forEach(b=>b.onclick=()=>selectPort(b.dataset.p));
+      renderPortTable();
+      renderPortDetail();
+    }
+
+    function portMatches(p, f){
+      if(!f) return true;
+      const hx = hexOf(f);
+      const hay = [p.name,p.description,p.native_vlan,p.trunks.join(","),...p.lldp.map(n=>n.name+" "+n.description),
+                   ...p.macs.map(m=>m.ip+" "+m.vendor)].join(" ").toLowerCase();
+      if(hay.includes(f.toLowerCase())) return true;
+      return hx.length>=4 && p.macs.some(m=>m.mac.replace(/:/g,"").includes(hx));
+    }
+
+    function renderPortTable(){
+      const s = S.switches.find(x=>x.id===curSw); if(!s||s.error) return;
+      const f = $("#pfilter").value.trim(), onlyUp=$("#pup").checked, onlyMac=$("#pmac").checked;
+      const rows = s.ports.filter(p=>(!onlyUp||p.link==="up")&&(!onlyMac||p.mac_count)&&portMatches(p,f));
+      $("#ptable").innerHTML = `<thead><tr><th>Port</th><th>État</th><th>Rôle</th><th>Description</th><th>VLAN</th><th>Vitesse</th><th>Voisin LLDP</th><th>MAC</th></tr></thead><tbody>` +
+        rows.map(p=>`<tr class="clk" data-p="${esc(p.name)}">
+          <td class="mono"><b>${esc(p.name)}</b>${p.lag?` <span class="muted">(${esc(p.lag)})</span>`:""}</td>
+          <td>${p.admin==="down"?'<span style="color:var(--admin)">désactivé</span>':p.link==="up"?'<span style="color:var(--up)">● actif</span>':'<span class="muted">○ inactif</span>'}</td>
+          <td>${p.link==="up"||p.type==="lag"?`<span class="tag ${p.role}">${ROLE_FR[p.role]||p.role}</span>`:""}</td>
+          <td>${esc(p.description)}</td>
+          <td class="mono">${esc(p.native_vlan)}${p.trunks.length?` <span class="muted">+${esc(p.trunks.filter(v=>v!==p.native_vlan).join(","))}</span>`:""}</td>
+          <td class="mono">${fmtSpeed(p.speed)}</td>
+          <td>${p.lldp.map(n=>`${esc(n.name||n.chassis_id)} <span class="muted mono">${esc(n.port_id)}</span>`).join("<br>")}</td>
+          <td class="mono">${p.mac_count===1?esc(p.macs[0].mac):p.mac_count?p.mac_count+" MAC":""}</td></tr>`).join("") + `</tbody>`;
+      document.querySelectorAll("#ptable tr.clk").forEach(r=>r.onclick=()=>selectPort(r.dataset.p));
+    }
+    ["#pfilter","#pup","#pmac"].forEach(id=>$(id).addEventListener("input",renderPortTable));
+
+    function selectPort(name, highlight){
+      curPort = name;
+      document.querySelectorAll("#face .port").forEach(b=>{ b.classList.toggle("sel", b.dataset.p===name); b.classList.remove("hl"); });
+      if(highlight){ const b=document.querySelector(`#face .port[data-p="${CSS.escape(name)}"]`); if(b){ void b.offsetWidth; b.classList.add("hl"); b.scrollIntoView({block:"nearest",inline:"center"}); } }
+      renderPortDetail();
+      $("#port-detail").scrollIntoView({behavior:"smooth",block:"nearest"});
+    }
+
+    function renderPortDetail(){
+      const s = S.switches.find(x=>x.id===curSw); const el=$("#port-detail");
+      const p = s && !s.error && s.ports.find(x=>x.name===curPort);
+      if(!p){ el.hidden=true; return; }
+      el.hidden=false;
+      el.innerHTML = `<h2>${esc(s.name)} · port <span class="mono">${esc(p.name)}</span> ${p.link==="up"?`<span class="tag ${p.role}">${ROLE_FR[p.role]}</span>`:""}</h2>
+       <div class="detail">
+         <div><span>Description</span>${esc(p.description)||"—"}</div>
+         <div><span>État</span>admin ${esc(p.admin)} / lien ${esc(p.link)}</div>
+         <div><span>Vitesse</span>${fmtSpeed(p.speed)||"—"} ${esc(p.duplex)}</div>
+         <div><span>Mode VLAN</span>${esc(p.vlan_mode)||"—"}</div>
+         <div><span>VLAN natif / accès</span><span class="mono" style="display:inline;color:inherit;font-size:inherit">${esc(p.native_vlan)||"—"}</span></div>
+         <div><span>VLAN tagués</span>${esc(p.trunks.join(", "))||"—"}</div>
+         ${p.lag?`<div><span>Membre de</span>${esc(p.lag)}</div>`:""}
+         ${p.members.length?`<div><span>Membres</span>${esc(p.members.join(", "))}</div>`:""}
+       </div>
+       ${p.lldp.length?`<h2 style="font-size:14px">Voisin(s) LLDP</h2><table><thead><tr><th>Nom</th><th>Port distant</th><th>IP gestion</th><th>Capacités</th><th>Description</th></tr></thead><tbody>${
+         p.lldp.map(n=>{ const known = S.switches.find(x=>x.hostname && x.hostname===n.name);
+           return `<tr><td>${known?`<a href="#" data-goto="${esc(known.id)}" data-port="${esc(n.port_id)}" style="color:var(--accent)">${esc(n.name)}</a>`:esc(n.name)}</td><td class="mono">${esc(n.port_id)}</td><td class="mono">${esc(n.mgmt_ip)}</td><td>${esc(n.capabilities)}</td><td class="muted">${esc(n.description)}</td></tr>`;}).join("")}</tbody></table>`:""}
+       <h2 style="font-size:14px;margin-top:14px">Adresses MAC apprises (${p.mac_count})</h2>
+       ${p.role==="uplink"?`<div class="muted" style="font-size:12.5px;margin-bottom:6px">Port d'uplink : ces MAC sont vues en transit, les équipements sont branchés ailleurs.</div>`:""}
+       ${p.mac_count?`<div class="scroll" style="max-height:300px"><table><thead><tr><th>MAC</th><th>VLAN</th><th>IP</th><th>Constructeur</th></tr></thead><tbody>${
+         p.macs.map(m=>`<tr><td class="mono">${esc(m.mac)}</td><td class="mono">${esc(m.vlan)}</td><td class="mono">${esc(m.ip)}</td><td>${esc(m.vendor)}</td></tr>`).join("")}</tbody></table></div>`:'<div class="muted">Aucune.</div>'}`;
+      el.querySelectorAll("[data-goto]").forEach(a=>a.onclick=e=>{ e.preventDefault(); curSw=a.dataset.goto; renderPorts(); selectPort(a.dataset.port,true); });
+    }
+
+    function gotoPort(sw, port){ curSw=sw; show("ports"); renderPorts(); selectPort(port,true); }
+
+    /* ---------------- recherche ---------------- */
+    function searchAll(q){
+      q = q.trim(); if(!q) return [];
+      const ql = q.toLowerCase(), hx = hexOf(q);
+      const isHex = /^[0-9a-f:.\-\s]+$/i.test(q) && hx.length>=4;
+      const byMac = new Map();
+      for(const m of S.macs){
+        const hit = (isHex && m.mac.replace(/:/g,"").includes(hx)) || (m.ip && (m.ip===q || (q.includes(".") && m.ip.startsWith(q))))
+          || (!isHex && ql.length>=3 && (m.port_desc.toLowerCase().includes(ql) || m.vendor.toLowerCase().includes(ql) || m.via.toLowerCase().includes(ql)));
+        if(hit){ if(!byMac.has(m.mac)) byMac.set(m.mac,[]); byMac.get(m.mac).push(m); }
+      }
+      return [...byMac.entries()];
+    }
+
+    async function doSearch(q){
+      $("#sq").value = q;
+      const res = searchAll(q); const out = $("#sresults");
+      // voisins LLDP correspondants (AP, switchs, téléphones par nom)
+      const ql=q.trim().toLowerCase();
+      const nbHits = ql.length>=3 ? S.switches.flatMap(s=>(s.ports||[]).flatMap(p=>p.lldp.filter(n=>(n.name+" "+n.mgmt_ip+" "+n.chassis_id).toLowerCase().includes(ql)).map(n=>({s,p,n})))) : [];
+      let html="";
+      if(nbHits.length){
+        html += `<h2>Voisins LLDP (${nbHits.length})</h2>` + nbHits.slice(0,50).map(({s,p,n})=>`<div class="result">
+          <div class="loc"><b>${esc(n.name||n.chassis_id)}</b> → <a data-sw="${esc(s.id)}" data-p="${esc(p.name)}">${esc(s.name)} · ${esc(p.name)}</a></div>
+          <div class="muted mono">${esc(n.chassis_id)} ${n.mgmt_ip?"· "+esc(n.mgmt_ip):""} · ${esc(n.capabilities)}</div></div>`).join("");
+      }
+      if(res.length){
+        html += `<h2>Adresses MAC (${res.length}${res.length>200?", 200 affichées":""})</h2>`;
+        html += res.slice(0,200).map(([mac,list])=>{
+          const prim = list.find(m=>m.primary) || list.sort((a,b)=>({access:0,ap:1,ext:1,lag:2,uplink:3}[a.role]-{access:0,ap:1,ext:1,lag:2,uplink:3}[b.role]))[0];
+          const others = list.filter(m=>m!==prim);
+          const transitOnly = prim.role==="uplink";
+          return `<div class="result">
+            <div class="mono"><b>${esc(mac)}</b> ${prim.ip?"· "+esc(prim.ip):""} ${prim.vendor?`<span class="muted">· ${esc(prim.vendor)}</span>`:""}</div>
+            <div class="loc">${transitOnly?"Vue seulement en transit sur ":"Connecté sur "}<a data-sw="${esc(prim.switch)}" data-p="${esc(prim.port)}">${esc(prim.switch_name)} · port ${esc(prim.port)}</a>
+              <span class="tag ${prim.role}">${ROLE_FR[prim.role]}</span> · VLAN ${esc(prim.vlan)} ${prim.vlan_name?`(${esc(prim.vlan_name)})`:""}</div>
+            ${prim.port_desc?`<div class="muted">Description du port : ${esc(prim.port_desc)}</div>`:""}
+            ${prim.via?`<div class="muted">Derrière : ${esc(prim.via)}</div>`:""}
+            ${transitOnly?`<div class="muted">Le port d'accès n'a pas été trouvé : l'équipement est probablement sur un switch non interrogé.</div>`:""}
+            ${others.length?`<details><summary>Vue aussi sur ${others.length} autre(s) port(s) (transit)</summary>${others.map(o=>`${esc(o.switch_name)} · ${esc(o.port)} (${ROLE_FR[o.role]})`).join("<br>")}</details>`:""}
+          </div>`;}).join("");
+      }
+      if(!html){
+        html = `<div class="empty">Aucun résultat dans la collecte actuelle.</div>`;
+        if(hexOf(q).length>=4 || /^\d+\.\d+\.\d+\.\d+$/.test(q.trim())){
+          try{
+            const h = await getJson(API.history+"?q="+encodeURIComponent(q));
+            if(h.length) html += `<h2>Dernière position connue (historique)</h2>` + h.slice(0,30).map(x=>`<div class="result">
+              <div class="mono"><b>${esc(x.mac)}</b> ${x.ip?"· "+esc(x.ip):""}</div>
+              <div class="loc">Vue pour la dernière fois sur <a data-sw="${esc(x.switch)}" data-p="${esc(x.port)}">${esc(x.switch_name)} · port ${esc(x.port)}</a> · VLAN ${esc(x.vlan)}</div>
+              <div class="muted">Le ${fmtDate(x.last_seen)} · première fois le ${fmtDate(x.first_seen)}</div></div>`).join("");
+          }catch(e){}
+        }
+      }
+      out.innerHTML = html;
+      out.querySelectorAll("a[data-sw]").forEach(a=>a.onclick=()=>gotoPort(a.dataset.sw,a.dataset.p));
+    }
+    $("#sform").onsubmit = e=>{ e.preventDefault(); doSearch($("#sq").value); };
+
+    /* ---------------- carte ---------------- */
+    const SVGNS="http://www.w3.org/2000/svg";
+    const big = n=>!!(n.managed||n.infra);
+    const mapState = {built:false, nodes:[], links:[], view:{x:0,y:0,k:1}, pos:{}};
+    try{ mapState.pos = JSON.parse(localStorage.getItem("aruba-map-pos")||"{}"); }catch(e){}
+    function savePos(){ try{ const o={}; mapState.nodes.forEach(n=>o[n.id]=[Math.round(n.x),Math.round(n.y)]); localStorage.setItem("aruba-map-pos",JSON.stringify(o)); }catch(e){} }
+    function mapFilters(){ const f={}; document.querySelectorAll(".map-tools input[data-k]").forEach(c=>f[c.dataset.k]=c.checked); return f; }
+    document.querySelectorAll(".map-tools input").forEach(c=>c.onchange=()=>{ mapState.built=false; drawMap(); });
+    $("#relayout").onclick=()=>{ mapState.pos={}; try{localStorage.removeItem("aruba-map-pos");}catch(e){} mapState.built=false; drawMap(true); };
+
+    function layout(nodes, links, fresh){
+      // Arbre hiérarchique : switchs gérés en couches (le plus connecté en haut),
+      // équipements LLDP non gérés regroupés en grille sous leur switch.
+      const byId = Object.fromEntries(nodes.map(n=>[n.id,n]));
+      const mAdj = new Map(nodes.filter(big).map(n=>[n.id,new Set()]));
+      const leaves = new Map(nodes.map(n=>[n.id,[]]));
+      const attached = new Set();
+      links.forEach(l=>{
+        if(big(l.na) && big(l.nb)){ mAdj.get(l.a).add(l.b); mAdj.get(l.b).add(l.a); }
+        else { const sw = big(l.na)?l.na:l.nb, lf = big(l.na)?l.nb:l.na;
+          if(!attached.has(lf.id)){ attached.add(lf.id); leaves.get(sw.id).push(lf); } }
+      });
+      const PER_ROW=8, LW=86, LH=50;
+      const leafW = n=>{ const k=leaves.get(n.id).length; return k?Math.min(k,PER_ROW)*LW:0; };
+      const leafH = n=>{ const k=leaves.get(n.id).length; return k?Math.ceil(k/PER_ROW)*LH+20:0; };
+      const children = new Map(), seen = new Set();
+      const managed = [...mAdj.keys()].map(id=>byId[id]).sort((a,b)=>mAdj.get(b.id).size-mAdj.get(a.id).size || a.label.localeCompare(b.label));
+      // un switch d'infrastructure sans lien (non vu en LLDP) ne doit pas devenir la racine
+
+      const roots=[];
+      managed.forEach(r=>{
+        if(seen.has(r.id)) return; roots.push(r); seen.add(r.id); const q=[r];
+        while(q.length){ const c=q.shift(); const ch=[...mAdj.get(c.id)].filter(id=>!seen.has(id)).map(id=>byId[id]).sort((a,b)=>a.label.localeCompare(b.label));
+          ch.forEach(x=>{ seen.add(x.id); q.push(x); }); children.set(c.id, ch); }
+      });
+      const GAP=40, wCache={};
+      const width = n=>{ if(wCache[n.id]) return wCache[n.id]; const ch=children.get(n.id)||[];
+        const cw = ch.reduce((s,c)=>s+width(c),0) + Math.max(0,ch.length-1)*GAP;
+        return wCache[n.id]=Math.max(big(n)?Math.max(170, n.label.length*8+40):LW, leafW(n), cw); };
+      const place=(n,left,y)=>{
+        const w=width(n); n.x=left+w/2; n.y=y;
+        const lv=leaves.get(n.id)||[]; const cols=Math.min(lv.length,PER_ROW);
+        lv.forEach((lf,i)=>{ const r=Math.floor(i/PER_ROW), c=i%PER_ROW; lf.x=n.x+(c-(cols-1)/2)*LW; lf.y=y+75+r*LH; });
+        const ch=children.get(n.id)||[]; const cw=ch.reduce((s,c)=>s+width(c),0)+Math.max(0,ch.length-1)*GAP;
+        let x=n.x-cw/2; const cy=y+95+leafH(n)+40;
+        ch.forEach(c=>{ place(c,x,cy); x+=width(c)+GAP; });
+      };
+      let x=0; roots.forEach(r=>{ place(r,x,0); x+=width(r)+80; });
+      // nœuds non rattachés (rare)
+      nodes.filter(n=>n.x===undefined).forEach((n,i)=>{ n.x=i*LW; n.y=-120; });
+      if(!fresh) nodes.forEach(n=>{ const s=mapState.pos[n.id]; if(s){ n.x=s[0]; n.y=s[1]; } });
+    }
+
+    function nodeShape(n){
+      const g=document.createElementNS(SVGNS,"g"); g.classList.add("node"); g.dataset.id=n.id;
+      const col = n.status==="error"?"var(--admin)":{switch:n.managed?"var(--accent)":"var(--ext)",ap:"var(--ap)",phone:"var(--up)",host:"var(--muted)"}[n.kind];
+      if(big(n)){
+        const w=Math.max(110, n.label.length*7.6+28);
+        if(n.infra){ g.innerHTML=`<rect x="${-w/2}" y="-20" width="${w}" height="40" rx="8" fill="var(--panel2)" stroke="var(--muted)" stroke-width="2" stroke-dasharray="5 4"/>
+          <text text-anchor="middle" y="-2" font-size="13" font-weight="650">${esc(n.label)}</text>
+          <text text-anchor="middle" y="13" font-size="10" style="fill:var(--muted)">${esc(n.ip)} · sans API</text>`; return g; }
+        g.innerHTML=`<rect x="${-w/2}" y="-20" width="${w}" height="40" rx="8" fill="var(--panel)" stroke="${col}" stroke-width="2.5"/>
+          <rect x="${-w/2}" y="-20" width="7" height="40" rx="3" fill="${col}"/>
+          <text text-anchor="middle" y="-2" font-size="13" font-weight="650">${esc(n.label)}</text>
+          <text text-anchor="middle" y="13" font-size="10" style="fill:var(--muted)">${esc(n.status==="error"?"injoignable":n.ip)}</text>`;
+      } else if(n.kind==="switch"){
+        g.innerHTML=`<rect x="-14" y="-9" width="28" height="18" rx="4" fill="var(--panel)" stroke="${col}" stroke-width="2"/>`;
+      } else {
+        g.innerHTML=`<circle r="${n.kind==="ap"?9:6}" fill="${col}"/>`;
+      }
+      if(!big(n)){
+        const lbl = n.label.length>15 ? n.label.slice(0,14)+"…" : n.label;
+        g.innerHTML += `<text text-anchor="middle" y="21" font-size="9.5">${esc(lbl)}</text>` +
+          (n.sub?`<text class="plabel" text-anchor="middle" y="32">${esc(n.sub)}</text>`:"");
+      }
+      return g;
+    }
+
+    function drawMap(fresh){
+      if(!S) return;
+      const svg=$("#map");
+      if(mapState.built && !fresh) return;
+      const f = mapFilters();
+      const visible = new Set(S.topology.nodes.filter(n=>big(n) || f[n.kind]).map(n=>n.id));
+      const nodes = S.topology.nodes.filter(n=>visible.has(n.id)).map(n=>({...n}));
+      const byId = Object.fromEntries(nodes.map(n=>[n.id,n]));
+      // regrouper les liens physiques parallèles (LAG) entre deux mêmes nœuds
+      const pairs = {};
+      S.topology.links.forEach(l=>{ if(!byId[l.a]||!byId[l.b]) return; const k=[l.a,l.b].sort().join("|");
+        if(!pairs[k]) pairs[k]={a:l.a,b:l.b,ports:[]};
+        pairs[k].ports.push(l.a===pairs[k].a ? [l.a_port,l.b_port] : [l.b_port,l.a_port]); });
+      const links = Object.values(pairs).map(p=>({...p, na:byId[p.a], nb:byId[p.b], uplink: big(byId[p.a]) && big(byId[p.b])}));
+      const showP = $("#plabels").checked;
+      links.forEach(l=>{ if(big(l.na)!==big(l.nb)){ const lf=big(l.na)?l.nb:l.na;
+        lf.sub = showP ? l.ports.map(p=>big(l.na)?p[0]:p[1]).join(", ") : ""; } });
+      layout(nodes, links, fresh);
+      mapState.nodes=nodes; mapState.links=links; mapState.built=true;
+      svg.innerHTML="";
+      const root=document.createElementNS(SVGNS,"g"); svg.appendChild(root);
+      const lg=document.createElementNS(SVGNS,"g"), labg=document.createElementNS(SVGNS,"g"), ng=document.createElementNS(SVGNS,"g");
+      root.append(lg,labg,ng);
+      links.forEach(l=>{
+        l.el=document.createElementNS(SVGNS,"line"); if(l.uplink) l.el.classList.add("uplink"); lg.appendChild(l.el);
+        if(l.ports.length>1) l.el.setAttribute("stroke-width", 2.2+l.ports.length);
+        if(showP && l.uplink){
+          l.la=document.createElementNS(SVGNS,"text"); l.la.classList.add("plabel"); l.la.setAttribute("text-anchor","middle");
+          l.la.textContent = l.ports.map(p=>p[0]).join(", "); labg.appendChild(l.la);
+          l.lb=document.createElementNS(SVGNS,"text"); l.lb.classList.add("plabel"); l.lb.setAttribute("text-anchor","middle");
+          l.lb.textContent = l.ports.map(p=>p[1]).join(", "); labg.appendChild(l.lb);
+        }
+      });
+      nodes.forEach(n=>{ n.el=nodeShape(n); ng.appendChild(n.el); });
+      function update(){
+        nodes.forEach(n=>n.el.setAttribute("transform",`translate(${n.x},${n.y})`));
+        links.forEach(l=>{
+          l.el.setAttribute("x1",l.na.x); l.el.setAttribute("y1",l.na.y); l.el.setAttribute("x2",l.nb.x); l.el.setAttribute("y2",l.nb.y);
+          const place=(t,from,to,r)=>{ if(!t) return; const dx=to.x-from.x, dy=to.y-from.y, d=Math.hypot(dx,dy)||1; const off=Math.max(r, d*0.3);
+            t.setAttribute("x", from.x+dx/d*off + (dy/d)*8); t.setAttribute("y", from.y+dy/d*off - (dx/d)*8 + 3); };
+          place(l.la,l.na,l.nb,big(l.na)?58:26); place(l.lb,l.nb,l.na,big(l.nb)?58:26);
+        });
+      }
+      update();
+      // ajuster la vue
+      const w=svg.clientWidth||900, h=svg.clientHeight||600;
+      const xs=nodes.map(n=>n.x), ys=nodes.map(n=>n.y);
+      const bw=Math.max(...xs)-Math.min(...xs)+240, bh=Math.max(...ys)-Math.min(...ys)+160;
+      const k=Math.min(1.4, Math.min(w/bw, h/bh)) || 1;
+      const v=mapState.view; v.k=k; v.x=w/2-k*(Math.max(...xs)+Math.min(...xs))/2; v.y=h/2-k*(Math.max(...ys)+Math.min(...ys))/2+20;
+      const applyView=()=>root.setAttribute("transform",`translate(${v.x},${v.y}) scale(${v.k})`); applyView();
+
+      // interactions : glisser un nœud, déplacer la carte, zoom molette
+      let drag=null, pan=null, moved=false;
+      const pt=e=>({x:(e.offsetX-v.x)/v.k, y:(e.offsetY-v.y)/v.k});
+      svg.onpointerdown=e=>{
+        moved=false; const g=e.target.closest("g.node");
+        if(g){ drag=nodes.find(n=>n.id===g.dataset.id); } else { pan={x:e.clientX-v.x,y:e.clientY-v.y}; svg.style.cursor="grabbing"; }
+        svg.setPointerCapture(e.pointerId);
+      };
+      svg.onpointermove=e=>{
+        if(drag){ const p=pt(e); drag.x=p.x; drag.y=p.y; drag.fixed=true; moved=true; update(); }
+        else if(pan){ v.x=e.clientX-pan.x; v.y=e.clientY-pan.y; moved=true; applyView(); }
+      };
+      svg.onpointerup=e=>{
+        if(drag && !moved) nodeInfo(drag);
+        if(drag && moved) savePos();
+        if(!drag && !moved){ $("#map-info").style.display="none"; nodes.forEach(n=>n.el.classList.remove("dim")); }
+        drag=null; pan=null; svg.style.cursor="grab";
+      };
+      svg.onwheel=e=>{ e.preventDefault(); const s=Math.exp(-e.deltaY*0.0015); const nk=Math.min(4,Math.max(0.15,v.k*s));
+        v.x=e.offsetX-(e.offsetX-v.x)*nk/v.k; v.y=e.offsetY-(e.offsetY-v.y)*nk/v.k; v.k=nk; applyView(); };
+
+      function nodeInfo(n){
+        const near=new Set([n.id]); links.forEach(l=>{ if(l.a===n.id) near.add(l.b); if(l.b===n.id) near.add(l.a); });
+        nodes.forEach(x=>x.el.classList.toggle("dim", !near.has(x.id)));
+        const conns = links.filter(l=>l.a===n.id||l.b===n.id).map(l=>{ const other=l.a===n.id?l.nb:l.na;
+          const ports=l.ports.map(p=>l.a===n.id?p:[p[1],p[0]]); return {other,ports}; });
+        const box=$("#map-info"); box.style.display="block";
+        box.innerHTML=`<b style="font-size:14px">${esc(n.label)}</b><div class="muted mono" style="margin:2px 0 8px">${esc(n.ip||"")}</div>
+          <div class="muted" style="margin-bottom:8px">${esc(n.detail||"")}</div>
+          ${n.managed && n.status!=="error"?`<button class="ax-btn" id="mi-go" style="margin-bottom:10px">Voir les ports</button>`:""}
+          <table>${conns.map(c=>`<tr><td>${esc(c.other.label)}</td><td class="mono">${c.ports.map(p=>esc(p[0])+" ↔ "+esc(p[1])).join("<br>")}</td></tr>`).join("")}</table>`;
+        const go=$("#mi-go"); if(go) go.onclick=()=>{ curSw=n.id; curPort=null; renderPorts(); show("ports"); };
+      }
+    }
+    window.addEventListener("resize",()=>{ if($("#v-map").classList.contains("on")){ mapState.built=false; drawMap(); } });
+
+    /* ---------------- démarrage ---------------- */
+    load().then(()=>show(location.hash.slice(1))).catch(e=>{ show(location.hash.slice(1)); $("#last").textContent=e.message; toast(e.message); });
+    setInterval(async ()=>{ try{ const st=await getJson(API.status); if(S && st.collected_at && st.collected_at!==S.collected_at && !st.running) load(); }catch(e){} }, 30000);
+{% endverbatim %}
+})();
+</script>
+{% endblock %}

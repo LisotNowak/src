@@ -23,6 +23,7 @@ class UserType extends AbstractType
                     'Admin clients' => 'ROLE_ADMIN_CLIENTS',
                     'Manager tracabilité' => 'ROLE_MANAGER_TRACABILITE',
                     'Admin tracabilité' => 'ROLE_ADMIN_TRACABILITE',
+                    'Admin gestion switch' => 'ROLE_GESTION_SWITCH',
                 ],
                 'multiple' => true,
                 'expanded' => true,

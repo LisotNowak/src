@@ -1,0 +1,18 @@
+{
+  "refresh_minutes": 15,
+  "parallel": 8,
+
+  "defaults": {
+    "username": "api-lecture",
+    "verify_ssl": false,
+    "api_version": "auto",
+    "timeout": 15
+  },
+
+  "switches": [
+    { "id": "coeur", "host": "10.0.0.254", "name": "SW-COEUR", "site": "Salle serveur", "os": "aos-switch", "protocol": "http" },
+    { "id": "core",  "host": "10.0.0.1",  "name": "SW-CORE",  "site": "Salle serveur" },
+    { "id": "bat-a", "host": "10.0.0.11", "name": "SW-BAT-A", "site": "Bâtiment A" },
+    { "id": "bat-b", "host": "10.0.0.12", "name": "SW-BAT-B", "site": "Bâtiment B", "api_version": "v10.09" }
+  ]
+}

@@ -40,7 +40,7 @@ security:
                 always_remember_me: true
 
     role_hierarchy:
-        ROLE_ADMIN: [ROLE_ADMIN_CLIENTS, ROLE_ADMIN_TRACABILITE]
+        ROLE_ADMIN: [ROLE_ADMIN_CLIENTS, ROLE_ADMIN_TRACABILITE, ROLE_GESTION_SWITCH]
         ROLE_ADMIN_TRACABILITE: [ROLE_MANAGER_TRACABILITE]
 
     access_control:
@@ -62,4 +62,6 @@ security:
         - { path: ^/admin/portail, roles: ROLE_ADMIN }
         - { path: ^/admin/users, roles: ROLE_ADMIN }
         - { path: ^/admin/logs, roles: ROLE_ADMIN }
+        # Gestion switch (Aruba CX)
+        - { path: ^/gestion-switch, roles: ROLE_GESTION_SWITCH }
         - { path: ^/profil, roles: ROLE_USER }
