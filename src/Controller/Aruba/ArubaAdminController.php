@@ -35,17 +35,24 @@ class ArubaAdminController extends AbstractController
     {
         // état de chaque switch lors de la dernière collecte
         $last = [];
-        foreach ($this->collector->snapshot()['switches'] ?? [] as $s) {
+        $snap = $this->collector->snapshot() ?? [];
+        foreach ($snap['switches'] ?? [] as $s) {
             $last[$s['id']] = $s;
         }
-        $switches = array_map(fn(array $sw) => $sw + [
+        foreach ($snap['wifi'] ?? [] as $w) {
+            $last[$w['id']] = $w + ['platform' => $w['error'] ? '' : sprintf('%d bornes · %d clients',
+                count($w['aps']), count($w['clients']))];
+        }
+        $all = array_map(fn(array $sw) => $sw + [
             'own' => $this->config->rawSwitch($sw['id']) ?? [],
             'own_password' => $this->config->hasOwnPassword($sw['id']),
             'last' => $last[$sw['id']] ?? null,
         ], $this->config->switches());
+        $isWifi = fn(array $sw) => ($sw['os'] ?? '') === 'instant';
 
         return $this->render('aruba/admin/index.html.twig', [
-            'switches' => $switches,
+            'switches' => array_values(array_filter($all, fn($sw) => !$isWifi($sw))),
+            'clusters' => array_values(array_filter($all, $isWifi)),
             'defaults' => $this->config->get('defaults', []),
             'common_password' => $this->config->hasOwnPassword('default'),
             'parallel' => $this->config->get('parallel', 8),
@@ -54,28 +61,31 @@ class ArubaAdminController extends AbstractController
         ]);
     }
 
+    /** ?type=wifi : cluster de bornes Wi-Fi (Aruba Instant) */
     #[Route('/nouveau', name: 'new', methods: ['GET', 'POST'])]
     public function new(Request $request): Response
     {
+        $kind = $request->query->get('type') === 'wifi' ? 'wifi' : 'switch';
         $form = $this->createForm(SwitchType::class,
             ['os' => 'aos-cx', 'protocol' => 'https', 'password_mode' => 'common', 'verify_ssl' => 'default'],
-            ['defaults' => $this->config->get('defaults', [])]);
+            ['defaults' => $this->config->get('defaults', []), 'kind' => $kind]);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
             $data = $form->getData();
             if ($this->config->rawSwitch($data['id']) !== null) {
                 $form->get('id')->addError(new FormError('Cet identifiant est déjà utilisé.'));
-            } elseif ($this->saveSwitch($form, $data, false)) {
-                $this->addFlash('success', sprintf('Switch « %s » ajouté : il sera interrogé à la prochaine actualisation.',
-                    $data['name'] ?: $data['id']));
-                return $this->redirectToRoute('app_gestion_switch_admin_index');
+            } elseif ($this->saveSwitch($form, $data, $kind, false)) {
+                $this->addFlash('success', sprintf('%s « %s » ajouté : il sera interrogé à la prochaine actualisation.',
+                    $kind === 'wifi' ? 'Cluster Wi-Fi' : 'Switch', $data['name'] ?: $data['id']));
+                return $this->redirectToRoute('app_gestion_switch_admin_index', ['_fragment' => 'sw-' . $data['id']]);
             }
         }
 
         return $this->render('aruba/admin/form.html.twig', [
             'form' => $form->createView(),
             'switch' => null,
+            'kind' => $kind,
         ]);
     }
 
@@ -84,6 +94,7 @@ class ArubaAdminController extends AbstractController
     {
         $raw = $this->config->rawSwitch($id) ?? throw $this->createNotFoundException('Switch inconnu');
         $hasOwn = $this->config->hasOwnPassword($id);
+        $kind = ($raw['os'] ?? '') === 'instant' ? 'wifi' : 'switch';
         $form = $this->createForm(SwitchType::class, [
             'id' => $id,
             'name' => $raw['name'] ?? '',
@@ -96,20 +107,22 @@ class ArubaAdminController extends AbstractController
             'timeout' => $raw['timeout'] ?? null,
             'api_version' => $raw['api_version'] ?? '',
             'verify_ssl' => !isset($raw['verify_ssl']) ? 'default' : ($raw['verify_ssl'] ? 'yes' : 'no'),
-        ], ['is_edit' => true, 'has_own_password' => $hasOwn, 'defaults' => $this->config->get('defaults', [])]);
+        ], ['is_edit' => true, 'has_own_password' => $hasOwn, 'defaults' => $this->config->get('defaults', []), 'kind' => $kind]);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
             // le champ id est désactivé : il n'est pas renvoyé par le navigateur
-            if ($this->saveSwitch($form, ['id' => $id] + $form->getData(), $hasOwn, $raw)) {
-                $this->addFlash('success', sprintf('Switch « %s » enregistré.', $form->getData()['name'] ?: $id));
-                return $this->redirectToRoute('app_gestion_switch_admin_index');
+            if ($this->saveSwitch($form, ['id' => $id] + $form->getData(), $kind, $hasOwn, $raw)) {
+                $this->addFlash('success', sprintf('%s « %s » enregistré.', $kind === 'wifi' ? 'Cluster Wi-Fi' : 'Switch',
+                    $form->getData()['name'] ?: $id));
+                return $this->redirectToRoute('app_gestion_switch_admin_index', ['_fragment' => 'sw-' . $id]);
             }
         }
 
         return $this->render('aruba/admin/form.html.twig', [
             'form' => $form->createView(),
             'switch' => ['id' => $id] + $raw,
+            'kind' => $kind,
             'effective' => $this->effective($raw, $hasOwn),
         ]);
     }
@@ -120,8 +133,8 @@ class ArubaAdminController extends AbstractController
         if ($this->isCsrfTokenValid('delete' . $id, $request->request->get('_token'))) {
             $raw = $this->config->rawSwitch($id) ?? throw $this->createNotFoundException('Switch inconnu');
             $this->config->deleteSwitch($id);
-            $this->addFlash('success', sprintf('Switch « %s » supprimé. Il disparaîtra des vues à la prochaine actualisation.',
-                ($raw['name'] ?? '') ?: $id));
+            $this->addFlash('success', sprintf('%s « %s » supprimé. Il disparaîtra des vues à la prochaine actualisation.',
+                ($raw['os'] ?? '') === 'instant' ? 'Cluster Wi-Fi' : 'Switch', ($raw['name'] ?? '') ?: $id));
         }
 
         return $this->redirectToRoute('app_gestion_switch_admin_index');
@@ -145,8 +158,9 @@ class ArubaAdminController extends AbstractController
             $name = ($raw['name'] ?? '') ?: $id;
             $r = $this->collector->testSwitch($id);
             if ($r['ok']) {
-                $this->addFlash('success', sprintf('Connexion à « %s » réussie en %s s : %s, %s %s (API %s).', $name,
-                    $r['duration'], $r['system']['hostname'], $r['system']['platform'], $r['system']['version'], $r['api_version']));
+                $this->addFlash('success', sprintf('Connexion à « %s » réussie (%s s) : %s.', $name,
+                    str_replace('.', ',', (string) $r['duration']),
+                    implode(' · ', array_filter([$r['system']['hostname'], $r['system']['platform'], $r['system']['version']]))));
             } else {
                 $this->addFlash('danger', sprintf('Connexion à « %s » impossible : %s', $name, $r['error']));
             }
@@ -202,13 +216,15 @@ class ArubaAdminController extends AbstractController
     // ────────────────────────────────────────────────────────────────────────
 
     /** Enregistre le switch et son mot de passe ; false (avec erreur sur le formulaire) si incomplet. */
-    private function saveSwitch(FormInterface $form, array $data, bool $hasOwn, array $previous = []): bool
+    private function saveSwitch(FormInterface $form, array $data, string $kind, bool $hasOwn, array $previous = []): bool
     {
         $password = (string) ($data['password'] ?? '');
         if ($data['password_mode'] === 'own' && !$hasOwn && $password === '') {
-            $form->get('password')->addError(new FormError('Renseignez le mot de passe de ce switch.'));
+            $form->get('password')->addError(new FormError($kind === 'wifi'
+                ? 'Renseignez le mot de passe de ce cluster.' : 'Renseignez le mot de passe de ce switch.'));
             return false;
         }
+        $os = $kind === 'wifi' ? 'instant' : (($data['os'] ?? '') === 'aos-switch' ? 'aos-switch' : null);
         if ($data['password_mode'] === 'common' && !$this->config->hasOwnPassword('default')) {
             $form->get('password_mode')->addError(new FormError(
                 'Aucun mot de passe par défaut : renseignez-le dans les valeurs par défaut.'));
@@ -221,11 +237,11 @@ class ArubaAdminController extends AbstractController
             'host' => trim($data['host']),
             'name' => trim((string) $data['name']),
             'site' => trim((string) $data['site']),
-            'os' => $data['os'] === 'aos-switch' ? 'aos-switch' : null,
-            'protocol' => $data['os'] === 'aos-switch' && $data['protocol'] === 'http' ? 'http' : null,
+            'os' => $os,
+            'protocol' => $os === 'aos-switch' && ($data['protocol'] ?? '') === 'http' ? 'http' : null,
             'username' => trim((string) $data['username']),
             'timeout' => $data['timeout'] !== null ? (int) $data['timeout'] : null,
-            'api_version' => $data['api_version'] ?: null,
+            'api_version' => ($data['api_version'] ?? '') ?: null,
             'verify_ssl' => ['yes' => true, 'no' => false][$data['verify_ssl']] ?? null,
         ]));
         if ($data['password_mode'] === 'common') {
@@ -249,8 +265,10 @@ class ArubaAdminController extends AbstractController
             ['Utilisateur', $user, $userOwn],
             ['Mot de passe', 'enregistré', $hasOwn],
             ['Délai de réponse', $timeout . ' s', $timeoutOwn],
-            ['Version d\'API', $api, $apiOwn],
         ];
+        if (($raw['os'] ?? 'aos-cx') !== 'instant') {
+            $rows[] = ['Version d\'API', $api, $apiOwn];
+        }
         if (($raw['os'] ?? 'aos-cx') !== 'aos-switch' || ($raw['protocol'] ?? 'https') === 'https') {
             $rows[] = ['Certificat HTTPS', $ssl ? 'vérifié' : 'non vérifié', $sslOwn];
         }

@@ -350,11 +350,18 @@ class AosCxClient
                 if (is_array($caps)) {
                     $caps = implode(', ', $caps);
                 }
-                $cid = (string) ($o['chassis_id'] ?? '');
+                $isMac = fn(string $v) => (bool) preg_match('/^[0-9a-fA-F]{2}([ :.\-]?[0-9a-fA-F]{2}){5}$/', $v);
+                $cid = trim((string) ($o['chassis_id'] ?? ''));
+                $pid = trim((string) ($o['port_id'] ?? ''));
+                $cname = (string) ($ni['chassis_name'] ?? '');
+                // PC Windows : nom d'hôte en chassis_id et adresse MAC en port_id
+                if ($cname === '' && $cid !== '' && !$isMac($cid) && $isMac($pid)) {
+                    [$cname, $cid] = [$cid, $pid];
+                }
                 $result[$name][] = [
-                    'chassis_id' => preg_match('/^[0-9a-fA-F:.\-]{12,17}$/', $cid) ? self::normMac($cid) : $cid,
-                    'port_id' => $o['port_id'] ?? '' ?: '',
-                    'name' => $ni['chassis_name'] ?? '' ?: '',
+                    'chassis_id' => $isMac($cid) ? self::normMac($cid) : $cid,
+                    'port_id' => $isMac($pid) ? self::normMac($pid) : $pid,
+                    'name' => $cname,
                     'description' => ($ni['chassis_description'] ?? null) ?: ($ni['system_description'] ?? '') ?: '',
                     'port_description' => $ni['port_description'] ?? '' ?: '',
                     'mgmt_ip' => $mgmt ? trim(explode(',', $mgmt)[0]) : '',

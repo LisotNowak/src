@@ -110,6 +110,7 @@
     #map .plabel{font:10px var(--mono);fill:var(--muted)}
     #map line{stroke:var(--muted);stroke-opacity:.55}
     #map line.uplink{stroke:var(--uplink);stroke-opacity:.9;stroke-width:2.2}
+    #map line.wifi{stroke:var(--ap);stroke-opacity:.6;stroke-dasharray:3 3}
     #map g.node{cursor:pointer}
     #map g.node.dim{opacity:.18}
     #aruba-app .map-tools{position:absolute;top:10px;left:10px;display:flex;gap:10px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12.5px}
@@ -143,8 +144,7 @@
             <p id="last">Chargement…</p>
         </div>
         <div class="right">
-            <button class="ax-btn primary" id="refresh" type="button"
-                    title="Interroger maintenant tous les switchs (environ 30 secondes)"><i class="fas fa-rotate me-1"></i>Actualiser</button>
+            <button class="ax-btn primary" id="refresh" type="button"><i class="fas fa-rotate me-1"></i>Actualiser</button>
         </div>
     </div>
     <div class="ax-progress" id="progress" hidden>
@@ -176,8 +176,8 @@
                         <div class="muted" id="sw-sub" style="font-size:12.5px;margin-bottom:12px"></div>
                         <div class="face"><div class="face-grid" id="face"></div></div>
                         <div class="legend">
-                            <span><i style="background:var(--up)"></i>Équipement</span>
-                            <span><i style="background:var(--uplink)"></i>Uplink switch</span>
+                            <span><i style="background:var(--up)"></i>Appareil</span>
+                            <span><i style="background:var(--uplink)"></i>Liaison vers un switch</span>
                             <span><i style="background:var(--ap)"></i>Borne Wi-Fi</span>
                             <span><i style="background:var(--ext)"></i>Switch non géré</span>
                             <span><i style="background:var(--down)"></i>Déconnecté</span>
@@ -199,13 +199,11 @@
 
         <section class="view" id="v-search">
             <form class="bigsearch" id="sform">
-                <input id="sq" placeholder="ex. 3c:52:82:1a:2b, 3C52-821A, 10.20.1.45, PORT-KATE2, imprimante, AP-BAT…" autocomplete="off">
+                <input id="sq" placeholder="MAC, IP ou nom d'appareil (ex. 3c:52:82, 10.10.17.81, PORT-KATE2)" autocomplete="off">
                 <button class="ax-btn primary">Rechercher</button>
             </form>
             <div class="muted" style="font-size:12.5px;margin:-6px 0 14px">
-                Recherche par adresse MAC, IP ou nom d'appareil annoncé en LLDP (PC, bornes, téléphones), dans les tables de tous les switchs.
-                La localisation retenue est le port d'accès (les ports d'uplink entre switchs ne voient l'équipement qu'en transit).
-                Saisie partielle acceptée (3 caractères min., 4 caractères hexadécimaux pour une MAC).
+                Recherche dans tous les switchs et bornes Wi-Fi. Saisie partielle acceptée (3 caractères minimum).
             </div>
             <div id="sresults"></div>
         </section>
@@ -215,14 +213,22 @@
                 <svg id="map"></svg>
                 <div class="map-tools">
                     <label><input type="checkbox" data-k="ap"> Bornes Wi-Fi</label>
+                    <label><input type="checkbox" data-k="wifi"> Clients Wi-Fi</label>
                     <label><input type="checkbox" data-k="switch" checked> Switchs non gérés</label>
                     <label><input type="checkbox" data-k="phone"> Téléphones</label>
-                    <label><input type="checkbox" data-k="host"> Autres LLDP</label>
-                    <label><input type="checkbox" id="plabels" checked> Ports</label>
+                    <label><input type="checkbox" data-k="host"> Autres appareils</label>
+                    <label><input type="checkbox" id="plabels" checked> Numéros de port</label>
                     <button class="ax-btn" id="relayout" type="button" style="padding:2px 8px">Réorganiser</button>
                 </div>
                 <div id="map-info"></div>
             </div>
+        </section>
+
+        <section class="view" id="v-wifi">
+            <div class="toolbar">
+                <input type="text" id="wfilter" placeholder="Filtrer les clients (nom, IP, MAC, réseau, borne, système)">
+            </div>
+            <div id="wifi"></div>
         </section>
     </div>
     <div class="ax-toast" id="toast"></div>
@@ -235,6 +241,7 @@ const API = {
     status:   '{{ path('app_gestion_switch_status')|e('js') }}',
     refresh:  '{{ path('app_gestion_switch_refresh')|e('js') }}',
     history:  '{{ path('app_gestion_switch_history')|e('js') }}',
+    admin:    '{{ path('app_gestion_switch_admin_index')|e('js') }}',
 };
 const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
 {% verbatim %}
@@ -255,6 +262,8 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
     function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("on"); setTimeout(()=>t.classList.remove("on"),2600); }
     function fmtSpeed(b){ if(!b) return ""; return b>=1e9 ? (b/1e9)+" Gb/s" : (b/1e6)+" Mb/s"; }
     function fmtDate(iso){ if(!iso) return "jamais"; const d=new Date(iso); return d.toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"}); }
+    // « 259d:22h:48m:39s » → « 259 j 22 h »
+    function fmtUptime(u){ const m=/(?:(\d+)d)?:?(?:(\d+)h)?:?(?:(\d+)m)?/.exec(u||"")||[]; return m[1]?`${+m[1]} j ${+(m[2]||0)} h`:m[2]?`${+m[2]} h ${+(m[3]||0)} min`:m[3]?`${+m[3]} min`:(u||""); }
     function hexOf(s){ return (s||"").toLowerCase().replace(/[^0-9a-f]/g,""); }
     function fmtSec(s){ if(s==null) return ""; s=Math.round(s); return s<60 ? `${s} s` : `${Math.floor(s/60)} min ${String(s%60).padStart(2,"0")} s`; }
     function fmtAgo(iso){
@@ -270,7 +279,7 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
     }
 
     /* ---------------- navigation ---------------- */
-    const VIEWS = ["overview","ports","search","map"];
+    const VIEWS = ["overview","ports","search","map","wifi"];
     function show(v){
       if(!VIEWS.includes(v)) v = "overview";
       document.querySelectorAll("[data-aruba-view]").forEach(a=>a.classList.toggle("active", a.dataset.arubaView===v));
@@ -286,6 +295,7 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
       buildNames();
       setLast();
       renderOverview();
+      renderWifi();
       if(!curSw && S.switches.length) curSw = (S.switches.find(s=>!s.error)||S.switches[0]).id;
       renderPorts();
       mapState.built = false;
@@ -297,7 +307,7 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
       if(!S) return;
       $("#last").textContent = S.collected_at
         ? `Dernière collecte : ${fmtDate(S.collected_at)} (${fmtAgo(S.collected_at)})`
-        : "Aucune collecte : cliquez sur Actualiser pour interroger les switchs";
+        : "Aucune collecte : cliquez sur Actualiser";
     }
 
     /* ---------------- actualisation (uniquement à la demande) ---------------- */
@@ -312,10 +322,10 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
       const busy = ids.filter(i=>prog[i]==="en cours").map(i=>det[i]?.name||i);
       let title, sub = "", pct;
       if(st.phase==="demarrage" || !n){ title = "Démarrage de la collecte…"; pct = 2; }
-      else if(st.phase==="analyse"){ title = "Analyse des données…"; sub = "construction de l'inventaire et de la carte"; pct = 97; }
-      else if(st.running){ title = `Collecte en cours : ${ok+ko} / ${n} switchs interrogés`;
+      else if(st.phase==="analyse"){ title = "Analyse des données…"; sub = ""; pct = 97; }
+      else if(st.running){ title = `Collecte en cours : ${ok+ko} / ${n} équipements interrogés`;
         sub = busy.length ? "en cours : " + busy.join(", ") : ""; pct = 3 + 92*(ok+ko)/n; }
-      else { title = `Collecte terminée : ${ok} switch${ok>1?"s":""} à jour` + (ko ? `, ${ko} en erreur` : ""); pct = 100; }
+      else { title = `Collecte terminée : ${ok} équipement${ok>1?"s":""} à jour` + (ko ? `, ${ko} en erreur` : ""); pct = 100; }
       $("#pg-title").textContent = title;
       $("#pg-sub").textContent = [st.elapsed!=null ? (st.running ? "depuis " : "en ") + fmtSec(st.elapsed) : "", sub].filter(Boolean).join(" · ");
       $("#pg-bar").style.width = pct + "%";
@@ -325,7 +335,7 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
       $("#pg-steps").innerHTML = ids.map(i=>{
         const [cls, icon, txt] = STEP[prog[i]] || STEP["en attente"]; const d = det[i]||{};
         const time = d.duration!=null ? fmtSec(d.duration) : d.elapsed!=null ? fmtSec(d.elapsed) : txt;
-        return `<span class="ax-step ${cls}" title="${esc(d.error ? errFr(d.error) : prog[i])}"><i class="${icon}"></i>${esc(d.name||i)}${time?` <small>${esc(time)}</small>`:""}</span>`;
+        return `<span class="ax-step ${cls}"><i class="${icon}"></i>${esc(d.name||i)}${time?` <small>${esc(time)}</small>`:""}</span>`;
       }).join("");
       const errs = ids.filter(i=>prog[i]==="erreur" && det[i]?.error);
       $("#pg-errors").hidden = !errs.length;
@@ -373,8 +383,9 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
         [`${sm.switches_ok??0}/${sm.switches??0}`,"switchs joignables"],
         [`${sm.ports_up??0}/${sm.ports_total??0}`,"ports actifs"],
         [sm.macs_unique??0,"adresses MAC uniques"],
-        [ap,"bornes Wi-Fi (LLDP)"],
+        [Math.max(ap, sm.wifi_aps??0),"bornes Wi-Fi"],
         [S.topology.links.filter(l=>!l.a.startsWith("ext:")&&!l.b.startsWith("ext:")).length,"liens entre switchs"],
+        ...((S.wifi||[]).length ? [[sm.wifi_clients??0,"clients Wi-Fi"]] : []),
       ].map(([v,l])=>`<div class="kpi"><b>${esc(v)}</b><span>${l}</span></div>`).join("");
       $("#cards").innerHTML = S.switches.map(s=>{
         const st = s.stats||{}; const pct = st.ports_total ? Math.round(100*st.ports_up/st.ports_total) : 0;
@@ -491,12 +502,21 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
     function gotoPort(sw, port){ curSw=sw; show("ports"); renderPorts(); selectPort(port,true); }
 
     /* ---------------- recherche ---------------- */
-    // nom annoncé en LLDP par l'appareil lui-même (PC Windows, bornes, téléphones…), par adresse MAC
-    let NAMES = new Map();
+    // nom par adresse MAC : annoncé en LLDP par l'appareil lui-même (PC Windows, bornes, téléphones…)
+    // ou connu des bornes Wi-Fi ; WIFI : client Wi-Fi par adresse MAC
+    let NAMES = new Map(), WIFI = new Map();
     function buildNames(){
-      NAMES = new Map();
+      NAMES = new Map(); WIFI = new Map();
       for(const s of S.switches) for(const p of (s.ports||[])) for(const n of p.lldp)
         if(n.name && n.name!==n.chassis_id && /^([0-9a-f]{2}:){5}[0-9a-f]{2}$/.test(n.chassis_id)) NAMES.set(n.chassis_id, n.name);
+      for(const w of (S.wifi||[])) for(const c of w.clients){
+        WIFI.set(c.mac, c);
+        if(c.name && c.name!==c.mac && !NAMES.has(c.mac)) NAMES.set(c.mac, c.name);
+      }
+    }
+    function wifiLine(c){
+      return `<div class="muted"><i class="fas fa-wifi me-1"></i>Wi-Fi : borne <b>${esc(c.ap)}</b> · réseau ${esc(c.essid)}
+        · ${esc(c.band)} ${esc(c.standard)} · signal ${c.signal} dB${c.os?" · "+esc(c.os):""}</div>`;
     }
     function searchAll(q){
       q = q.trim(); if(!q) return [];
@@ -521,7 +541,18 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
       const found = new Set(res.map(([mac])=>mac));
       const nbHits = ql.length>=3 ? S.switches.flatMap(s=>(s.ports||[]).flatMap(p=>p.lldp.filter(n=>!found.has(n.chassis_id)
         && [n.name, n.mgmt_ip, n.chassis_id, n.description, n.port_description].join(" ").toLowerCase().includes(ql)).map(n=>({s,p,n})))) : [];
+      // clients Wi-Fi absents des tables MAC des switchs interrogés
+      const hx=hexOf(q), wifiHits = ql.length>=3 ? [...WIFI.values()].filter(c=>!found.has(c.mac)
+        && ([c.name, c.ip, c.essid, c.ap, c.os].join(" ").toLowerCase().includes(ql) || (hx.length>=4 && c.mac.replace(/:/g,"").includes(hx)))) : [];
       let html="";
+      if(wifiHits.length){
+        html += `<h2>Appareils Wi-Fi (${wifiHits.length})</h2>` + wifiHits.slice(0,100).map(c=>`<div class="result">
+          ${c.name&&c.name!==c.mac?`<div style="font-size:15px;font-weight:650"><i class="fas fa-wifi me-1" style="color:var(--muted)"></i>${esc(c.name)}</div>`:""}
+          <div class="mono"><b>${esc(c.mac)}</b> ${c.ip?"· "+esc(c.ip):""} ${c.vendor?`<span class="muted">· ${esc(c.vendor)}</span>`:""}</div>
+          <div class="loc">Connecté en Wi-Fi sur la borne <b>${esc(c.ap)}</b> (${esc(c.cluster_name)})${c.switch?`, branchée sur <a data-sw="${esc(c.switch)}" data-p="${esc(c.port)}">${esc(c.switch_name)} · port ${esc(c.port)}</a>`:""}</div>
+          <div class="muted">Réseau ${esc(c.essid)} · ${esc(c.band)} ${esc(c.standard)} · signal ${c.signal} dB · ${c.speed} Mb/s${c.os?" · "+esc(c.os):""}</div>
+        </div>`).join("");
+      }
       if(nbHits.length){
         html += `<h2>Voisins LLDP (${nbHits.length})</h2>` + nbHits.slice(0,50).map(({s,p,n})=>`<div class="result">
           <div class="loc"><b>${esc(n.name||n.chassis_id)}</b> → <a data-sw="${esc(s.id)}" data-p="${esc(p.name)}">${esc(s.name)} · ${esc(p.name)}</a></div>
@@ -536,22 +567,23 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
           return `<div class="result">
             ${NAMES.has(mac)?`<div style="font-size:15px;font-weight:650"><i class="fas fa-desktop me-1" style="color:var(--muted)"></i>${esc(NAMES.get(mac))}</div>`:""}
             <div class="mono"><b>${esc(mac)}</b> ${prim.ip?"· "+esc(prim.ip):""} ${prim.vendor?`<span class="muted">· ${esc(prim.vendor)}</span>`:""}</div>
-            <div class="loc">${transitOnly?"Vue seulement en transit sur ":"Connecté sur "}<a data-sw="${esc(prim.switch)}" data-p="${esc(prim.port)}">${esc(prim.switch_name)} · port ${esc(prim.port)}</a>
+            <div class="loc">${transitOnly?"Vu seulement en transit sur ":"Connecté sur "}<a data-sw="${esc(prim.switch)}" data-p="${esc(prim.port)}">${esc(prim.switch_name)} · port ${esc(prim.port)}</a>
               <span class="tag ${prim.role}">${ROLE_FR[prim.role]}</span> · VLAN ${esc(prim.vlan)} ${prim.vlan_name?`(${esc(prim.vlan_name)})`:""}</div>
             ${prim.port_desc?`<div class="muted">Description du port : ${esc(prim.port_desc)}</div>`:""}
-            ${prim.via?`<div class="muted">Derrière : ${esc(prim.via)}</div>`:""}
-            ${transitOnly?`<div class="muted">Le port d'accès n'a pas été trouvé : l'équipement est probablement sur un switch non interrogé.</div>`:""}
-            ${others.length?`<details><summary>Vue aussi sur ${others.length} autre(s) port(s) (transit)</summary>${others.map(o=>`${esc(o.switch_name)} · ${esc(o.port)} (${ROLE_FR[o.role]})`).join("<br>")}</details>`:""}
+            ${WIFI.has(mac) ? wifiLine(WIFI.get(mac)) : (prim.via && prim.role!=="uplink"?`<div class="muted">${prim.role==="ap"?"Via la borne":"Derrière le switch non géré"} ${esc(prim.via)}</div>`:"")}
+            ${transitOnly?`<div class="muted">Probablement branché sur un switch non interrogé.</div>`:""}
+            ${others.length?`<details><summary>Trafic vu aussi sur ${others.length} liaison${others.length>1?"s":""} entre switchs</summary>${others.map(o=>`${esc(o.switch_name)} · ${esc(o.port)} (${ROLE_FR[o.role]})`).join("<br>")}</details>`:""}
           </div>`;}).join("");
       }
       if(!html){
         html = `<div class="empty">Aucun résultat dans la collecte actuelle.</div>`;
-        if(hexOf(q).length>=4 || /^\d+\.\d+\.\d+\.\d+$/.test(q.trim())){
+        if(q.trim().length>=3){
           try{
             const h = await getJson(API.history+"?q="+encodeURIComponent(q));
             if(h.length) html += `<h2>Dernière position connue (historique)</h2>` + h.slice(0,30).map(x=>`<div class="result">
+              ${x.name?`<div style="font-size:15px;font-weight:650">${esc(x.name)}</div>`:""}
               <div class="mono"><b>${esc(x.mac)}</b> ${x.ip?"· "+esc(x.ip):""}</div>
-              <div class="loc">Vue pour la dernière fois sur <a data-sw="${esc(x.switch)}" data-p="${esc(x.port)}">${esc(x.switch_name)} · port ${esc(x.port)}</a> · VLAN ${esc(x.vlan)}</div>
+              <div class="loc">Vue pour la dernière fois ${x.ap?`en Wi-Fi sur la borne <b>${esc(x.ap)}</b> (réseau ${esc(x.essid)})${x.switch?", branchée sur ":""}`:"sur "}${x.switch?`<a data-sw="${esc(x.switch)}" data-p="${esc(x.port)}">${esc(x.switch_name)} · port ${esc(x.port)}</a>`:""}${x.vlan&&!x.ap?` · VLAN ${esc(x.vlan)}`:""}</div>
               <div class="muted">Le ${fmtDate(x.last_seen)} · première fois le ${fmtDate(x.first_seen)}</div></div>`).join("");
           }catch(e){}
         }
@@ -560,6 +592,37 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
       out.querySelectorAll("a[data-sw]").forEach(a=>a.onclick=()=>gotoPort(a.dataset.sw,a.dataset.p));
     }
     $("#sform").onsubmit = e=>{ e.preventDefault(); doSearch($("#sq").value); };
+
+    /* ---------------- bornes Wi-Fi ---------------- */
+    function renderWifi(){
+      const f = $("#wfilter").value.trim().toLowerCase();
+      const portLink = x => x.switch ? `<a href="#" data-sw="${esc(x.switch)}" data-p="${esc(x.port)}" style="color:var(--accent)">${esc(x.switch_name)} · ${esc(x.port)}</a>` : `<span class="muted">—</span>`;
+      const clusters = S.wifi||[];
+      $("#wifi").innerHTML = clusters.map(w=>{
+        const clients = w.clients.filter(c=>!f || [c.name,c.ip,c.mac,c.essid,c.ap,c.os,c.vendor].join(" ").toLowerCase().includes(f))
+          .sort((a,b)=>a.ap.localeCompare(b.ap) || a.name.localeCompare(b.name));
+        return `<div class="panel">
+          <h2 style="margin-bottom:4px"><i class="fas fa-wifi me-2" style="color:var(--ap)"></i>${esc(w.name)} ${w.site?`<span class="ax-badge">${esc(w.site)}</span>`:""}</h2>
+          <div class="muted" style="font-size:12.5px;margin-bottom:12px">Contrôleur virtuel <span class="mono">${esc(w.host)}</span>${w.version?` · Aruba Instant ${esc(w.version)}`:""}${w.error?"":` · ${w.aps.length} bornes · ${w.clients.length} clients`}</div>
+          ${w.error ? `<div class="err-msg">${esc(errFr(w.error))}</div>` : `
+          <div class="scroll" style="max-height:none"><table>
+            <thead><tr><th>Borne</th><th>IP</th><th>Modèle</th><th>Clients</th><th>Canaux</th><th>Branchée sur</th><th>Allumée depuis</th></tr></thead>
+            <tbody>${w.aps.map(a=>`<tr><td><b>${esc(a.name)}</b>${a.conductor?' <span class="ax-badge">maître</span>':""}</td>
+              <td class="mono">${esc(a.ip)}</td><td>${esc(a.model)}</td><td>${a.clients}</td><td class="mono">${esc(a.channels.join(" / "))}</td>
+              <td>${portLink(a)}</td><td class="muted">${esc(fmtUptime(a.uptime))}</td></tr>`).join("")}</tbody>
+          </table></div>
+          <h2 style="font-size:14px;margin-top:16px">Clients connectés (${clients.length}${f?" / "+w.clients.length:""})</h2>
+          <div class="scroll"><table>
+            <thead><tr><th>Appareil</th><th>IP</th><th>MAC</th><th>Système</th><th>Réseau</th><th>Borne</th><th>Bande</th><th>Signal</th><th>Débit</th></tr></thead>
+            <tbody>${clients.map(c=>`<tr><td><b>${esc(c.name&&c.name!==c.mac?c.name:"")}</b>${c.vendor?`<div class="muted" style="font-size:11.5px">${esc(c.vendor)}</div>`:""}</td>
+              <td class="mono">${esc(c.ip)}</td><td class="mono">${esc(c.mac)}</td><td>${esc(c.os)}</td><td>${esc(c.essid)}</td><td>${esc(c.ap)}</td>
+              <td>${esc(c.band)} <span class="muted">${esc(c.standard)}</span></td><td>${c.signal} dB</td><td>${c.speed} Mb/s</td></tr>`).join("")
+              || `<tr><td colspan="9" class="muted">Aucun client${f?" ne correspond au filtre":""}.</td></tr>`}</tbody>
+          </table></div>`}
+        </div>`;}).join("") || `<div class="empty">Aucun cluster Wi-Fi configuré.<br><a href="${esc(API.admin)}" style="color:var(--accent)">Ajouter un cluster dans Configuration</a></div>`;
+      $("#wifi").querySelectorAll("a[data-sw]").forEach(a=>a.onclick=e=>{ e.preventDefault(); gotoPort(a.dataset.sw,a.dataset.p); });
+    }
+    $("#wfilter").oninput = renderWifi;
 
     /* ---------------- carte ---------------- */
     const SVGNS="http://www.w3.org/2000/svg";
@@ -577,15 +640,19 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
       const byId = Object.fromEntries(nodes.map(n=>[n.id,n]));
       const mAdj = new Map(nodes.filter(big).map(n=>[n.id,new Set()]));
       const leaves = new Map(nodes.map(n=>[n.id,[]]));
+      const subs = new Map(nodes.map(n=>[n.id,[]]));   // clients Wi-Fi sous leur borne
       const attached = new Set();
       links.forEach(l=>{
         if(big(l.na) && big(l.nb)){ mAdj.get(l.a).add(l.b); mAdj.get(l.b).add(l.a); }
+        else if(l.wifi){ const c = l.na.client?l.na:l.nb; subs.get(l.na.client?l.b:l.a).push(c); attached.add(c.id); }
         else { const sw = big(l.na)?l.na:l.nb, lf = big(l.na)?l.nb:l.na;
           if(!attached.has(lf.id)){ attached.add(lf.id); leaves.get(sw.id).push(lf); } }
       });
-      const PER_ROW=8, LW=86, LH=50;
+      const PER_ROW=8, LW=86, LH=50, SH=32;
+      const rowsOf = n=>{ const lv=leaves.get(n.id)||[], rows=[]; for(let i=0;i<lv.length;i+=PER_ROW) rows.push(lv.slice(i,i+PER_ROW)); return rows; };
+      const rowH = row=>LH+Math.max(0,...row.map(lf=>subs.get(lf.id).length))*SH;
       const leafW = n=>{ const k=leaves.get(n.id).length; return k?Math.min(k,PER_ROW)*LW:0; };
-      const leafH = n=>{ const k=leaves.get(n.id).length; return k?Math.ceil(k/PER_ROW)*LH+20:0; };
+      const leafH = n=>{ const rows=rowsOf(n); return rows.length ? rows.reduce((s,r)=>s+rowH(r),0)+20 : 0; };
       const children = new Map(), seen = new Set();
       const managed = [...mAdj.keys()].map(id=>byId[id]).sort((a,b)=>mAdj.get(b.id).size-mAdj.get(a.id).size || a.label.localeCompare(b.label));
       // un switch d'infrastructure sans lien (non vu en LLDP) ne doit pas devenir la racine
@@ -602,8 +669,12 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
         return wCache[n.id]=Math.max(big(n)?Math.max(170, n.label.length*8+40):LW, leafW(n), cw); };
       const place=(n,left,y)=>{
         const w=width(n); n.x=left+w/2; n.y=y;
-        const lv=leaves.get(n.id)||[]; const cols=Math.min(lv.length,PER_ROW);
-        lv.forEach((lf,i)=>{ const r=Math.floor(i/PER_ROW), c=i%PER_ROW; lf.x=n.x+(c-(cols-1)/2)*LW; lf.y=y+75+r*LH; });
+        const cols=Math.min((leaves.get(n.id)||[]).length,PER_ROW); let ly=y+75;
+        rowsOf(n).forEach(row=>{
+          row.forEach((lf,c)=>{ lf.x=n.x+(c-(cols-1)/2)*LW; lf.y=ly;
+            subs.get(lf.id).forEach((s,k)=>{ s.x=lf.x; s.y=ly+46+k*SH; }); });
+          ly+=rowH(row);
+        });
         const ch=children.get(n.id)||[]; const cw=ch.reduce((s,c)=>s+width(c),0)+Math.max(0,ch.length-1)*GAP;
         let x=n.x-cw/2; const cy=y+95+leafH(n)+40;
         ch.forEach(c=>{ place(c,x,cy); x+=width(c)+GAP; });
@@ -616,7 +687,7 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
 
     function nodeShape(n){
       const g=document.createElementNS(SVGNS,"g"); g.classList.add("node"); g.dataset.id=n.id;
-      const col = n.status==="error"?"var(--admin)":{switch:n.managed?"var(--accent)":"var(--ext)",ap:"var(--ap)",phone:"var(--up)",host:"var(--muted)"}[n.kind];
+      const col = n.status==="error"?"var(--admin)":{switch:n.managed?"var(--accent)":"var(--ext)",ap:"var(--ap)",phone:"var(--up)",host:"var(--muted)",client:"#a78bfa"}[n.kind];
       if(big(n)){
         const w=Math.max(110, n.label.length*7.6+28);
         if(n.infra){ g.innerHTML=`<rect x="${-w/2}" y="-20" width="${w}" height="40" rx="8" fill="var(--panel2)" stroke="var(--muted)" stroke-width="2" stroke-dasharray="5 4"/>
@@ -629,7 +700,7 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
       } else if(n.kind==="switch"){
         g.innerHTML=`<rect x="-14" y="-9" width="28" height="18" rx="4" fill="var(--panel)" stroke="${col}" stroke-width="2"/>`;
       } else {
-        g.innerHTML=`<circle r="${n.kind==="ap"?9:6}" fill="${col}"/>`;
+        g.innerHTML=`<circle r="${{ap:9,client:5}[n.kind]||6}" fill="${col}"/>`;
       }
       if(!big(n)){
         const lbl = n.label.length>15 ? n.label.slice(0,14)+"…" : n.label;
@@ -644,15 +715,29 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
       const svg=$("#map");
       if(mapState.built && !fresh) return;
       const f = mapFilters();
-      const visible = new Set(S.topology.nodes.filter(n=>big(n) || f[n.kind]).map(n=>n.id));
-      const nodes = S.topology.nodes.filter(n=>visible.has(n.id)).map(n=>({...n}));
+      // bornes des clusters Wi-Fi retrouvées sur la carte par le nom ou l'IP annoncés en LLDP
+      const wap = new Map();
+      for(const w of (S.wifi||[])) for(const a of w.aps){
+        const m = {ap:a, cluster:w, clients:w.clients.filter(c=>c.ap===a.name)};
+        wap.set(a.name.toLowerCase(), m); if(a.ip) wap.set(a.ip, m);
+      }
+      const apOf = n => big(n) ? null : (wap.get((n.label||"").toLowerCase()) || (n.ip ? wap.get(n.ip) : null) || null);
+      const visible = new Set(S.topology.nodes.filter(n=>big(n) || f[n.kind] || (f.wifi && apOf(n)?.clients.length)).map(n=>n.id));
+      const nodes = S.topology.nodes.filter(n=>visible.has(n.id)).map(n=>({...n, wifi:apOf(n)}));
       const byId = Object.fromEntries(nodes.map(n=>[n.id,n]));
+      const wifiLinks = [];
+      if(f.wifi) nodes.filter(n=>n.wifi).forEach(apn=>apn.wifi.clients.forEach(c=>{
+        const cn = {id:"wc:"+c.mac, label:c.name&&c.name!==c.mac?c.name:c.mac, kind:"client", client:c, ip:c.ip, status:"unmanaged"};
+        if(byId[cn.id]) return;
+        nodes.push(cn); byId[cn.id]=cn;
+        wifiLinks.push({a:apn.id, b:cn.id, ports:[], na:apn, nb:cn, uplink:false, wifi:true});
+      }));
       // regrouper les liens physiques parallèles (LAG) entre deux mêmes nœuds
       const pairs = {};
       S.topology.links.forEach(l=>{ if(!byId[l.a]||!byId[l.b]) return; const k=[l.a,l.b].sort().join("|");
         if(!pairs[k]) pairs[k]={a:l.a,b:l.b,ports:[]};
         pairs[k].ports.push(l.a===pairs[k].a ? [l.a_port,l.b_port] : [l.b_port,l.a_port]); });
-      const links = Object.values(pairs).map(p=>({...p, na:byId[p.a], nb:byId[p.b], uplink: big(byId[p.a]) && big(byId[p.b])}));
+      const links = Object.values(pairs).map(p=>({...p, na:byId[p.a], nb:byId[p.b], uplink: big(byId[p.a]) && big(byId[p.b])})).concat(wifiLinks);
       const showP = $("#plabels").checked;
       links.forEach(l=>{ if(big(l.na)!==big(l.nb)){ const lf=big(l.na)?l.nb:l.na;
         lf.sub = showP ? l.ports.map(p=>big(l.na)?p[0]:p[1]).join(", ") : ""; } });
@@ -663,7 +748,7 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
       const lg=document.createElementNS(SVGNS,"g"), labg=document.createElementNS(SVGNS,"g"), ng=document.createElementNS(SVGNS,"g");
       root.append(lg,labg,ng);
       links.forEach(l=>{
-        l.el=document.createElementNS(SVGNS,"line"); if(l.uplink) l.el.classList.add("uplink"); lg.appendChild(l.el);
+        l.el=document.createElementNS(SVGNS,"line"); if(l.uplink) l.el.classList.add("uplink"); if(l.wifi) l.el.classList.add("wifi"); lg.appendChild(l.el);
         if(l.ports.length>1) l.el.setAttribute("stroke-width", 2.2+l.ports.length);
         if(showP && l.uplink){
           l.la=document.createElementNS(SVGNS,"text"); l.la.classList.add("plabel"); l.la.setAttribute("text-anchor","middle");
@@ -700,7 +785,10 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
         svg.setPointerCapture(e.pointerId);
       };
       svg.onpointermove=e=>{
-        if(drag){ const p=pt(e); drag.x=p.x; drag.y=p.y; drag.fixed=true; moved=true; update(); }
+        if(drag){ const p=pt(e), dx=p.x-drag.x, dy=p.y-drag.y; drag.x=p.x; drag.y=p.y; drag.fixed=true; moved=true;
+          // les clients Wi-Fi suivent leur borne
+          links.forEach(l=>{ if(l.wifi && l.a===drag.id){ l.nb.x+=dx; l.nb.y+=dy; } });
+          update(); }
         else if(pan){ v.x=e.clientX-pan.x; v.y=e.clientY-pan.y; moved=true; applyView(); }
       };
       svg.onpointerup=e=>{
@@ -718,11 +806,27 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
         const conns = links.filter(l=>l.a===n.id||l.b===n.id).map(l=>{ const other=l.a===n.id?l.nb:l.na;
           const ports=l.ports.map(p=>l.a===n.id?p:[p[1],p[0]]); return {other,ports}; });
         const box=$("#map-info"); box.style.display="block";
+        if(n.client){
+          const c=n.client;
+          box.innerHTML=`<b style="font-size:14px"><i class="fas fa-wifi me-1" style="color:var(--ap)"></i>${esc(n.label)}</b>
+            <div class="muted mono" style="margin:2px 0 8px">${esc(c.mac)}${c.ip?" · "+esc(c.ip):""}</div>
+            ${c.vendor?`<div class="muted" style="margin-bottom:8px">${esc(c.vendor)}</div>`:""}
+            <table><tr><td class="muted">Borne</td><td>${esc(c.ap)}</td></tr><tr><td class="muted">Réseau</td><td>${esc(c.essid)}</td></tr>
+              <tr><td class="muted">Bande</td><td>${esc(c.band)} ${esc(c.standard)} · canal ${esc(c.channel)}</td></tr>
+              <tr><td class="muted">Signal</td><td>${c.signal} dB · ${c.speed} Mb/s</td></tr>${c.os?`<tr><td class="muted">Système</td><td>${esc(c.os)}</td></tr>`:""}</table>`;
+          return;
+        }
+        const wc = n.wifi ? n.wifi.clients : [];
         box.innerHTML=`<b style="font-size:14px">${esc(n.label)}</b><div class="muted mono" style="margin:2px 0 8px">${esc(n.ip||"")}</div>
-          <div class="muted" style="margin-bottom:8px">${esc(n.detail||"")}</div>
+          <div class="muted" style="margin-bottom:8px">${esc(n.wifi?`${n.wifi.ap.model} · ${n.wifi.cluster.name}`:(n.detail||""))}</div>
           ${n.managed && n.status!=="error"?`<button class="ax-btn" id="mi-go" style="margin-bottom:10px">Voir les ports</button>`:""}
-          <table>${conns.map(c=>`<tr><td>${esc(c.other.label)}</td><td class="mono">${c.ports.map(p=>esc(p[0])+" ↔ "+esc(p[1])).join("<br>")}</td></tr>`).join("")}</table>`;
+          <table>${conns.filter(c=>!c.other.client).map(c=>`<tr><td>${esc(c.other.label)}</td><td class="mono">${c.ports.map(p=>esc(p[0])+" ↔ "+esc(p[1])).join("<br>")}</td></tr>`).join("")}</table>
+          ${n.wifi?`<h2 style="font-size:13px;margin:12px 0 4px">Clients Wi-Fi (${wc.length})</h2>
+            ${wc.length?`<table>${wc.map(c=>`<tr><td><b>${esc(c.name&&c.name!==c.mac?c.name:c.mac)}</b><div class="muted mono" style="font-size:11px">${esc(c.ip)}</div></td>
+              <td class="muted">${esc(c.essid)}<br>${c.signal} dB</td></tr>`).join("")}</table>`:`<div class="muted">Aucun client connecté.</div>`}
+            <button class="ax-btn" id="mi-wifi" style="margin-top:10px">Voir dans Bornes Wi-Fi</button>`:""}`;
         const go=$("#mi-go"); if(go) go.onclick=()=>{ curSw=n.id; curPort=null; renderPorts(); show("ports"); };
+        const gw=$("#mi-wifi"); if(gw) gw.onclick=()=>{ $("#wfilter").value=n.wifi.ap.name; renderWifi(); show("wifi"); };
       }
     }
     window.addEventListener("resize",()=>{ if($("#v-map").classList.contains("on")){ mapState.built=false; drawMap(); } });

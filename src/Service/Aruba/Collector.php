@@ -244,16 +244,42 @@ class Collector
             'max' => max(120, (int) ($sw['timeout'] ?? 15) * 40)];
     }
 
-    private function client(string $id): AosCxClient|AosSwitchClient
+    private function client(string $id): AosCxClient|AosSwitchClient|InstantClient
     {
         $sw = $this->config->switch($id);
         [$user, $pwd] = $this->config->credentials($sw);
-        // "os": "aos-switch" pour un ArubaOS-Switch (2930F…), AOS-CX par défaut
-        return ($sw['os'] ?? 'aos-cx') === 'aos-switch'
-            ? new AosSwitchClient($sw['host'], $user, $pwd, (bool) ($sw['verify_ssl'] ?? false),
-                (string) ($sw['api_version'] ?? 'auto'), (int) ($sw['timeout'] ?? 15), (string) ($sw['protocol'] ?? 'https'))
-            : new AosCxClient($sw['host'], $user, $pwd, (bool) ($sw['verify_ssl'] ?? false),
-                (string) ($sw['api_version'] ?? 'auto'), (int) ($sw['timeout'] ?? 15));
+        // "os" : "aos-switch" pour un ArubaOS-Switch (2930F…), "instant" pour un cluster de bornes Wi-Fi,
+        // AOS-CX par défaut
+        return match ($sw['os'] ?? 'aos-cx') {
+            'aos-switch' => new AosSwitchClient($sw['host'], $user, $pwd, (bool) ($sw['verify_ssl'] ?? false),
+                (string) ($sw['api_version'] ?? 'auto'), (int) ($sw['timeout'] ?? 15), (string) ($sw['protocol'] ?? 'https')),
+            'instant' => new InstantClient($sw['host'], $user, $pwd, (bool) ($sw['verify_ssl'] ?? false),
+                (int) ($sw['timeout'] ?? 15)),
+            default => new AosCxClient($sw['host'], $user, $pwd, (bool) ($sw['verify_ssl'] ?? false),
+                (string) ($sw['api_version'] ?? 'auto'), (int) ($sw['timeout'] ?? 15)),
+        };
+    }
+
+    /** Message d'erreur lisible (les erreurs curl et HTTP sont en anglais ou techniques). */
+    public static function errorMessage(\Throwable $e): string
+    {
+        $m = $e->getMessage();
+        $m = (string) preg_replace([
+            '/\s*:?\s*(Connection|Operation) timed out after \d+ milliseconds.*/i',
+            '/\s*:?\s*Failed to connect.*Timed out.*/i',
+            '/\s*:?\s*(Failed to connect|Couldn\'t connect).*/i',
+            '/\s*:?\s*Could not resolve host.*/i',
+            '/^Échec login \((401|403)\).*/s',
+            '/\s*:?\s*(OpenSSL|SSL|schannel).*/i',
+        ], [
+            ' : pas de réponse (délai dépassé)',
+            ' : pas de réponse (délai dépassé)',
+            ' : connexion refusée',
+            ' : nom introuvable',
+            'Identifiant ou mot de passe refusé',
+            ' : erreur de connexion sécurisée (HTTPS)',
+        ], $m);
+        return mb_substr($m, 0, 300);
     }
 
     /** Test de connexion (écran Configuration) : login, identification, logout. */
@@ -271,7 +297,7 @@ class Collector
             return ['ok' => true, 'system' => $system, 'api_version' => $c->apiVersion,
                 'duration' => round(microtime(true) - $t0, 1)];
         } catch (\Throwable $e) {
-            return ['ok' => false, 'error' => mb_substr($e->getMessage(), 0, 300)];
+            return ['ok' => false, 'error' => self::errorMessage($e)];
         }
     }
 
@@ -291,7 +317,7 @@ class Collector
             $data['duration'] = round(microtime(true) - $t0, 1);
             return $data;
         } catch (\Throwable $e) {
-            return ['error' => mb_substr((new \ReflectionClass($e))->getShortName() . ': ' . $e->getMessage(), 0, 300)];
+            return ['error' => self::errorMessage($e)];
         }
     }
 }

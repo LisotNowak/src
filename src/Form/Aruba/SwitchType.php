@@ -15,18 +15,21 @@ use Symfony\Component\Validator\Constraints\Range;
 use Symfony\Component\Validator\Constraints\Regex;
 
 /**
- * Switch de config/aruba/config.json (données sous forme de tableau, voir ArubaAdminController).
+ * Switch ou cluster Wi-Fi (option kind) de config/aruba/config.json (données sous forme de tableau,
+ * voir ArubaAdminController).
  */
 class SwitchType extends AbstractType
 {
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $defaults = $options['defaults'];
+        $wifi = $options['kind'] === 'wifi';
         $builder
             ->add('id', TextType::class, [
                 'label' => 'Identifiant',
                 'disabled' => $options['is_edit'],
-                'help' => $options['is_edit'] ? 'Non modifiable.' : 'Minuscules, chiffres et tirets (ex. bureaux-etage02). Non modifiable ensuite.',
+                'help' => $options['is_edit'] ? null
+                    : 'Minuscules, chiffres et tirets (ex. ' . ($wifi ? 'wifi-chateau' : 'bureaux-etage02') . '). Non modifiable ensuite.',
                 'constraints' => [
                     new NotBlank(),
                     new Regex(pattern: '/^[a-z0-9][a-z0-9-]{0,49}$/', message: 'Minuscules, chiffres et tirets uniquement.'),
@@ -36,35 +39,41 @@ class SwitchType extends AbstractType
             ->add('name', TextType::class, [
                 'label' => 'Nom affiché',
                 'required' => false,
-                'attr' => ['placeholder' => 'ex. sw-chlatour-bureaux-etage02'],
+                'attr' => ['placeholder' => $wifi ? 'ex. Wi-Fi Château' : 'ex. sw-chlatour-bureaux-etage02'],
             ])
             ->add('host', TextType::class, [
-                'label' => 'Adresse IP ou nom DNS',
+                'label' => $wifi ? 'Adresse du contrôleur virtuel' : 'Adresse IP ou nom DNS',
                 'constraints' => [
                     new NotBlank(),
                     new Regex(pattern: '/^[A-Za-z0-9][A-Za-z0-9.-]{0,252}$/', message: 'Adresse IP ou nom DNS invalide.'),
                 ],
-                'attr' => ['placeholder' => 'ex. 192.168.1.131'],
+                'attr' => ['placeholder' => $wifi ? 'ex. 192.168.1.145' : 'ex. 192.168.1.131'],
             ])
             ->add('site', TextType::class, [
                 'label' => 'Emplacement',
                 'required' => false,
-                'attr' => ['placeholder' => 'ex. Bureaux étage 2'],
+                'attr' => ['placeholder' => $wifi ? 'ex. Château' : 'ex. Bureaux étage 2'],
             ])
-            ->add('os', ChoiceType::class, [
-                'label' => 'Système',
-                'choices' => [
-                    'AOS-CX (CX 6000, 6100, 6200, 6300…)' => 'aos-cx',
-                    'ArubaOS-Switch (2530, 2930F, 3810… ex-ProCurve)' => 'aos-switch',
-                ],
-            ])
-            ->add('protocol', ChoiceType::class, [
-                'label' => 'Protocole',
-                'choices' => [
-                    'HTTPS' => 'https',
-                    'HTTP' => 'http',
-                ],
-            ])
+        ;
+        if (!$wifi) {
+            $builder
+                ->add('os', ChoiceType::class, [
+                    'label' => 'Système',
+                    'choices' => [
+                        'AOS-CX (CX 6000, 6100, 6200, 6300…)' => 'aos-cx',
+                        'ArubaOS-Switch (2530, 2930F, 3810… ex-ProCurve)' => 'aos-switch',
+                    ],
+                ])
+                ->add('protocol', ChoiceType::class, [
+                    'label' => 'Protocole',
+                    'choices' => [
+                        'HTTPS' => 'https',
+                        'HTTP' => 'http',
+                    ],
+                ])
+            ;
+        }
+        $builder
             ->add('username', TextType::class, [
                 'label' => 'Utilisateur',
                 'required' => false,
@@ -91,12 +100,16 @@ class SwitchType extends AbstractType
                 'constraints' => [new Range(min: 3, max: 120)],
                 'attr' => ['placeholder' => 'Par défaut : ' . ($defaults['timeout'] ?? 15)],
             ])
-            ->add('api_version', TextType::class, [
+        ;
+        if (!$wifi) {
+            $builder->add('api_version', TextType::class, [
                 'label' => 'Version d\'API',
                 'required' => false,
                 'constraints' => [new Regex(pattern: '/^(auto|v\d+(\.\d+)*)$/', message: '« auto » ou une version comme v10.09.')],
                 'attr' => ['placeholder' => 'Par défaut : ' . ($defaults['api_version'] ?? 'auto')],
-            ])
+            ]);
+        }
+        $builder
             ->add('verify_ssl', ChoiceType::class, [
                 'label' => 'Certificat HTTPS',
                 'choices' => [
@@ -112,6 +125,7 @@ class SwitchType extends AbstractType
     {
         $resolver->setDefaults([
             'is_edit' => false,
+            'kind' => 'switch',   // 'wifi' : cluster de bornes Aruba Instant
             'has_own_password' => false,
             'defaults' => [],
         ]);

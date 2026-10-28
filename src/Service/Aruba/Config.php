@@ -199,14 +199,21 @@ class Config
     public function moveSwitch(string $id, int $delta): void
     {
         $list = $this->cfg['switches'] ?? [];
+        $wifi = fn(array $s) => ($s['os'] ?? '') === 'instant';
         foreach ($list as $i => $s) {
-            $j = $i + $delta;
-            if (self::idOf($s) === $id && isset($list[$j])) {
-                [$list[$i], $list[$j]] = [$list[$j], $list[$i]];
-                $this->cfg['switches'] = $list;
-                $this->write();
-                return;
+            if (self::idOf($s) !== $id) {
+                continue;
             }
+            // échange avec le voisin de même nature (switchs et clusters Wi-Fi sont listés à part)
+            for ($j = $i + $delta; isset($list[$j]); $j += $delta) {
+                if ($wifi($list[$j]) === $wifi($s)) {
+                    [$list[$i], $list[$j]] = [$list[$j], $list[$i]];
+                    $this->cfg['switches'] = $list;
+                    $this->write();
+                    return;
+                }
+            }
+            return;
         }
     }
 

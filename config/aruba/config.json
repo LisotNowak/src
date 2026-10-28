@@ -108,6 +108,22 @@
             "site": "Bureaux étage 2",
             "os": "aos-switch",
             "protocol": "http"
+        },
+        {
+            "id": "wifi-forts",
+            "host": "10.10.17.240",
+            "name": "Wi-Fi Forts de Latour",
+            "site": "Les Forts de Latour",
+            "os": "instant",
+            "username": "adminartemis"
+        },
+        {
+            "id": "wifi-chateau",
+            "host": "192.168.1.145",
+            "name": "Wi-Fi Château Latour",
+            "site": "Château Latour",
+            "os": "instant",
+            "username": "adminartemis"
         }
     ],
     "other_switches": [

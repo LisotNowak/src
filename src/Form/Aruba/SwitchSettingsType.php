@@ -48,14 +48,14 @@ class SwitchSettingsType extends AbstractType
                 'help' => 'À laisser décoché tant que les switchs utilisent leur certificat auto-signé.',
             ])
             ->add('parallel', IntegerType::class, [
-                'label' => 'Switchs interrogés en même temps',
+                'label' => 'Équipements interrogés en même temps',
                 'constraints' => [new NotBlank(), new Range(min: 1, max: 20)],
             ])
             ->add('other_switches', TextareaType::class, [
-                'label' => 'Switchs non interrogés',
+                'label' => 'Switchs sans API',
                 'required' => false,
                 'attr' => ['rows' => 5, 'class' => 'font-monospace', 'placeholder' => "192.168.1.128 ; sw-chlatour-video"],
-                'help' => 'Une ligne par switch : adresse IP ; nom. Switchs sans API : ils apparaissent sur la carte quand un voisin LLDP les annonce.',
+                'help' => 'Une ligne par switch : adresse IP ; nom.',
             ])
         ;
     }

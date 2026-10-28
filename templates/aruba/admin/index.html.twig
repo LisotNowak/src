@@ -1,15 +1,20 @@
 {% extends 'aruba/layout.html.twig' %}
-{% block title %}Configuration des switchs{% endblock %}
+{% block title %}Configuration{% endblock %}
 {% block body %}
 <div class="container-fluid mt-4 mb-5 px-4" style="max-width:1400px">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
         <div>
-            <h1 class="h3 mb-1"><i class="fas fa-sliders me-2" style="color:#800000"></i>Configuration des switchs</h1>
-            <span class="text-muted small">Les modifications sont prises en compte à la prochaine actualisation.</span>
+            <h1 class="h3 mb-1"><i class="fas fa-sliders me-2" style="color:#800000"></i>Configuration</h1>
+            <span class="text-muted small">Switchs et bornes Wi-Fi interrogés. Les modifications sont prises en compte à la prochaine actualisation.</span>
         </div>
-        <a href="{{ path('app_gestion_switch_admin_new') }}" class="btn btn-success">
-            <i class="fas fa-plus me-1"></i>Ajouter un switch
-        </a>
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="{{ path('app_gestion_switch_admin_new') }}" class="btn btn-success">
+                <i class="fas fa-plus me-1"></i>Ajouter un switch
+            </a>
+            <a href="{{ path('app_gestion_switch_admin_new', {type: 'wifi'}) }}" class="btn btn-outline-success">
+                <i class="fas fa-wifi me-1"></i>Ajouter un cluster Wi-Fi
+            </a>
+        </div>
     </div>
 
     {% for type in ['success', 'danger'] %}
@@ -30,9 +35,16 @@
             <div><span class="text-muted small d-block">Utilisateur par défaut</span><b>{{ defaults.username ?? '—' }}</b>
                 {% if not common_password %}<span class="badge bg-danger ms-1">mot de passe manquant</span>{% endif %}
             </div>
-            <div><span class="text-muted small d-block">Délai / API</span>{{ defaults.timeout ?? 15 }} s · {{ defaults.api_version ?? 'auto' }}</div>
-            <div><span class="text-muted small d-block">En parallèle</span>{{ parallel }} switchs</div>
-            <div><span class="text-muted small d-block">Non interrogés</span>{{ other_switches|length }} switch{{ other_switches|length > 1 ? 's' }}</div>
+            <div><span class="text-muted small d-block">Délai de réponse</span>{{ defaults.timeout ?? 15 }} s</div>
+            <div><span class="text-muted small d-block">Interrogés en même temps</span>{{ parallel }} équipements</div>
+            <div>
+                <span class="text-muted small d-block">Switchs sans API</span>
+                {% for o in other_switches %}
+                    <span class="badge bg-light text-dark border fw-normal">{{ o.name ?? o.host }}{% if o.name is defined and o.host is defined %} <span class="text-muted font-monospace">{{ o.host }}</span>{% endif %}</span>
+                {% else %}
+                    <span class="text-muted">aucun</span>
+                {% endfor %}
+            </div>
             <a href="{{ path('app_gestion_switch_admin_settings') }}" class="btn btn-outline-secondary ms-auto">
                 <i class="fas fa-gear me-1"></i>Valeurs par défaut et options
             </a>
@@ -40,7 +52,8 @@
     </div>
 
     {# ── Switchs ── #}
-    <div class="card shadow-sm">
+    <h2 class="h5 mb-2"><i class="fas fa-network-wired me-2" style="color:#800000"></i>Switchs <span class="badge bg-secondary">{{ switches|length }}</span></h2>
+    <div class="card shadow-sm mb-4">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
@@ -97,8 +110,8 @@
                                 {% if not sw.last %}
                                     <span class="text-muted">jamais interrogé</span>
                                 {% elseif sw.last.error %}
-                                    <span class="text-danger" title="{{ sw.last.error }}"><i class="fas fa-xmark me-1"></i>erreur</span>
-                                    <div class="text-muted text-truncate" style="max-width:260px" title="{{ sw.last.error }}">{{ sw.last.error }}</div>
+                                    <span class="text-danger"><i class="fas fa-xmark me-1"></i>erreur</span>
+                                    <div class="text-muted" style="max-width:320px">{{ sw.last.error }}</div>
                                 {% else %}
                                     <span class="text-success"><i class="fas fa-check me-1"></i>OK</span>
                                     {% if sw.last.collected_at %}<span class="text-muted">· {{ sw.last.collected_at|date('d/m/Y H:i', 'Europe/Paris') }}</span>{% endif %}
@@ -131,6 +144,74 @@
             </table>
         </div>
     </div>
+
+    {# ── Bornes Wi-Fi : un cluster Aruba Instant par contrôleur virtuel, bornes découvertes automatiquement ── #}
+    <h2 class="h5 mb-2"><i class="fas fa-wifi me-2" style="color:#8b5cf6"></i>Clusters Wi-Fi <span class="badge bg-secondary">{{ clusters|length }}</span></h2>
+    {% for cl in clusters %}
+        {% set aps = cl.last.aps ?? [] %}
+        <div class="card shadow-sm mb-3" id="sw-{{ cl.id }}">
+            <div class="card-body d-flex flex-wrap align-items-center gap-4">
+                <div>
+                    <div class="fw-semibold">{{ cl.name ?: cl.id }}</div>
+                    <div class="small text-muted"><code>{{ cl.id }}</code>{% if cl.site is defined and cl.site %} · {{ cl.site }}{% endif %}</div>
+                </div>
+                <div><span class="text-muted small d-block">Contrôleur virtuel</span><span class="font-monospace small">{{ cl.host }}</span></div>
+                <div class="small"><span class="text-muted small d-block">Utilisateur</span>
+                    <i class="fas fa-user me-1 text-muted"></i>{{ (cl.own.username ?? '') ?: defaults.username ?? '' }}</div>
+                <div class="small"><span class="text-muted small d-block">Dernière collecte</span>
+                    {% if not cl.last %}
+                        <span class="text-muted">jamais interrogé</span>
+                    {% elseif cl.last.error %}
+                        <span class="text-danger"><i class="fas fa-xmark me-1"></i>erreur</span>
+                        <div class="text-muted" style="max-width:420px">{{ cl.last.error }}</div>
+                    {% else %}
+                        <span class="text-success"><i class="fas fa-check me-1"></i>OK</span>
+                        <span class="text-muted">· {{ cl.last.platform }}{% if cl.last.collected_at %} · {{ cl.last.collected_at|date('d/m/Y H:i', 'Europe/Paris') }}{% endif %}</span>
+                    {% endif %}
+                </div>
+                <div class="ms-auto text-nowrap">
+                    <form method="post" action="{{ path('app_gestion_switch_admin_test', {id: cl.id}) }}" class="d-inline js-test">
+                        <input type="hidden" name="_token" value="{{ csrf_token('test' ~ cl.id) }}">
+                        <button class="btn btn-outline-secondary btn-sm" title="Tester la connexion"><i class="fas fa-plug"></i></button>
+                    </form>
+                    <a href="{{ path('app_gestion_switch_admin_edit', {id: cl.id}) }}" class="btn btn-primary btn-sm" title="Modifier"><i class="fas fa-pen"></i></a>
+                    <form method="post" action="{{ path('app_gestion_switch_admin_delete', {id: cl.id}) }}" class="d-inline"
+                          onsubmit="return confirm('Supprimer le cluster « {{ (cl.name ?: cl.id)|e('js') }} » et son mot de passe ?');">
+                        <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ cl.id) }}">
+                        <button class="btn btn-danger btn-sm" title="Supprimer"><i class="fas fa-trash"></i></button>
+                    </form>
+                </div>
+            </div>
+            {% if aps %}
+                <div class="table-responsive border-top">
+                    <table class="table table-sm table-hover align-middle mb-0 small">
+                        <thead class="table-light">
+                            <tr><th class="ps-3">Borne</th><th>IP</th><th>Modèle</th><th>N° de série</th><th>Clients</th><th>Branchée sur</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for ap in aps %}
+                                <tr>
+                                    <td class="ps-3 fw-semibold">{{ ap.name }}{% if ap.conductor %} <span class="badge bg-light text-dark border">maître</span>{% endif %}</td>
+                                    <td class="font-monospace">{{ ap.ip }}</td>
+                                    <td>{{ ap.model }}</td>
+                                    <td class="font-monospace text-muted">{{ ap.serial }}</td>
+                                    <td>{{ ap.clients }}</td>
+                                    <td>{% if ap.switch %}{{ ap.switch_name }} · {{ ap.port }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        </div>
+    {% else %}
+        <div class="card shadow-sm">
+            <div class="card-body text-center text-muted py-4">
+                <i class="fas fa-wifi fa-2x mb-2 d-block"></i>
+                Aucun cluster Wi-Fi configuré
+            </div>
+        </div>
+    {% endfor %}
 </div>
 
 <script>

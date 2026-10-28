@@ -15,7 +15,7 @@ class Api
 
     public function snapshot(): array
     {
-        return $this->collector->snapshot() ?? ['switches' => [], 'macs' => [],
+        return $this->collector->snapshot() ?? ['switches' => [], 'macs' => [], 'wifi' => [],
             'topology' => ['nodes' => [], 'links' => []], 'summary' => (object) [], 'collected_at' => null];
     }
 
@@ -37,8 +37,9 @@ class Api
         $out = [];
         foreach ($this->collector->history() as $mac => $h) {
             $mac = (string) $mac;
-            if ((strlen($hexq) >= 4 && str_contains(str_replace(':', '', $mac), $hexq))
-                || ($q !== '' && $q === ($h['ip'] ?? ''))) {
+            if ((strlen($hexq) >= 4 && preg_match('/^[0-9a-f:.\-\s]+$/', $q) && str_contains(str_replace(':', '', $mac), $hexq))
+                || ($q !== '' && $q === ($h['ip'] ?? ''))
+                || (strlen($q) >= 3 && str_contains(strtolower($h['name'] ?? ''), $q))) {
                 $out[] = ['mac' => $mac] + $h;
             }
         }
@@ -60,12 +61,32 @@ class Api
                 }
             }
         }
+        // les bornes Wi-Fi donnent le nom de leurs clients
+        $wifi = [];
+        foreach ($snap['wifi'] ?? [] as $cluster) {
+            foreach ($cluster['clients'] as $c) {
+                $wifi[$c['mac']] = $c;
+                if ($c['name'] !== '' && $c['name'] !== $c['mac']) {
+                    $names[$c['mac']] ??= $c['name'];
+                }
+            }
+        }
         $f = fopen('php://temp', 'r+');
         fputcsv($f, ['mac', 'nom_appareil', 'ip', 'constructeur', 'switch', 'port', 'description_port', 'vlan',
             'nom_vlan', 'role_port', 'localisation_principale', 'via'], ';', '"', '', "\r\n");
+        $seen = [];
         foreach ($snap['macs'] as $m) {
+            $seen[$m['mac']] = true;
             fputcsv($f, [$m['mac'], $names[$m['mac']] ?? '', $m['ip'], $m['vendor'], $m['switch_name'], $m['port'], $m['port_desc'],
-                $m['vlan'], $m['vlan_name'], $m['role'], $m['primary'] ? 'oui' : 'non', $m['via']], ';', '"', '', "\r\n");
+                $m['vlan'], $m['vlan_name'], $m['role'], $m['primary'] ? 'oui' : 'non', $m['via'] ?: ($wifi[$m['mac']]['ap'] ?? '')],
+                ';', '"', '', "\r\n");
+        }
+        // clients Wi-Fi absents des tables MAC des switchs interrogés
+        foreach ($wifi as $mac => $c) {
+            if (!isset($seen[$mac])) {
+                fputcsv($f, [$mac, $names[$mac] ?? '', $c['ip'], $c['vendor'], $c['switch_name'], $c['port'], 'Wi-Fi ' . $c['essid'],
+                    '', '', 'wifi', 'oui', $c['ap']], ';', '"', '', "\r\n");
+            }
         }
         rewind($f);
         return "\xEF\xBB\xBF" . stream_get_contents($f);
