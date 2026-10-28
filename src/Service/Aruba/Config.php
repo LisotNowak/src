@@ -217,6 +217,35 @@ class Config
         }
     }
 
+    // ------------------------------------------------------------ GLPI
+    /**
+     * Connexion GLPI (clé "glpi" de config.json : url, client_id, username, enabled), null si non configurée.
+     * Secrets chiffrés : secrets/glpi-client.txt (secret du client OAuth), secrets/glpi.txt (mot de passe).
+     */
+    public function glpi(): ?array
+    {
+        $g = $this->cfg['glpi'] ?? null;
+        return is_array($g) && ($g['url'] ?? '') !== '' ? $g : null;
+    }
+
+    public function saveGlpi(?array $glpi): void
+    {
+        if ($glpi === null) {
+            unset($this->cfg['glpi']);
+            $this->removePassword('glpi');
+            $this->removePassword('glpi-client');
+        } else {
+            $this->cfg['glpi'] = $glpi;
+        }
+        $this->write();
+    }
+
+    /** Secret chiffré par setPassword() ('' s'il n'existe pas). */
+    public function secret(string $id): string
+    {
+        return $this->encryptedPassword($this->secretFile($id));
+    }
+
     /** Paramètres généraux : parallel, defaults, other_switches. */
     public function saveSettings(array $settings): void
     {

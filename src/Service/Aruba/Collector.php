@@ -14,6 +14,9 @@ namespace App\Service\Aruba;
 
 class Collector
 {
+    /** Identifiant réservé : GLPI est interrogé comme un équipement de plus, dans son propre processus */
+    public const GLPI = 'glpi';
+
     public function __construct(
         private Config $config,
         private string $dataDir,
@@ -160,8 +163,13 @@ class Collector
         set_time_limit(0);
         try {
             $switches = $this->config->switches();
+            $jobs = $switches;
+            $glpi = $this->config->glpi();
+            if ($glpi && ($glpi['enabled'] ?? true)) {
+                $jobs[] = ['id' => self::GLPI, 'name' => 'GLPI', 'host' => $glpi['url'], 'timeout' => 30];
+            }
             $progress = $details = [];
-            foreach ($switches as $sw) {
+            foreach ($jobs as $sw) {
                 $progress[$sw['id']] = 'en attente';
                 $details[$sw['id']] = ['name' => ($sw['name'] ?? '') ?: $sw['host']];
             }
@@ -174,7 +182,7 @@ class Collector
             $saveStatus('running');
 
             $raw = [];
-            $queue = $switches;
+            $queue = $jobs;
             $workers = [];
             $parallel = max(1, (int) $this->config->get('parallel', 8));
             while ($queue || $workers) {
@@ -222,7 +230,8 @@ class Collector
                 Inventory::loadOui($oui);
             }
             $history = $this->history();
-            $snap = Inventory::build($switches, $raw, $history, $this->config->get('other_switches', []));
+            $snap = Inventory::build($switches, $raw, $history, $this->config->get('other_switches', []),
+                isset($raw[self::GLPI]) ? $raw[self::GLPI] : null);
             self::saveJson($this->file('snapshot.json'), $snap);
             self::saveJson($this->file('history.json'), (object) $history);
             $saveStatus('done');
@@ -244,8 +253,17 @@ class Collector
             'max' => max(120, (int) ($sw['timeout'] ?? 15) * 40)];
     }
 
-    private function client(string $id): AosCxClient|AosSwitchClient|InstantClient
+    private function client(string $id): AosCxClient|AosSwitchClient|InstantClient|GlpiClient
     {
+        if ($id === self::GLPI) {
+            $g = $this->config->glpi() ?? throw new \RuntimeException('GLPI n\'est pas configuré');
+            $secret = $this->config->secret('glpi-client');
+            $pwd = $this->config->secret('glpi');
+            if ($secret === '' || $pwd === '') {
+                throw new \RuntimeException('GLPI : secret du client OAuth ou mot de passe absent (Configuration)');
+            }
+            return new GlpiClient($g['url'], (string) ($g['client_id'] ?? ''), $secret, (string) ($g['username'] ?? ''), $pwd);
+        }
         $sw = $this->config->switch($id);
         [$user, $pwd] = $this->config->credentials($sw);
         // "os" : "aos-switch" pour un ArubaOS-Switch (2930F…), "instant" pour un cluster de bornes Wi-Fi,

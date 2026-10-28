@@ -34,6 +34,7 @@ class SwitchType extends AbstractType
                     new NotBlank(),
                     new Regex(pattern: '/^[a-z0-9][a-z0-9-]{0,49}$/', message: 'Minuscules, chiffres et tirets uniquement.'),
                     new NotEqualTo(value: 'default', message: 'Identifiant réservé.'),
+                    new NotEqualTo(value: 'glpi', message: 'Identifiant réservé.'),
                 ],
             ])
             ->add('name', TextType::class, [

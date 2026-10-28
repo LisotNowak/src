@@ -15,7 +15,7 @@ class Api
 
     public function snapshot(): array
     {
-        return $this->collector->snapshot() ?? ['switches' => [], 'macs' => [], 'wifi' => [],
+        return $this->collector->snapshot() ?? ['switches' => [], 'macs' => [], 'wifi' => [], 'glpi' => null,
             'topology' => ['nodes' => [], 'links' => []], 'summary' => (object) [], 'collected_at' => null];
     }
 
@@ -35,11 +35,15 @@ class Api
         $q = strtolower(trim($q));
         $hexq = preg_replace('/[^0-9a-f]/', '', $q);
         $out = [];
+        $glpi = $this->collector->snapshot()['glpi']['macs'] ?? [];
         foreach ($this->collector->history() as $mac => $h) {
             $mac = (string) $mac;
+            $g = $glpi[$mac] ?? [];
+            $names = strtolower(implode(' ', [$h['name'] ?? '', $h['glpi_name'] ?? '', $g['user'] ?? '', $g['contact'] ?? '',
+                $g['serial'] ?? '', $g['model'] ?? '']));
             if ((strlen($hexq) >= 4 && preg_match('/^[0-9a-f:.\-\s]+$/', $q) && str_contains(str_replace(':', '', $mac), $hexq))
                 || ($q !== '' && $q === ($h['ip'] ?? ''))
-                || (strlen($q) >= 2 && str_contains(strtolower($h['name'] ?? ''), $q))) {
+                || (strlen($q) >= 2 && str_contains($names, $q))) {
                 $out[] = ['mac' => $mac] + $h;
             }
         }
@@ -71,21 +75,31 @@ class Api
                 }
             }
         }
+        // fiche GLPI de l'appareil (colonnes vides si GLPI n'est pas configuré ou ne connaît pas la MAC)
+        $glpi = $snap['glpi']['macs'] ?? [];
+        foreach ($glpi as $mac => $g) {
+            $names[$mac] ??= $g['name'];
+        }
+        $glpiCols = fn(string $mac) => isset($glpi[$mac])
+            ? [$glpi[$mac]['type_label'], $glpi[$mac]['name'], $glpi[$mac]['user'] ?: $glpi[$mac]['contact'], $glpi[$mac]['model'],
+                $glpi[$mac]['serial'], $glpi[$mac]['location'], $glpi[$mac]['url']]
+            : array_fill(0, 7, '');
         $f = fopen('php://temp', 'r+');
         fputcsv($f, ['mac', 'nom_appareil', 'ip', 'constructeur', 'switch', 'port', 'description_port', 'vlan',
-            'nom_vlan', 'role_port', 'localisation_principale', 'via'], ';', '"', '', "\r\n");
+            'nom_vlan', 'role_port', 'localisation_principale', 'via', 'glpi_type', 'glpi_nom', 'glpi_utilisateur',
+            'glpi_modele', 'glpi_numero_serie', 'glpi_lieu', 'glpi_lien'], ';', '"', '', "\r\n");
         $seen = [];
         foreach ($snap['macs'] as $m) {
             $seen[$m['mac']] = true;
             fputcsv($f, [$m['mac'], $names[$m['mac']] ?? '', $m['ip'], $m['vendor'], $m['switch_name'], $m['port'], $m['port_desc'],
-                $m['vlan'], $m['vlan_name'], $m['role'], $m['primary'] ? 'oui' : 'non', $m['via'] ?: ($wifi[$m['mac']]['ap'] ?? '')],
-                ';', '"', '', "\r\n");
+                $m['vlan'], $m['vlan_name'], $m['role'], $m['primary'] ? 'oui' : 'non', $m['via'] ?: ($wifi[$m['mac']]['ap'] ?? ''),
+                ...$glpiCols($m['mac'])], ';', '"', '', "\r\n");
         }
         // clients Wi-Fi absents des tables MAC des switchs interrogés
         foreach ($wifi as $mac => $c) {
             if (!isset($seen[$mac])) {
                 fputcsv($f, [$mac, $names[$mac] ?? '', $c['ip'], $c['vendor'], $c['switch_name'], $c['port'], 'Wi-Fi ' . $c['essid'],
-                    '', '', 'wifi', 'oui', $c['ap']], ';', '"', '', "\r\n");
+                    '', '', 'wifi', 'oui', $c['ap'], ...$glpiCols($mac)], ';', '"', '', "\r\n");
             }
         }
         rewind($f);

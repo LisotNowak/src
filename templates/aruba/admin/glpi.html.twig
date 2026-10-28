@@ -1,0 +1,36 @@
+{% extends 'aruba/layout.html.twig' %}
+{% form_theme form 'bootstrap_5_layout.html.twig' %}
+{% block title %}GLPI{% endblock %}
+{% block body %}
+<div class="container mt-4 mb-5" style="max-width:960px">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ path('app_gestion_switch_index') }}">Gestion switch</a></li>
+            <li class="breadcrumb-item"><a href="{{ path('app_gestion_switch_admin_index') }}">Configuration</a></li>
+            <li class="breadcrumb-item active">GLPI</li>
+        </ol>
+    </nav>
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-white">
+            <h1 class="h4 mb-0"><i class="fas fa-box-archive me-2" style="color:#800000"></i>{{ configured ? 'Modifier GLPI' : 'Configurer GLPI' }}</h1>
+        </div>
+        <div class="card-body">
+            {{ form_start(form, {attr: {novalidate: 'novalidate'}}) }}
+                <div class="row g-3">
+                    <div class="col-12">{{ form_row(form.url) }}</div>
+                    <div class="col-md-6">{{ form_row(form.client_id) }}</div>
+                    <div class="col-md-6">{{ form_row(form.client_secret) }}</div>
+                    <div class="col-md-6">{{ form_row(form.username) }}</div>
+                    <div class="col-md-6">{{ form_row(form.password) }}</div>
+                    <div class="col-12">{{ form_row(form.enabled) }}</div>
+                </div>
+
+                <hr class="my-4">
+                <button class="btn btn-success"><i class="fas fa-check me-1"></i>Enregistrer</button>
+                <a href="{{ path('app_gestion_switch_admin_index') }}" class="btn btn-outline-secondary">Annuler</a>
+            {{ form_end(form) }}
+        </div>
+    </div>
+</div>
+{% endblock %}

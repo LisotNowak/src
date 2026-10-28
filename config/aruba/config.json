@@ -135,5 +135,11 @@
             "host": "192.168.1.129",
             "name": "sw-chlatour-chateau-cuisine"
         }
-    ]
+    ],
+    "glpi": {
+        "enabled": true,
+        "url": "https://glpi-test.artemis-domaines.com",
+        "client_id": "73244a3d3def5f682118859dca47182394d3b46af86135aece9b69cce81b98c7",
+        "username": "api-reseau"
+    }
 }

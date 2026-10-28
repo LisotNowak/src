@@ -77,8 +77,10 @@ class Inventory
      * $switchCfgs : config des switchs (id, host, name)
      * $raw        : {id: résultat de AosCxClient::collect() ou {"error": "..."}}
      * $history    : mac -> dernière localisation (mis à jour en place)
+     * $glpi       : résultat de GlpiClient::collect() ou {"error": "..."}, null si GLPI n'est pas configuré
      */
-    public static function build(array $switchCfgs, array $raw, array &$history, array $otherSwitches = []): array
+    public static function build(array $switchCfgs, array $raw, array &$history, array $otherSwitches = [],
+                                 ?array $glpi = null): array
     {
         $now = gmdate('Y-m-d\TH:i:s') . '+00:00';
         // les clusters Wi-Fi sont traités à part (pas de ports ni de table MAC)
@@ -312,6 +314,30 @@ class Inventory
 
         $wifi = self::wifi($wifiCfgs, $raw, $switches, $allMacs, $best, $arp, $history, $now);
 
+        // GLPI : fiche du parc de chaque appareil vu (maintenant ou dans l'historique), par adresse MAC
+        $glpiOut = null;
+        $inGlpi = 0;
+        if ($glpi !== null) {
+            $byMac = $glpi['glpi']['macs'] ?? [];
+            $seen = $best;
+            foreach ($wifi as $w) {
+                foreach ($w['clients'] as $c) {
+                    $seen[$c['mac']] = true;
+                }
+            }
+            $macs = [];
+            foreach ($history as $mac => &$h) {
+                if (isset($byMac[$mac])) {
+                    $macs[$mac] = $byMac[$mac];
+                    $h['glpi_name'] = $byMac[$mac]['name'];
+                    $inGlpi += isset($seen[$mac]) ? 1 : 0;
+                }
+            }
+            unset($h);
+            $glpiOut = ['url' => $glpi['glpi']['url'] ?? '', 'error' => $glpi['error'] ?? null,
+                'collected_at' => $glpi['collected_at'] ?? null, 'assets' => $glpi['glpi']['assets'] ?? 0, 'macs' => $macs];
+        }
+
         // Les liens entre switchs gérés en double (chaque côté le voit) sont déjà fusionnés par la clé triée
         $sum = fn(string $k) => array_sum(array_map(fn($s) => $s['stats'][$k] ?? 0, $switches));
         return [
@@ -319,6 +345,7 @@ class Inventory
             'switches' => $switches,
             'macs' => $allMacs,
             'wifi' => $wifi,
+            'glpi' => $glpiOut,
             'topology' => ['nodes' => array_values($nodes), 'links' => array_values($links)],
             'summary' => [
                 'switches' => count($switches),
@@ -328,6 +355,7 @@ class Inventory
                 'ports_total' => $sum('ports_total'),
                 'wifi_aps' => array_sum(array_map(fn($w) => count($w['aps']), $wifi)),
                 'wifi_clients' => array_sum(array_map(fn($w) => count($w['clients']), $wifi)),
+                'glpi_matched' => $inGlpi,
             ],
         ];
     }

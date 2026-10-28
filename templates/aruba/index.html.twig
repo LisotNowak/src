@@ -101,6 +101,13 @@
     #aruba-app .result .loc{font-size:15px;margin:4px 0}
     #aruba-app .result .loc a{color:var(--accent);font-weight:650;cursor:pointer;text-decoration:none}
     #aruba-app .result details{margin-top:6px;font-size:12.5px;color:var(--muted)}
+    #aruba-app .glpi{font-size:13px;margin:4px 0}
+    #aruba-app .glpi i{color:var(--muted);margin-right:6px}
+    #aruba-app .glpi a{color:var(--accent);font-weight:650;text-decoration:none}
+    #aruba-app .glpi a:hover{text-decoration:underline}
+    #aruba-app .glpi.none{color:var(--muted)}
+    #aruba-app a.glpi-a{color:var(--accent);font-weight:600;text-decoration:none}
+    #aruba-app a.glpi-a:hover{text-decoration:underline}
     /* chemin réseau d'un résultat : switchs, ports, borne… jusqu'à l'appareil */
     #aruba-app .npath{display:flex;flex-wrap:wrap;align-items:center;row-gap:6px;margin:8px 0 6px;font-size:12.5px}
     #aruba-app .npath .seg{display:inline-flex;align-items:center}
@@ -405,6 +412,7 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
         [Math.max(ap, sm.wifi_aps??0),"bornes Wi-Fi"],
         [S.topology.links.filter(l=>!l.a.startsWith("ext:")&&!l.b.startsWith("ext:")).length,"liens entre switchs"],
         ...((S.wifi||[]).length ? [[sm.wifi_clients??0,"clients Wi-Fi"]] : []),
+        ...(S.glpi ? [S.glpi.error ? ["—","GLPI injoignable"] : [sm.glpi_matched??0,"appareils retrouvés dans GLPI"]] : []),
       ].map(([v,l])=>`<div class="kpi"><b>${esc(v)}</b><span>${l}</span></div>`).join("");
       $("#cards").innerHTML = S.switches.map(s=>{
         const st = s.stats||{}; const pct = st.ports_total ? Math.round(100*st.ports_up/st.ports_total) : 0;
@@ -457,11 +465,22 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
       renderPortDetail();
     }
 
+    // appareils d'un port : noms connus (LLDP, Wi-Fi, GLPI) avec l'utilisateur GLPI, sinon la MAC
+    function portDevices(p){
+      if(!p.mac_count) return "";
+      if(p.role==="uplink") return `<span class="muted">${p.mac_count} MAC</span>`;
+      const named = p.macs.filter(m=>NAMES.has(m.mac)).slice(0,3);
+      if(!named.length) return `<span class="mono">${p.mac_count===1?esc(p.macs[0].mac):p.mac_count+" MAC"}</span>`;
+      const rest = p.mac_count-named.length;
+      return named.map(m=>glpiLink(m.mac, NAMES.get(m.mac)) + (glpiUser(m.mac)?` <span class="muted">· ${esc(glpiUser(m.mac))}</span>`:"")).join("<br>")
+        + (rest>0?`<br><span class="muted">+${rest} MAC</span>`:"");
+    }
+
     function portMatches(p, f){
       if(!f) return true;
       const hx = hexOf(f);
       const hay = [p.name,p.description,p.native_vlan,p.trunks.join(","),...p.lldp.map(n=>n.name+" "+n.description),
-                   ...p.macs.map(m=>m.ip+" "+m.vendor)].join(" ").toLowerCase();
+                   ...p.macs.map(m=>m.ip+" "+m.vendor+" "+(NAMES.get(m.mac)||"")+" "+glpiText(m.mac))].join(" ").toLowerCase();
       if(hay.includes(f.toLowerCase())) return true;
       return hx.length>=4 && p.macs.some(m=>m.mac.replace(/:/g,"").includes(hx));
     }
@@ -470,7 +489,7 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
       const s = S.switches.find(x=>x.id===curSw); if(!s||s.error) return;
       const f = $("#pfilter").value.trim(), onlyUp=$("#pup").checked, onlyMac=$("#pmac").checked;
       const rows = s.ports.filter(p=>(!onlyUp||p.link==="up")&&(!onlyMac||p.mac_count)&&portMatches(p,f));
-      $("#ptable").innerHTML = `<thead><tr><th>Port</th><th>État</th><th>Rôle</th><th>Description</th><th>VLAN</th><th>Vitesse</th><th>Voisin LLDP</th><th>MAC</th></tr></thead><tbody>` +
+      $("#ptable").innerHTML = `<thead><tr><th>Port</th><th>État</th><th>Rôle</th><th>Description</th><th>VLAN</th><th>Vitesse</th><th>Voisin LLDP</th><th>Appareil</th></tr></thead><tbody>` +
         rows.map(p=>`<tr class="clk" data-p="${esc(p.name)}">
           <td class="mono"><b>${esc(p.name)}</b>${p.lag?` <span class="muted">(${esc(p.lag)})</span>`:""}</td>
           <td>${p.admin==="down"?'<span style="color:var(--admin)">désactivé</span>':p.link==="up"?'<span style="color:var(--up)">● actif</span>':'<span class="muted">○ inactif</span>'}</td>
@@ -479,8 +498,8 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
           <td class="mono">${esc(p.native_vlan)}${p.trunks.length?` <span class="muted">+${esc(p.trunks.filter(v=>v!==p.native_vlan).join(","))}</span>`:""}</td>
           <td class="mono">${fmtSpeed(p.speed)}</td>
           <td>${p.lldp.map(n=>`${esc(n.name||n.chassis_id)} <span class="muted mono">${esc(n.port_id)}</span>`).join("<br>")}</td>
-          <td class="mono">${p.mac_count===1?esc(p.macs[0].mac):p.mac_count?p.mac_count+" MAC":""}</td></tr>`).join("") + `</tbody>`;
-      document.querySelectorAll("#ptable tr.clk").forEach(r=>r.onclick=()=>selectPort(r.dataset.p));
+          <td>${portDevices(p)}</td></tr>`).join("") + `</tbody>`;
+      document.querySelectorAll("#ptable tr.clk").forEach(r=>r.onclick=e=>{ if(!e.target.closest("a")) selectPort(r.dataset.p); });
     }
     ["#pfilter","#pup","#pmac"].forEach(id=>$(id).addEventListener("input",renderPortTable));
 
@@ -513,8 +532,9 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
            return `<tr><td>${known?`<a href="#" data-goto="${esc(known.id)}" data-port="${esc(n.port_id)}" style="color:var(--accent)">${esc(n.name)}</a>`:esc(n.name)}</td><td class="mono">${esc(n.port_id)}</td><td class="mono">${esc(n.mgmt_ip)}</td><td>${esc(n.capabilities)}</td><td class="muted">${esc(n.description)}</td></tr>`;}).join("")}</tbody></table>`:""}
        <h2 style="font-size:14px;margin-top:14px">Adresses MAC apprises (${p.mac_count})</h2>
        ${p.role==="uplink"?`<div class="muted" style="font-size:12.5px;margin-bottom:6px">Port d'uplink : ces MAC sont vues en transit, les équipements sont branchés ailleurs.</div>`:""}
-       ${p.mac_count?`<div class="scroll" style="max-height:300px"><table><thead><tr><th>MAC</th><th>Nom</th><th>VLAN</th><th>IP</th><th>Constructeur</th></tr></thead><tbody>${
-         p.macs.map(m=>`<tr><td class="mono">${esc(m.mac)}</td><td>${esc(NAMES.get(m.mac)||"")}</td><td class="mono">${esc(m.vlan)}</td><td class="mono">${esc(m.ip)}</td><td>${esc(m.vendor)}</td></tr>`).join("")}</tbody></table></div>`:'<div class="muted">Aucune.</div>'}`;
+       ${p.mac_count?`<div class="scroll" style="max-height:300px"><table><thead><tr><th>MAC</th><th>Nom</th><th>Utilisateur</th><th>Modèle</th><th>VLAN</th><th>IP</th><th>Constructeur</th></tr></thead><tbody>${
+         p.macs.map(m=>`<tr><td class="mono">${esc(m.mac)}</td><td>${glpiLink(m.mac, NAMES.get(m.mac))}</td><td>${esc(glpiUser(m.mac))}</td>
+           <td class="muted">${esc(GLPI.get(m.mac)?.model||"")}</td><td class="mono">${esc(m.vlan)}</td><td class="mono">${esc(m.ip)}</td><td>${esc(m.vendor)}</td></tr>`).join("")}</tbody></table></div>`:'<div class="muted">Aucune.</div>'}`;
       el.querySelectorAll("[data-goto]").forEach(a=>a.onclick=e=>{ e.preventDefault(); curSw=a.dataset.goto; renderPorts(); selectPort(a.dataset.port,true); });
     }
 
@@ -523,15 +543,37 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
     /* ---------------- recherche ---------------- */
     // nom par adresse MAC : annoncé en LLDP par l'appareil lui-même (PC Windows, bornes, téléphones…)
     // ou connu des bornes Wi-Fi ; WIFI : client Wi-Fi par adresse MAC
-    let NAMES = new Map(), WIFI = new Map();
+    // GLPI : fiche du parc par adresse MAC
+    let NAMES = new Map(), WIFI = new Map(), GLPI = new Map();
     function buildNames(){
-      NAMES = new Map(); WIFI = new Map();
+      NAMES = new Map(); WIFI = new Map(); GLPI = new Map(Object.entries(S.glpi?.macs||{}));
       for(const s of S.switches) for(const p of (s.ports||[])) for(const n of p.lldp)
         if(n.name && n.name!==n.chassis_id && /^([0-9a-f]{2}:){5}[0-9a-f]{2}$/.test(n.chassis_id)) NAMES.set(n.chassis_id, n.name);
       for(const w of (S.wifi||[])) for(const c of w.clients){
         WIFI.set(c.mac, c);
         if(c.name && c.name!==c.mac && !NAMES.has(c.mac)) NAMES.set(c.mac, c.name);
       }
+      for(const [mac,g] of GLPI) if(g.name && !NAMES.has(mac)) NAMES.set(mac, g.name);
+    }
+    // nom de l'appareil, en lien vers sa fiche GLPI quand il y en a une
+    const glpiLink = (mac, label)=>{ const g=GLPI.get(mac);
+      return g ? `<a href="${esc(g.url)}" target="_blank" rel="noopener" class="glpi-a">${esc(label||g.name)}</a>` : esc(label||""); };
+    const glpiUser = mac=>{ const g=GLPI.get(mac); return g ? g.user||g.contact : ""; };
+    // fiche GLPI en lignes de tableau (panneau d'information de la carte)
+    function glpiRows(mac){
+      const g = GLPI.get(mac); if(!g) return "";
+      return [["GLPI", `<a href="${esc(g.url)}" target="_blank" rel="noopener" class="glpi-a">${esc(g.type_label)} ${esc(g.name)}</a>`],
+        ["Utilisateur", esc(g.user||g.contact)], ["Modèle", esc(g.model)], ["N° de série", esc(g.serial)], ["Lieu", esc(g.location)]]
+        .filter(r=>r[1]).map(r=>`<tr><td class="muted">${r[0]}</td><td>${r[1]}</td></tr>`).join("");
+    }
+    const glpiText = mac=>{ const g=GLPI.get(mac); return g ? [g.name,g.user,g.contact,g.serial,g.model].join(" ").toLowerCase() : ""; };
+    function glpiLine(mac){
+      if(!S.glpi || S.glpi.error) return "";
+      const g = GLPI.get(mac);
+      // une MAC aléatoire (téléphone, PC en Wi-Fi privé) ne peut pas être dans GLPI
+      if(!g) return parseInt(hexOf(mac)[1]||"0",16)&2 ? "" : `<div class="glpi none"><i class="fas fa-box-archive"></i>Absent de GLPI</div>`;
+      return `<div class="glpi"><i class="fas fa-box-archive"></i><a href="${esc(g.url)}" target="_blank" rel="noopener">${esc(g.type_label)} ${esc(g.name)}</a>${
+        [g.user||g.contact, g.model, g.serial?"n° de série "+g.serial:"", g.location].filter(Boolean).map(x=>" · "+esc(x)).join("")}</div>`;
     }
     function wifiLine(c){
       return `<div class="muted"><i class="fas fa-wifi me-1"></i>Wi-Fi : borne <b>${esc(c.ap)}</b> · réseau ${esc(c.essid)}
@@ -620,7 +662,7 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
       const byMac = new Map();
       for(const m of S.macs){
         const hit = (isHex && m.mac.replace(/:/g,"").includes(hx)) || (m.ip && (m.ip===q || (q.includes(".") && m.ip.startsWith(q))))
-          || (ql.length>=2 && (NAMES.get(m.mac)||"").toLowerCase().includes(ql))
+          || (ql.length>=2 && ((NAMES.get(m.mac)||"").toLowerCase().includes(ql) || glpiText(m.mac).includes(ql)))
           || (!isHex && ql.length>=2 && (m.port_desc.toLowerCase().includes(ql) || m.vendor.toLowerCase().includes(ql) || m.via.toLowerCase().includes(ql)));
         if(hit){ if(!byMac.has(m.mac)) byMac.set(m.mac,[]); byMac.get(m.mac).push(m); }
       }
@@ -638,7 +680,7 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
         && [n.name, n.mgmt_ip, n.chassis_id, n.description, n.port_description].join(" ").toLowerCase().includes(ql)).map(n=>({s,p,n})))) : [];
       // clients Wi-Fi absents des tables MAC des switchs interrogés
       const hx=hexOf(q), wifiHits = ql.length>=2 ? [...WIFI.values()].filter(c=>!found.has(c.mac)
-        && ([c.name, c.ip, c.essid, c.ap, c.os].join(" ").toLowerCase().includes(ql) || (hx.length>=4 && c.mac.replace(/:/g,"").includes(hx)))) : [];
+        && ([c.name, c.ip, c.essid, c.ap, c.os].join(" ").toLowerCase().includes(ql) || glpiText(c.mac).includes(ql) || (hx.length>=4 && c.mac.replace(/:/g,"").includes(hx)))) : [];
       let html="";
       if(wifiHits.length){
         html += `<h2>Appareils Wi-Fi (${wifiHits.length})</h2>` + wifiHits.slice(0,100).map(c=>`<div class="result">
@@ -646,6 +688,7 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
           <div class="mono"><b>${esc(c.mac)}</b> ${c.ip?"· "+esc(c.ip):""} ${c.vendor?`<span class="muted">· ${esc(c.vendor)}</span>`:""}</div>
           <div class="loc">Connecté en Wi-Fi sur la borne <b>${esc(c.ap)}</b> (${esc(c.cluster_name)})${c.switch?`, branchée sur <a data-sw="${esc(c.switch)}" data-p="${esc(c.port)}">${esc(c.switch_name)} · port ${esc(c.port)}</a>`:""}</div>
           ${pathHtml(c.switch, c.switch_name, c.port, apTail(c.ap, c.band, c.name&&c.name!==c.mac?c.name:c.mac))}
+          ${glpiLine(c.mac)}
           <div class="muted">Réseau ${esc(c.essid)} · ${esc(c.band)} ${esc(c.standard)} · signal ${c.signal} dB · ${c.speed} Mb/s${c.os?" · "+esc(c.os):""}</div>
         </div>`).join("");
       }
@@ -672,6 +715,7 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
             <div class="loc">${transitOnly?"Vu seulement en transit sur ":"Connecté sur "}<a data-sw="${esc(prim.switch)}" data-p="${esc(prim.port)}">${esc(prim.switch_name)} · port ${esc(prim.port)}</a>
               <span class="tag ${prim.role}">${ROLE_FR[prim.role]}</span> · VLAN ${esc(prim.vlan)} ${prim.vlan_name?`(${esc(prim.vlan_name)})`:""}</div>
             ${pathHtml(prim.switch, prim.switch_name, prim.port, macTail(mac, prim))}
+            ${glpiLine(mac)}
             ${prim.port_desc?`<div class="muted">Description du port : ${esc(prim.port_desc)}</div>`:""}
             ${WIFI.has(mac) ? wifiLine(WIFI.get(mac)) : ""}
             ${others.length?`<details><summary>Trafic vu aussi sur ${others.length} liaison${others.length>1?"s":""} entre switchs</summary>${others.map(o=>`${esc(o.switch_name)} · ${esc(o.port)} (${ROLE_FR[o.role]})`).join("<br>")}</details>`:""}
@@ -683,10 +727,11 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
           try{
             const h = await getJson(API.history+"?q="+encodeURIComponent(q));
             if(h.length) html += `<h2>Dernière position connue (historique)</h2>` + h.slice(0,30).map(x=>`<div class="result">
-              ${x.name?`<div style="font-size:15px;font-weight:650">${esc(x.name)}</div>`:""}
+              ${x.name||x.glpi_name?`<div style="font-size:15px;font-weight:650">${esc(x.name||x.glpi_name)}</div>`:""}
               <div class="mono"><b>${esc(x.mac)}</b> ${x.ip?"· "+esc(x.ip):""}</div>
               <div class="loc">Vue pour la dernière fois ${x.ap?`en Wi-Fi sur la borne <b>${esc(x.ap)}</b> (réseau ${esc(x.essid)})${x.switch?", branchée sur ":""}`:"sur "}${x.switch?`<a data-sw="${esc(x.switch)}" data-p="${esc(x.port)}">${esc(x.switch_name)} · port ${esc(x.port)}</a>`:""}${x.vlan&&!x.ap?` · VLAN ${esc(x.vlan)}`:""}</div>
-              ${x.switch||x.ap ? pathHtml(x.switch, x.switch_name, x.port, x.ap ? apTail(x.ap, "", x.name||x.mac) : [devNode(x.name||x.mac)]) : ""}
+              ${x.switch||x.ap ? pathHtml(x.switch, x.switch_name, x.port, x.ap ? apTail(x.ap, "", x.name||x.glpi_name||x.mac) : [devNode(x.name||x.glpi_name||x.mac)]) : ""}
+              ${glpiLine(x.mac)}
               <div class="muted">Le ${fmtDate(x.last_seen)} · première fois le ${fmtDate(x.first_seen)}</div></div>`).join("");
           }catch(e){}
         }
@@ -702,7 +747,7 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
       const portLink = x => x.switch ? `<a href="#" data-sw="${esc(x.switch)}" data-p="${esc(x.port)}" style="color:var(--accent)">${esc(x.switch_name)} · ${esc(x.port)}</a>` : `<span class="muted">—</span>`;
       const clusters = S.wifi||[];
       $("#wifi").innerHTML = clusters.map(w=>{
-        const clients = w.clients.filter(c=>!f || [c.name,c.ip,c.mac,c.essid,c.ap,c.os,c.vendor].join(" ").toLowerCase().includes(f))
+        const clients = w.clients.filter(c=>!f || [c.name,c.ip,c.mac,c.essid,c.ap,c.os,c.vendor,glpiText(c.mac)].join(" ").toLowerCase().includes(f))
           .sort((a,b)=>a.ap.localeCompare(b.ap) || a.name.localeCompare(b.name));
         return `<div class="panel">
           <h2 style="margin-bottom:4px"><i class="fas fa-wifi me-2" style="color:var(--ap)"></i>${esc(w.name)} ${w.site?`<span class="ax-badge">${esc(w.site)}</span>`:""}</h2>
@@ -717,7 +762,7 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
           <h2 style="font-size:14px;margin-top:16px">Clients connectés (${clients.length}${f?" / "+w.clients.length:""})</h2>
           <div class="scroll"><table>
             <thead><tr><th>Appareil</th><th>IP</th><th>MAC</th><th>Système</th><th>Réseau</th><th>Borne</th><th>Bande</th><th>Signal</th><th>Débit</th></tr></thead>
-            <tbody>${clients.map(c=>`<tr><td><b>${esc(c.name&&c.name!==c.mac?c.name:"")}</b>${c.vendor?`<div class="muted" style="font-size:11.5px">${esc(c.vendor)}</div>`:""}</td>
+            <tbody>${clients.map(c=>`<tr><td><b>${glpiLink(c.mac, c.name&&c.name!==c.mac?c.name:(GLPI.get(c.mac)?.name||""))}</b>${glpiUser(c.mac)?`<div class="muted" style="font-size:11.5px">${esc(glpiUser(c.mac))}</div>`:""}${c.vendor?`<div class="muted" style="font-size:11.5px">${esc(c.vendor)}</div>`:""}</td>
               <td class="mono">${esc(c.ip)}</td><td class="mono">${esc(c.mac)}</td><td>${esc(c.os)}</td><td>${esc(c.essid)}</td><td>${esc(c.ap)}</td>
               <td>${esc(c.band)} <span class="muted">${esc(c.standard)}</span></td><td>${c.signal} dB</td><td>${c.speed} Mb/s</td></tr>`).join("")
               || `<tr><td colspan="9" class="muted">Aucun client${f?" ne correspond au filtre":""}.</td></tr>`}</tbody>
@@ -730,6 +775,10 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
     /* ---------------- carte ---------------- */
     const SVGNS="http://www.w3.org/2000/svg";
     const big = n=>!!(n.managed||n.infra);
+    const isMac = s=>/^([0-9a-f]{2}:){5}[0-9a-f]{2}$/.test(s||"");
+    // adresse MAC d'un nœud : client Wi-Fi, voisin LLDP identifié par sa MAC, switch géré
+    const nodeMac = n=>n.client ? n.client.mac : n.id.startsWith("ext:") && isMac(n.id.slice(4)) ? n.id.slice(4)
+      : n.managed ? (S.switches.find(s=>s.id===n.id)?.system_mac||"") : "";
     const mapState = {built:false, nodes:[], links:[], view:{x:0,y:0,k:1}, pos:{}};
     try{ mapState.pos = JSON.parse(localStorage.getItem("aruba-map-pos")||"{}"); }catch(e){}
     function savePos(){ try{ const o={}; mapState.nodes.forEach(n=>o[n.id]=[Math.round(n.x),Math.round(n.y)]); localStorage.setItem("aruba-map-pos",JSON.stringify(o)); }catch(e){} }
@@ -826,11 +875,13 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
       }
       const apOf = n => big(n) ? null : (wap.get((n.label||"").toLowerCase()) || (n.ip ? wap.get(n.ip) : null) || null);
       const visible = new Set(S.topology.nodes.filter(n=>big(n) || f[n.kind] || (f.wifi && apOf(n)?.clients.length)).map(n=>n.id));
-      const nodes = S.topology.nodes.filter(n=>visible.has(n.id)).map(n=>({...n, wifi:apOf(n)}));
+      // un voisin qui n'annonce que sa MAC prend le nom connu par ailleurs (GLPI…)
+      const nodes = S.topology.nodes.filter(n=>visible.has(n.id)).map(n=>({...n, wifi:apOf(n),
+        label: isMac(n.label) && NAMES.has(nodeMac(n)) ? NAMES.get(nodeMac(n)) : n.label}));
       const byId = Object.fromEntries(nodes.map(n=>[n.id,n]));
       const wifiLinks = [];
       if(f.wifi) nodes.filter(n=>n.wifi).forEach(apn=>apn.wifi.clients.forEach(c=>{
-        const cn = {id:"wc:"+c.mac, label:c.name&&c.name!==c.mac?c.name:c.mac, kind:"client", client:c, ip:c.ip, status:"unmanaged"};
+        const cn = {id:"wc:"+c.mac, label:c.name&&c.name!==c.mac?c.name:(NAMES.get(c.mac)||c.mac), kind:"client", client:c, ip:c.ip, status:"unmanaged"};
         if(byId[cn.id]) return;
         nodes.push(cn); byId[cn.id]=cn;
         wifiLinks.push({a:apn.id, b:cn.id, ports:[], na:apn, nb:cn, uplink:false, wifi:true});
@@ -916,16 +967,18 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
             ${c.vendor?`<div class="muted" style="margin-bottom:8px">${esc(c.vendor)}</div>`:""}
             <table><tr><td class="muted">Borne</td><td>${esc(c.ap)}</td></tr><tr><td class="muted">Réseau</td><td>${esc(c.essid)}</td></tr>
               <tr><td class="muted">Bande</td><td>${esc(c.band)} ${esc(c.standard)} · canal ${esc(c.channel)}</td></tr>
-              <tr><td class="muted">Signal</td><td>${c.signal} dB · ${c.speed} Mb/s</td></tr>${c.os?`<tr><td class="muted">Système</td><td>${esc(c.os)}</td></tr>`:""}</table>`;
+              <tr><td class="muted">Signal</td><td>${c.signal} dB · ${c.speed} Mb/s</td></tr>${c.os?`<tr><td class="muted">Système</td><td>${esc(c.os)}</td></tr>`:""}
+              ${glpiRows(c.mac)}</table>`;
           return;
         }
-        const wc = n.wifi ? n.wifi.clients : [];
+        const wc = n.wifi ? n.wifi.clients : [], gr = glpiRows(nodeMac(n));
         box.innerHTML=`<b style="font-size:14px">${esc(n.label)}</b><div class="muted mono" style="margin:2px 0 8px">${esc(n.ip||"")}</div>
           <div class="muted" style="margin-bottom:8px">${esc(n.wifi?`${n.wifi.ap.model} · ${n.wifi.cluster.name}`:(n.detail||""))}</div>
+          ${gr?`<table style="margin-bottom:10px">${gr}</table>`:""}
           ${n.managed && n.status!=="error"?`<button class="ax-btn" id="mi-go" style="margin-bottom:10px">Voir les ports</button>`:""}
           <table>${conns.filter(c=>!c.other.client).map(c=>`<tr><td>${esc(c.other.label)}</td><td class="mono">${c.ports.map(p=>esc(p[0])+" ↔ "+esc(p[1])).join("<br>")}</td></tr>`).join("")}</table>
           ${n.wifi?`<h2 style="font-size:13px;margin:12px 0 4px">Clients Wi-Fi (${wc.length})</h2>
-            ${wc.length?`<table>${wc.map(c=>`<tr><td><b>${esc(c.name&&c.name!==c.mac?c.name:c.mac)}</b><div class="muted mono" style="font-size:11px">${esc(c.ip)}</div></td>
+            ${wc.length?`<table>${wc.map(c=>`<tr><td><b>${glpiLink(c.mac, c.name&&c.name!==c.mac?c.name:(NAMES.get(c.mac)||c.mac))}</b>${glpiUser(c.mac)?`<div class="muted" style="font-size:11px">${esc(glpiUser(c.mac))}</div>`:""}<div class="muted mono" style="font-size:11px">${esc(c.ip)}</div></td>
               <td class="muted">${esc(c.essid)}<br>${c.signal} dB</td></tr>`).join("")}</table>`:`<div class="muted">Aucun client connecté.</div>`}
             <button class="ax-btn" id="mi-wifi" style="margin-top:10px">Voir dans Bornes Wi-Fi</button>`:""}`;
         const go=$("#mi-go"); if(go) go.onclick=()=>{ curSw=n.id; curPort=null; renderPorts(); show("ports"); };

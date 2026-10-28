@@ -212,6 +212,50 @@
             </div>
         </div>
     {% endfor %}
+
+    {# ── GLPI : fiches du parc retrouvées par adresse MAC ── #}
+    <h2 class="h5 mb-2 mt-4" id="glpi"><i class="fas fa-box-archive me-2" style="color:#800000"></i>GLPI</h2>
+    <div class="card shadow-sm mb-3">
+        {% if glpi %}
+            <div class="card-body d-flex flex-wrap align-items-center gap-4">
+                <div>
+                    <div class="fw-semibold"><a href="{{ glpi.url }}" target="_blank" rel="noopener" class="text-decoration-none" style="color:#800000">{{ glpi.url|replace({'https://': '', 'http://': ''}) }}</a></div>
+                    <div class="small text-muted">{{ (glpi.enabled ?? true) ? 'Interrogé à chaque actualisation' : 'Désactivé' }}</div>
+                </div>
+                <div class="small"><span class="text-muted small d-block">Compte</span>
+                    <i class="fas fa-user me-1 text-muted"></i>{{ glpi.username ?? '' }}</div>
+                <div class="small"><span class="text-muted small d-block">Dernière collecte</span>
+                    {% if not glpi_last %}
+                        <span class="text-muted">jamais interrogé</span>
+                    {% elseif glpi_last.error %}
+                        <span class="text-danger"><i class="fas fa-xmark me-1"></i>erreur</span>
+                        <div class="text-muted" style="max-width:420px">{{ glpi_last.error }}</div>
+                    {% else %}
+                        <span class="text-success"><i class="fas fa-check me-1"></i>OK</span>
+                        <span class="text-muted">· {{ glpi_last.assets }} éléments du parc · {{ glpi_last.matched }} appareils retrouvés sur le réseau{% if glpi_last.collected_at %} · {{ glpi_last.collected_at|date('d/m/Y H:i', 'Europe/Paris') }}{% endif %}</span>
+                    {% endif %}
+                </div>
+                <div class="ms-auto text-nowrap">
+                    <form method="post" action="{{ path('app_gestion_switch_admin_glpi_test') }}" class="d-inline js-test">
+                        <input type="hidden" name="_token" value="{{ csrf_token('test-glpi') }}">
+                        <button class="btn btn-outline-secondary btn-sm" title="Tester la connexion"><i class="fas fa-plug"></i></button>
+                    </form>
+                    <a href="{{ path('app_gestion_switch_admin_glpi') }}" class="btn btn-primary btn-sm" title="Modifier"><i class="fas fa-pen"></i></a>
+                    <form method="post" action="{{ path('app_gestion_switch_admin_glpi_delete') }}" class="d-inline"
+                          onsubmit="return confirm('Retirer GLPI et ses identifiants ?');">
+                        <input type="hidden" name="_token" value="{{ csrf_token('delete-glpi') }}">
+                        <button class="btn btn-danger btn-sm" title="Supprimer"><i class="fas fa-trash"></i></button>
+                    </form>
+                </div>
+            </div>
+        {% else %}
+            <div class="card-body text-center text-muted py-4">
+                <i class="fas fa-box-archive fa-2x mb-2 d-block"></i>
+                GLPI n'est pas configuré<br>
+                <a href="{{ path('app_gestion_switch_admin_glpi') }}" class="btn btn-outline-primary btn-sm mt-2"><i class="fas fa-plus me-1"></i>Configurer GLPI</a>
+            </div>
+        {% endif %}
+    </div>
 </div>
 
 <script>

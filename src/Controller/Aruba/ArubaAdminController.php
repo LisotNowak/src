@@ -2,6 +2,7 @@
 
 namespace App\Controller\Aruba;
 
+use App\Form\Aruba\GlpiType;
 use App\Form\Aruba\SwitchSettingsType;
 use App\Form\Aruba\SwitchType;
 use App\Service\Aruba\Collector;
@@ -58,6 +59,8 @@ class ArubaAdminController extends AbstractController
             'parallel' => $this->config->get('parallel', 8),
             'other_switches' => $this->config->get('other_switches', []),
             'running' => $this->collector->isRunning(),
+            'glpi' => $this->config->glpi(),
+            'glpi_last' => ($snap['glpi'] ?? null) ? $snap['glpi'] + ['matched' => $snap['summary']['glpi_matched'] ?? 0] : null,
         ]);
     }
 
@@ -211,6 +214,77 @@ class ArubaAdminController extends AbstractController
         }
 
         return $this->render('aruba/admin/settings.html.twig', ['form' => $form->createView()]);
+    }
+
+    #[Route('/glpi', name: 'glpi', methods: ['GET', 'POST'])]
+    public function glpi(Request $request): Response
+    {
+        $g = $this->config->glpi() ?? [];
+        $hasSecret = $this->config->hasOwnPassword('glpi-client');
+        $hasPassword = $this->config->hasOwnPassword('glpi');
+        $form = $this->createForm(GlpiType::class, [
+            'enabled' => (bool) ($g['enabled'] ?? true),
+            'url' => $g['url'] ?? '',
+            'client_id' => $g['client_id'] ?? '',
+            'username' => $g['username'] ?? '',
+        ], ['has_secret' => $hasSecret, 'has_password' => $hasPassword]);
+        $form->handleRequest($request);
+
+        if ($form->isSubmitted() && $form->isValid()) {
+            $data = $form->getData();
+            if (!$hasSecret && ($data['client_secret'] ?? '') === '') {
+                $form->get('client_secret')->addError(new FormError('Renseignez le secret du client OAuth.'));
+            }
+            if (!$hasPassword && ($data['password'] ?? '') === '') {
+                $form->get('password')->addError(new FormError('Renseignez le mot de passe du compte.'));
+            }
+            if ($form->isValid()) {
+                $this->config->saveGlpi([
+                    'enabled' => (bool) $data['enabled'],
+                    // l'adresse de l'API (…/api.php/v3.0) est acceptée : on garde la racine de GLPI
+                    'url' => rtrim((string) preg_replace('#/api\.php.*$#', '', trim($data['url'])), '/'),
+                    'client_id' => trim($data['client_id']),
+                    'username' => trim($data['username']),
+                ]);
+                if (($data['client_secret'] ?? '') !== '') {
+                    $this->config->setPassword('glpi-client', $data['client_secret']);
+                }
+                if (($data['password'] ?? '') !== '') {
+                    $this->config->setPassword('glpi', $data['password']);
+                }
+                $this->addFlash('success', 'GLPI enregistré.');
+                return $this->redirectToRoute('app_gestion_switch_admin_index', ['_fragment' => 'glpi']);
+            }
+        }
+
+        return $this->render('aruba/admin/glpi.html.twig', ['form' => $form->createView(), 'configured' => $g !== []]);
+    }
+
+    #[Route('/glpi/tester', name: 'glpi_test', methods: ['POST'])]
+    public function glpiTest(Request $request): Response
+    {
+        if ($this->isCsrfTokenValid('test-glpi', $request->request->get('_token'))) {
+            $r = $this->collector->testSwitch(Collector::GLPI);
+            if ($r['ok']) {
+                $this->addFlash('success', sprintf('Connexion à GLPI réussie (%s s) : %s.',
+                    str_replace('.', ',', (string) $r['duration']), $r['system']['hostname']));
+            } else {
+                $this->addFlash('danger', 'Connexion à GLPI impossible : ' . $r['error']);
+            }
+        }
+
+        return $this->redirectToRoute('app_gestion_switch_admin_index', ['_fragment' => 'glpi']);
+    }
+
+    #[Route('/glpi/supprimer', name: 'glpi_delete', methods: ['POST'])]
+    public function glpiDelete(Request $request): Response
+    {
+        if ($this->isCsrfTokenValid('delete-glpi', $request->request->get('_token'))) {
+            $this->config->saveGlpi(null);
+            $this->addFlash('success', 'GLPI retiré. Ses informations disparaîtront à la prochaine actualisation.');
+        }
+
+        return $this->redirectToRoute('app_gestion_switch_admin_index');
     }
 
     // ────────────────────────────────────────────────────────────────────────
