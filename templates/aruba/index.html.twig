@@ -101,6 +101,24 @@
     #aruba-app .result .loc{font-size:15px;margin:4px 0}
     #aruba-app .result .loc a{color:var(--accent);font-weight:650;cursor:pointer;text-decoration:none}
     #aruba-app .result details{margin-top:6px;font-size:12.5px;color:var(--muted)}
+    /* chemin réseau d'un résultat : switchs, ports, borne… jusqu'à l'appareil */
+    #aruba-app .npath{display:flex;flex-wrap:wrap;align-items:center;row-gap:6px;margin:8px 0 6px;font-size:12.5px}
+    #aruba-app .npath .seg{display:inline-flex;align-items:center}
+    #aruba-app .npath .nd{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border:1.5px solid var(--line);border-radius:7px;background:var(--panel);font-weight:600;white-space:nowrap}
+    #aruba-app .npath .nd i{font-size:11px;color:var(--muted)}
+    #aruba-app .npath .nd small{font-weight:400;color:var(--muted)}
+    #aruba-app .npath .nd.sw{border-color:var(--accent)} #aruba-app .npath .nd.sw i{color:var(--accent)}
+    #aruba-app .npath .nd.infra,#aruba-app .npath .nd.unk{border-style:dashed;border-color:var(--muted)}
+    #aruba-app .npath .nd.unk{font-weight:400;color:var(--muted)}
+    #aruba-app .npath .nd.ap{border-color:var(--ap)} #aruba-app .npath .nd.ap i{color:var(--ap)}
+    #aruba-app .npath .nd.ext{border-color:var(--ext)} #aruba-app .npath .nd.ext i{color:var(--ext)}
+    #aruba-app .npath .nd.dev{background:var(--panel2)}
+    #aruba-app .npath .ln{display:inline-flex;align-items:center;gap:4px;padding:0 4px;color:var(--muted);font-family:ui-monospace,Consolas,monospace;font-size:11.5px}
+    #aruba-app .npath .ln b{display:inline-block;width:18px;border-top:2px solid var(--muted)}
+    #aruba-app .npath .ln.wifi b{border-top:2px dashed var(--ap)}
+    #aruba-app .npath .ln.unk b{border-top-style:dashed}
+    #aruba-app .npath .ln a{color:var(--accent);cursor:pointer;text-decoration:none;font-weight:600}
+    #aruba-app .npath .ln a:hover{text-decoration:underline}
     #aruba-app .empty{padding:30px;text-align:center;color:var(--muted)}
 
     /* carte */
@@ -203,7 +221,7 @@
                 <button class="ax-btn primary">Rechercher</button>
             </form>
             <div class="muted" style="font-size:12.5px;margin:-6px 0 14px">
-                Recherche dans tous les switchs et bornes Wi-Fi. Saisie partielle acceptée (3 caractères minimum).
+                Recherche dans tous les switchs et bornes Wi-Fi. Saisie partielle acceptée (2 caractères minimum).
             </div>
             <div id="sresults"></div>
         </section>
@@ -293,6 +311,7 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
     async function load(){
       S = await getJson(API.snapshot);
       buildNames();
+      buildTree();
       setLast();
       renderOverview();
       renderWifi();
@@ -518,6 +537,82 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
       return `<div class="muted"><i class="fas fa-wifi me-1"></i>Wi-Fi : borne <b>${esc(c.ap)}</b> · réseau ${esc(c.essid)}
         · ${esc(c.band)} ${esc(c.standard)} · signal ${c.signal} dB${c.os?" · "+esc(c.os):""}</div>`;
     }
+    // chemin réseau : arbre des switchs construit comme sur la carte (racine = le plus connecté, le cœur)
+    let TREE = {parent:new Map(), nodes:{}};
+    function buildTree(){
+      const nodes = Object.fromEntries(S.topology.nodes.filter(big).map(n=>[n.id,n]));
+      const adj = new Map(Object.keys(nodes).map(id=>[id,new Map()]));
+      const add = (x,y,px,py)=>{ const m=adj.get(x); if(!m.has(y)) m.set(y,[]); m.get(y).push([px,py]); };
+      S.topology.links.forEach(l=>{ if(nodes[l.a] && nodes[l.b] && l.a!==l.b){ add(l.a,l.b,l.a_port,l.b_port); add(l.b,l.a,l.b_port,l.a_port); } });
+      const parent = new Map();
+      Object.values(nodes).sort((a,b)=>adj.get(b.id).size-adj.get(a.id).size || a.label.localeCompare(b.label)).forEach(r=>{
+        if(parent.has(r.id)) return; parent.set(r.id,null); const q=[r.id];
+        while(q.length){ const c=q.shift();
+          [...adj.get(c).keys()].filter(id=>!parent.has(id)).sort((a,b)=>nodes[a].label.localeCompare(nodes[b].label))
+            .forEach(id=>{ parent.set(id,{from:c, ports:cleanPorts(c, id, adj.get(c).get(id))}); q.push(id); });
+        }
+      });
+      TREE = {parent, nodes};
+    }
+    // une liaison peut être annoncée sous deux noms de port (« 1/7 » et « 7 » sur la pile 2930F) : on garde les vrais noms
+    function cleanPorts(a, b, pairs){
+      const names = id=>new Set((S.switches.find(s=>s.id===id)?.ports||[]).map(p=>p.name));
+      const na=names(a), nb=names(b);
+      let k = pairs.filter(p=>na.has(p[0])); if(k.length) pairs=k;
+      k = pairs.filter(p=>nb.has(p[1])); if(k.length) pairs=k;
+      return pairs.filter((p,i)=>pairs.findIndex(o=>o[0]===p[0]&&o[1]===p[1])===i);
+    }
+    // voisin (switch) vu en LLDP sur un port, ou sur un membre du LAG
+    function neighborOn(sid, port){
+      const members = S.switches.find(s=>s.id===sid)?.ports.find(p=>p.name===port)?.members || [];
+      const ports = new Set([port, ...members]);
+      for(const l of S.topology.links){
+        if(l.a===sid && ports.has(l.a_port)) return {node:TREE.nodes[l.b], port:l.b_port};
+        if(l.b===sid && ports.has(l.b_port)) return {node:TREE.nodes[l.a], port:l.a_port};
+      }
+      return null;
+    }
+    /**
+     * sid/swName/port : switch et port où l'appareil (ou sa borne) est branché ;
+     * tail : éléments suivants [{node:{cls,icon,label,note}, left, right, mid, cls}] (lien puis nœud).
+     */
+    function pathHtml(sid, swName, port, tail){
+      const pl = (s,p)=>!p ? "" : S.switches.some(x=>x.id===s && !x.error) ? `<a data-sw="${esc(s)}" data-p="${esc(p)}">${esc(p)}</a>` : esc(p);
+      const ln = (l,r,cls="",mid="")=>`<span class="ln ${cls}">${l}<b></b>${mid?`${esc(mid)}<b></b>`:""}${r}</span>`;
+      const nd = n=>`<span class="nd ${n.cls}"><i class="fas fa-${n.icon}"></i>${esc(n.label)}${n.note?` <small>${esc(n.note)}</small>`:""}</span>`;
+      const seg = x=>`<span class="seg">${x}</span>`;   // un lien et l'élément qui le suit passent à la ligne ensemble
+      const swNode = n=>nd({cls:n.infra?"infra":"sw", icon:"server", label:n.label, note:n.infra?"sans API":""});
+      let h = "";
+      if(sid && TREE.nodes[sid]){
+        let id = sid; const seen = new Set(), chain = [];
+        while(id && !seen.has(id)){ seen.add(id); const p=TREE.parent.get(id);
+          chain.unshift(seg((p?ln(p.ports.map(x=>pl(p.from,x[0])).join(", "), p.ports.map(x=>pl(id,x[1])).join(", ")):"") + swNode(TREE.nodes[id])));
+          id = p?.from; }
+        h = chain.join("");
+      } else if(swName) h = seg(nd({cls:"sw", icon:"server", label:swName}));
+      tail.forEach((t,i)=>{ h += seg((h ? ln(i===0?pl(sid,port):(t.left||""), t.right?esc(t.right):"", t.cls||"", t.mid||"") : "") + nd(t.node)); });
+      return `<div class="npath">${h}</div>`;
+    }
+    const isLldpSelf = (sid, port, mac)=>(S.switches.find(s=>s.id===sid)?.ports.find(p=>p.name===port)?.lldp||[]).some(n=>n.chassis_id===mac);
+    const devNode = (label, wifi)=>({node:{cls:"dev", icon:wifi?"laptop":"desktop", label}});
+    const apTail = (ap, band, label)=>[{node:{cls:"ap", icon:"wifi", label:ap}}, {...devNode(label,true), cls:"wifi", mid:band||"Wi-Fi"}];
+    function macTail(mac, prim){
+      const label = NAMES.get(mac) || mac, wc = WIFI.get(mac);
+      if(prim.role==="uplink"){
+        // vu seulement en transit : l'appareil est derrière le switch voisin (souvent sans API), à un endroit inconnu
+        const nb = neighborOn(prim.switch, prim.port);
+        const down = nb?.node && nb.node.id!==TREE.parent.get(prim.switch)?.from;
+        return [down ? {right:nb.port, node:{cls:nb.node.infra?"infra":"sw", icon:"server", label:nb.node.label, note:nb.node.infra?"sans API":""}}
+                     : {node:{cls:"unk", icon:"question", label:"switch non interrogé"}},
+                {...devNode(label), cls:"unk", mid:"?"}];
+      }
+      if(prim.role==="ap" && !wc && (label===prim.via || isLldpSelf(prim.switch, prim.port, mac)))
+        return [{node:{cls:"ap", icon:"wifi", label}}];   // la borne elle-même
+      if(wc || prim.role==="ap") return apTail(wc?.ap || prim.via || "borne Wi-Fi", wc?.band, label);
+      if(prim.role==="ext") return [{node:{cls:"ext", icon:"network-wired", label:prim.via||"switch", note:"non géré"}}, devNode(label)];
+      return [devNode(label)];
+    }
+
     function searchAll(q){
       q = q.trim(); if(!q) return [];
       const ql = q.toLowerCase(), hx = hexOf(q);
@@ -525,8 +620,8 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
       const byMac = new Map();
       for(const m of S.macs){
         const hit = (isHex && m.mac.replace(/:/g,"").includes(hx)) || (m.ip && (m.ip===q || (q.includes(".") && m.ip.startsWith(q))))
-          || (ql.length>=3 && (NAMES.get(m.mac)||"").toLowerCase().includes(ql))
-          || (!isHex && ql.length>=3 && (m.port_desc.toLowerCase().includes(ql) || m.vendor.toLowerCase().includes(ql) || m.via.toLowerCase().includes(ql)));
+          || (ql.length>=2 && (NAMES.get(m.mac)||"").toLowerCase().includes(ql))
+          || (!isHex && ql.length>=2 && (m.port_desc.toLowerCase().includes(ql) || m.vendor.toLowerCase().includes(ql) || m.via.toLowerCase().includes(ql)));
         if(hit){ if(!byMac.has(m.mac)) byMac.set(m.mac,[]); byMac.get(m.mac).push(m); }
       }
       return [...byMac.entries()];
@@ -539,10 +634,10 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
       const ql=q.trim().toLowerCase();
       // les appareils déjà trouvés par leur MAC (avec IP, VLAN…) ne sont pas répétés dans les voisins LLDP
       const found = new Set(res.map(([mac])=>mac));
-      const nbHits = ql.length>=3 ? S.switches.flatMap(s=>(s.ports||[]).flatMap(p=>p.lldp.filter(n=>!found.has(n.chassis_id)
+      const nbHits = ql.length>=2 ? S.switches.flatMap(s=>(s.ports||[]).flatMap(p=>p.lldp.filter(n=>!found.has(n.chassis_id)
         && [n.name, n.mgmt_ip, n.chassis_id, n.description, n.port_description].join(" ").toLowerCase().includes(ql)).map(n=>({s,p,n})))) : [];
       // clients Wi-Fi absents des tables MAC des switchs interrogés
-      const hx=hexOf(q), wifiHits = ql.length>=3 ? [...WIFI.values()].filter(c=>!found.has(c.mac)
+      const hx=hexOf(q), wifiHits = ql.length>=2 ? [...WIFI.values()].filter(c=>!found.has(c.mac)
         && ([c.name, c.ip, c.essid, c.ap, c.os].join(" ").toLowerCase().includes(ql) || (hx.length>=4 && c.mac.replace(/:/g,"").includes(hx)))) : [];
       let html="";
       if(wifiHits.length){
@@ -550,13 +645,20 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
           ${c.name&&c.name!==c.mac?`<div style="font-size:15px;font-weight:650"><i class="fas fa-wifi me-1" style="color:var(--muted)"></i>${esc(c.name)}</div>`:""}
           <div class="mono"><b>${esc(c.mac)}</b> ${c.ip?"· "+esc(c.ip):""} ${c.vendor?`<span class="muted">· ${esc(c.vendor)}</span>`:""}</div>
           <div class="loc">Connecté en Wi-Fi sur la borne <b>${esc(c.ap)}</b> (${esc(c.cluster_name)})${c.switch?`, branchée sur <a data-sw="${esc(c.switch)}" data-p="${esc(c.port)}">${esc(c.switch_name)} · port ${esc(c.port)}</a>`:""}</div>
+          ${pathHtml(c.switch, c.switch_name, c.port, apTail(c.ap, c.band, c.name&&c.name!==c.mac?c.name:c.mac))}
           <div class="muted">Réseau ${esc(c.essid)} · ${esc(c.band)} ${esc(c.standard)} · signal ${c.signal} dB · ${c.speed} Mb/s${c.os?" · "+esc(c.os):""}</div>
         </div>`).join("");
       }
       if(nbHits.length){
         html += `<h2>Voisins LLDP (${nbHits.length})</h2>` + nbHits.slice(0,50).map(({s,p,n})=>`<div class="result">
           <div class="loc"><b>${esc(n.name||n.chassis_id)}</b> → <a data-sw="${esc(s.id)}" data-p="${esc(p.name)}">${esc(s.name)} · ${esc(p.name)}</a></div>
-          <div class="muted mono">${esc(n.chassis_id)} ${n.mgmt_ip?"· "+esc(n.mgmt_ip):""} · ${esc(n.capabilities)}</div></div>`).join("");
+          <div class="muted mono">${esc(n.chassis_id)} ${n.mgmt_ip?"· "+esc(n.mgmt_ip):""} · ${esc(n.capabilities)}</div>
+          ${pathHtml(s.id, s.name, p.name, [{right:/^([0-9a-f]{2}:){5}[0-9a-f]{2}$/i.test(n.port_id)?"":n.port_id, node:TREE.nodes[neighborOn(s.id,p.name)?.node?.id]
+            ? {cls:"sw", icon:"server", label:n.name||n.chassis_id}
+            : /wlan|access.?point/i.test(n.capabilities+" "+n.description) ? {cls:"ap", icon:"wifi", label:n.name||n.chassis_id}
+            : /phone/i.test(n.capabilities) ? {cls:"dev", icon:"phone", label:n.name||n.chassis_id}
+            : /bridge/i.test(n.capabilities) ? {cls:"ext", icon:"network-wired", label:n.name||n.chassis_id, note:"non géré"}
+            : {cls:"dev", icon:"desktop", label:n.name||n.chassis_id}}])}</div>`).join("");
       }
       if(res.length){
         html += `<h2>Adresses MAC (${res.length}${res.length>200?", 200 affichées":""})</h2>`;
@@ -569,21 +671,22 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
             <div class="mono"><b>${esc(mac)}</b> ${prim.ip?"· "+esc(prim.ip):""} ${prim.vendor?`<span class="muted">· ${esc(prim.vendor)}</span>`:""}</div>
             <div class="loc">${transitOnly?"Vu seulement en transit sur ":"Connecté sur "}<a data-sw="${esc(prim.switch)}" data-p="${esc(prim.port)}">${esc(prim.switch_name)} · port ${esc(prim.port)}</a>
               <span class="tag ${prim.role}">${ROLE_FR[prim.role]}</span> · VLAN ${esc(prim.vlan)} ${prim.vlan_name?`(${esc(prim.vlan_name)})`:""}</div>
+            ${pathHtml(prim.switch, prim.switch_name, prim.port, macTail(mac, prim))}
             ${prim.port_desc?`<div class="muted">Description du port : ${esc(prim.port_desc)}</div>`:""}
-            ${WIFI.has(mac) ? wifiLine(WIFI.get(mac)) : (prim.via && prim.role!=="uplink"?`<div class="muted">${prim.role==="ap"?"Via la borne":"Derrière le switch non géré"} ${esc(prim.via)}</div>`:"")}
-            ${transitOnly?`<div class="muted">Probablement branché sur un switch non interrogé.</div>`:""}
+            ${WIFI.has(mac) ? wifiLine(WIFI.get(mac)) : ""}
             ${others.length?`<details><summary>Trafic vu aussi sur ${others.length} liaison${others.length>1?"s":""} entre switchs</summary>${others.map(o=>`${esc(o.switch_name)} · ${esc(o.port)} (${ROLE_FR[o.role]})`).join("<br>")}</details>`:""}
           </div>`;}).join("");
       }
       if(!html){
         html = `<div class="empty">Aucun résultat dans la collecte actuelle.</div>`;
-        if(q.trim().length>=3){
+        if(q.trim().length>=2){
           try{
             const h = await getJson(API.history+"?q="+encodeURIComponent(q));
             if(h.length) html += `<h2>Dernière position connue (historique)</h2>` + h.slice(0,30).map(x=>`<div class="result">
               ${x.name?`<div style="font-size:15px;font-weight:650">${esc(x.name)}</div>`:""}
               <div class="mono"><b>${esc(x.mac)}</b> ${x.ip?"· "+esc(x.ip):""}</div>
               <div class="loc">Vue pour la dernière fois ${x.ap?`en Wi-Fi sur la borne <b>${esc(x.ap)}</b> (réseau ${esc(x.essid)})${x.switch?", branchée sur ":""}`:"sur "}${x.switch?`<a data-sw="${esc(x.switch)}" data-p="${esc(x.port)}">${esc(x.switch_name)} · port ${esc(x.port)}</a>`:""}${x.vlan&&!x.ap?` · VLAN ${esc(x.vlan)}`:""}</div>
+              ${x.switch||x.ap ? pathHtml(x.switch, x.switch_name, x.port, x.ap ? apTail(x.ap, "", x.name||x.mac) : [devNode(x.name||x.mac)]) : ""}
               <div class="muted">Le ${fmtDate(x.last_seen)} · première fois le ${fmtDate(x.first_seen)}</div></div>`).join("");
           }catch(e){}
         }

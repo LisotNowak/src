@@ -39,7 +39,7 @@ class Api
             $mac = (string) $mac;
             if ((strlen($hexq) >= 4 && preg_match('/^[0-9a-f:.\-\s]+$/', $q) && str_contains(str_replace(':', '', $mac), $hexq))
                 || ($q !== '' && $q === ($h['ip'] ?? ''))
-                || (strlen($q) >= 3 && str_contains(strtolower($h['name'] ?? ''), $q))) {
+                || (strlen($q) >= 2 && str_contains(strtolower($h['name'] ?? ''), $q))) {
                 $out[] = ['mac' => $mac] + $h;
             }
         }
