@@ -27,4 +27,5 @@
 
 ###> aruba ###
 /config/aruba/secrets/
+/config/aruba/config.json
 ###< aruba ###
