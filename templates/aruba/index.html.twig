@@ -402,6 +402,22 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
     };
 
     /* ---------------- vue d'ensemble ---------------- */
+    // voisins LLDP d'un switch par catégorie (un même équipement sur plusieurs ports, ex. LAG, compte une fois)
+    function lldpText(s){
+      const seen = new Map();
+      (s.ports||[]).forEach(p=>(p.lldp||[]).forEach(n=>seen.set(n.chassis_id||n.name, n)));
+      const c = {sw:0, ap:0, tel:0, dev:0};
+      // un switch géré peut ne pas annoncer ses capacités (vieux HP) : reconnu par son nom ou son IP
+      const managed = n=>S.switches.some(x=>(x.hostname && x.hostname===n.name) || (n.mgmt_ip && x.host===n.mgmt_ip));
+      seen.forEach(n=>{ const caps = n.capabilities||"";
+        c[/wlan|access.?point/i.test(caps+" "+(n.description||"")) ? "ap" : /phone/i.test(caps) ? "tel"
+          : /bridge|router/i.test(caps) || managed(n) ? "sw" : "dev"]++; });
+      const pl = (n,one,many)=>`${n} ${n>1?many:one}`;
+      const parts = [c.sw&&pl(c.sw,"switch","switchs"), c.ap&&pl(c.ap,"borne","bornes"), c.tel&&pl(c.tel,"téléphone","téléphones"),
+        c.dev&&pl(c.dev,"autre appareil","autres appareils")].filter(Boolean);
+      return `<span title="Équipements raccordés qui s'annoncent sur le réseau (protocole LLDP)">${parts.length ? "Raccordés : "+parts.join(", ") : "Aucun équipement annoncé"}</span>`;
+    }
+
     function renderOverview(){
       const sm = S.summary||{};
       const ap = S.topology.nodes.filter(n=>n.kind==="ap").length;
@@ -421,7 +437,8 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
           <div class="mono muted">${esc(s.host)} ${s.platform?"· "+esc(s.platform):""}</div>
           ${s.error ? `<div class="err-msg">${esc(errFr(s.error))}</div>` : `
           <div class="bar"><i style="width:${pct}%"></i></div>
-          <div class="ax-row"><span>${st.ports_up}/${st.ports_total} ports actifs</span><span>${st.macs} MAC</span><span>${st.vlans} VLAN</span><span>${st.lldp} voisins LLDP</span></div>
+          <div class="ax-row"><span>${st.ports_up}/${st.ports_total} ports actifs</span><span>${st.macs} MAC</span><span>${st.vlans} VLAN</span></div>
+          <div class="ax-row" style="margin-top:4px">${lldpText(s)}</div>
           <div class="ax-row" style="margin-top:4px"><span class="mono">${esc(s.version)}</span><span>API ${esc(s.api_version)}</span></div>`}
         </div>`;}).join("") || `<div class="empty">Aucun switch configuré.</div>`;
       document.querySelectorAll("#cards .ax-card").forEach(c=>c.onclick=()=>{ curSw=c.dataset.id; curPort=null; renderPorts(); show("ports"); });
