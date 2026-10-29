@@ -24,8 +24,6 @@ class GlpiClient
 
     private string $base;
     private ?string $token = null;
-    /** Point d'entrée de la connexion SSO (plugin singlesignon), détecté par collect() */
-    private ?string $sso = null;
     public string $apiVersion = 'GLPI API v3.0';
 
     public function __construct(
@@ -112,42 +110,17 @@ class GlpiClient
     }
 
     /**
-     * Lien vers la fiche de l'élément dans GLPI.
+     * Lien vers la fiche de l'élément dans GLPI : index.php?redirect=Type_id (format des notifications GLPI).
+     * Session GLPI ouverte : renvoi direct sur la fiche ; sinon page de connexion, puis la fiche après une
+     * connexion par identifiant GLPI.
      *
-     * Un lien direct vers la fiche affiche « Votre session a expiré » si l'utilisateur n'est pas connecté, et
-     * même s'il l'est : le cookie de session GLPI (SameSite=Strict) n'est pas envoyé depuis un autre site.
-     * Quand la page de connexion propose le SSO du plugin singlesignon (Microsoft 365), le lien passe par lui :
-     * la connexion Microsoft est transparente et le plugin renvoie sur la fiche (paramètre /q/ = redirect en
-     * base64). Sinon : page de connexion GLPI avec ?redirect=Type_id (format des notifications GLPI).
+     * Le cookie de session GLPI doit être en SameSite=Lax : en Strict il n'est pas envoyé depuis un autre site
+     * et GLPI redemande la connexion. Ne pas passer par le callback du plugin singlesignon avec /q/ : l'adresse
+     * de retour varie à chaque fiche et Microsoft Entra la refuse (AADSTS50011).
      */
     public function itemUrl(string $itemtype, int $id): string
     {
-        $redirect = sprintf('%s_%d', $itemtype, $id);
-        if ($this->sso === null) {
-            return sprintf('%s/index.php?redirect=%s', $this->url, $redirect);
-        }
-        // le paramètre est un segment de chemin : on évite le « / » de base64 en allongeant un champ ignoré
-        for ($pad = ''; ; $pad .= '_') {
-            $q = base64_encode(http_build_query(['redirect' => $redirect] + ($pad !== '' ? ['_' => $pad] : [])));
-            if (!str_contains($q, '/')) {
-                return "{$this->sso}/q/{$q}";
-            }
-        }
-    }
-
-    /** Bouton de connexion SSO (plugin singlesignon) de la page de connexion GLPI, null s'il n'y en a pas. */
-    private function detectSso(): ?string
-    {
-        try {
-            [$code, $html] = $this->request('GET', "{$this->url}/index.php");
-        } catch (AosCxException) {
-            return null;
-        }
-        if ($code !== 200 || !preg_match('#href="([^"]*/plugins/singlesignon/front/callback\.php/provider/\d+)"#', $html, $m)) {
-            return null;
-        }
-        $link = html_entity_decode($m[1]);
-        return str_starts_with($link, 'http') ? $link : $this->url . $link;
+        return sprintf('%s/index.php?redirect=%s_%d', $this->url, $itemtype, $id);
     }
 
     /** Test de connexion (écran Configuration) : vérifie aussi que les ports réseau sont lisibles. */
@@ -165,7 +138,6 @@ class GlpiClient
      */
     public function collect(): array
     {
-        $this->sso = $this->detectSso();
         $assets = [];
         foreach (array_keys(self::TYPES) as $type) {
             $fields = 'id name serial contact is_deleted user { username realname firstname } location { completename }'
@@ -211,7 +183,7 @@ class GlpiClient
                 $macs[$mac] = $item;
             }
         }
-        return ['glpi' => ['url' => $this->url, 'sso' => $this->sso, 'assets' => array_sum(array_map('count', $assets)),
+        return ['glpi' => ['url' => $this->url, 'assets' => array_sum(array_map('count', $assets)),
             'macs' => $macs]];
     }
 
