@@ -71,6 +71,9 @@
     #aruba-app .port.down{color:var(--muted)}
     #aruba-app .port.admin{background:transparent;outline:2px dashed var(--admin);outline-offset:-2px;color:var(--admin)}
     #aruba-app .port.sel{box-shadow:0 0 0 3px var(--accent)}
+    #aruba-app .port.sfp{border-radius:2px;box-shadow:inset 0 0 0 3px rgba(255,255,255,.7)}
+    #aruba-app .port.sfp.sel{box-shadow:inset 0 0 0 3px rgba(255,255,255,.7),0 0 0 3px var(--accent)}
+    #aruba-app .conn{font-size:11.5px;color:var(--muted);white-space:nowrap}
     #aruba-app .port.hl{animation:aruba-pulse 1s ease-in-out 3}
     @keyframes aruba-pulse{50%{box-shadow:0 0 0 5px var(--accent)}}
     #aruba-app .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:12px}
@@ -207,6 +210,7 @@
                             <span><i style="background:var(--ext)"></i>Switch non géré</span>
                             <span><i style="background:var(--down)"></i>Déconnecté</span>
                             <span><i style="outline:2px dashed var(--admin);outline-offset:-2px"></i>Désactivé</span>
+                            <span><i style="width:14px;height:14px;background:var(--uplink);border-radius:1px;box-shadow:inset 0 0 0 3px rgba(255,255,255,.7)"></i>Cage SFP (fibre)</span>
                         </div>
                     </div>
                     <div class="panel" id="port-detail" hidden></div>
@@ -451,6 +455,13 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
       return {uplink:"uplink", ap:"ap", ext:"ext"}[p.role] || "up";
     }
     function shortPort(n){ return n.split("/").pop(); }
+    // connecteur du port : RJ45, ou cage SFP avec le module inséré (fibre, câble direct, module cuivre)
+    function connText(p){
+      if(p.connector!=="sfp") return p.connector==="rj45" ? "RJ45 (cuivre)" : "";
+      if(!p.module) return "Cage SFP vide";
+      const kind = /DA/i.test(p.module) ? "câble direct" : /BASE-?T|1000T|\d-?T$|RJ45/i.test(p.module) ? "module cuivre" : "fibre";
+      return `SFP ${kind} · ${p.module}`;
+    }
 
     function renderPorts(){
       $("#swlist").innerHTML = S.switches.map(s=>`<button data-id="${esc(s.id)}" class="${s.id===curSw?"on":""}">
@@ -470,10 +481,12 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
       let html="";
       Object.values(groups).forEach((g,gi)=>{
         if(gi) html += `<div class="face-sep"></div><div class="face-sep"></div>`;
+        // cages SFP regroupées à part (en fin de façade)
+        const firstSfp = g.findIndex((p,i)=>p.connector==="sfp" && i%2===0);
         g.forEach((p,i)=>{
-          if(i && i%12===0 && i%2===0) html += `<div class="face-sep"></div><div class="face-sep"></div>`;
-          html += `<button class="port ${portClass(p)} ${p.name===curPort?"sel":""}" data-p="${esc(p.name)}"
-            title="${esc(p.name)} ${esc(p.description)}&#10;${p.link==="up"?"actif":"inactif"} · VLAN ${esc(p.native_vlan)} · ${p.mac_count} MAC${p.lldp.length?"&#10;LLDP : "+esc(p.lldp[0].name):""}">${esc(shortPort(p.name))}</button>`;
+          if(i && ((i%12===0 && i%2===0 && (firstSfp<0 || i<firstSfp)) || i===firstSfp)) html += `<div class="face-sep"></div><div class="face-sep"></div>`;
+          html += `<button class="port ${portClass(p)} ${p.connector==="sfp"?"sfp":""} ${p.name===curPort?"sel":""}" data-p="${esc(p.name)}"
+            title="${esc(p.name)} ${esc(p.description)}&#10;${p.link==="up"?"actif":"inactif"} · VLAN ${esc(p.native_vlan)} · ${p.mac_count} MAC${connText(p)?"&#10;"+esc(connText(p)):""}${p.lldp.length?"&#10;LLDP : "+esc(p.lldp[0].name):""}">${esc(shortPort(p.name))}</button>`;
         });
       });
       $("#face").innerHTML = html;
@@ -508,7 +521,7 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
       const rows = s.ports.filter(p=>(!onlyUp||p.link==="up")&&(!onlyMac||p.mac_count)&&portMatches(p,f));
       $("#ptable").innerHTML = `<thead><tr><th>Port</th><th>État</th><th>Rôle</th><th>Description</th><th>VLAN</th><th>Vitesse</th><th>Voisin LLDP</th><th>Appareil</th></tr></thead><tbody>` +
         rows.map(p=>`<tr class="clk" data-p="${esc(p.name)}">
-          <td class="mono"><b>${esc(p.name)}</b>${p.lag?` <span class="muted">(${esc(p.lag)})</span>`:""}</td>
+          <td class="mono"><b>${esc(p.name)}</b>${p.lag?` <span class="muted">(${esc(p.lag)})</span>`:""}${p.connector==="sfp"?`<br><span class="conn">${esc(connText(p))}</span>`:""}</td>
           <td>${p.admin==="down"?'<span style="color:var(--admin)">désactivé</span>':p.link==="up"?'<span style="color:var(--up)">● actif</span>':'<span class="muted">○ inactif</span>'}</td>
           <td>${p.link==="up"||p.type==="lag"?`<span class="tag ${p.role}">${ROLE_FR[p.role]||p.role}</span>`:""}</td>
           <td>${esc(p.description)}</td>
@@ -538,6 +551,7 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
          <div><span>Description</span>${esc(p.description)||"—"}</div>
          <div><span>État</span>admin ${esc(p.admin)} / lien ${esc(p.link)}</div>
          <div><span>Vitesse</span>${fmtSpeed(p.speed)||"—"} ${esc(p.duplex)}</div>
+         ${connText(p)?`<div><span>Connecteur</span>${esc(connText(p))}</div>`:""}
          <div><span>Mode VLAN</span>${esc(p.vlan_mode)||"—"}</div>
          <div><span>VLAN natif / accès</span><span class="mono" style="display:inline;color:inherit;font-size:inherit">${esc(p.native_vlan)||"—"}</span></div>
          <div><span>VLAN tagués</span>${esc(p.trunks.join(", "))||"—"}</div>

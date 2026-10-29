@@ -170,8 +170,24 @@ class AosSwitchClient
         ];
     }
 
-    public function interfaces(): array
+    public function interfaces(string $platform = ''): array
     {
+        // modules insérés dans les cages SFP (« 1000SX » = fibre, « SFP+DA1 » = câble direct)
+        $modules = [];
+        try {
+            foreach ($this->elements('/transceivers') as $t) {
+                $modules[(string) ($t['port_id'] ?? '')] = (string) ($t['type'] ?? '');
+            }
+        } catch (AosCxException) {
+        }
+        // l'API ne dit pas quels ports sont des cages SFP : ce sont ceux au-delà des ports cuivre du modèle
+        // (2930F-24G-4SFP : 25 à 28 ; 2530-48G : 49 à 52)
+        $copper = preg_match('/-(\d+)G\b/', $platform, $m) ? (int) $m[1] : 0;
+        $connector = function (string $p) use ($modules, $copper): string {
+            $n = (int) preg_replace('#^.*/#', '', $p);
+            return isset($modules[$p]) || ($copper && $n > $copper) ? 'sfp' : ($copper ? 'rj45' : '');
+        };
+
         // duplex / état physique (par membre de pile)
         $duplex = [];
         foreach ($this->elements('/system/status/switch') as $blade) {
@@ -220,6 +236,8 @@ class AosSwitchClient
                 'speed' => !empty($it['is_port_up']) ? ($speed[$name] ?? 0) : 0,
                 'duplex' => !empty($it['is_port_up']) ? ($duplex[$name] ?? '') : '',
                 'members' => [],
+                'connector' => $connector($name),
+                'module' => $modules[$name] ?? '',
             ] + $vlanInfo($name);
             if (!empty($it['trunk_group'])) {
                 $lags[(string) $it['trunk_group']][] = $name;
@@ -318,7 +336,8 @@ class AosSwitchClient
 
     public function collect(): array
     {
-        return ['system' => $this->system(), 'interfaces' => $this->interfaces(), 'vlans' => $this->vlans(),
+        $system = $this->system();
+        return ['system' => $system, 'interfaces' => $this->interfaces($system['platform']), 'vlans' => $this->vlans(),
             'macs' => $this->macs(), 'lldp' => $this->lldp(), 'arp' => $this->arp(), 'api_version' => $this->apiVersion];
     }
 }

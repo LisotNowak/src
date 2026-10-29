@@ -216,7 +216,7 @@ class AosCxClient
     public function interfaces(): array
     {
         $attrs = 'name,type,description,admin_state,link_state,link_speed,duplex,'
-            . 'vlan_mode,vlan_tag,vlan_trunks,interfaces,lldp_neighbors';
+            . 'vlan_mode,vlan_tag,vlan_trunks,interfaces,lldp_neighbors,hw_intf_info,pm_info';
         $data = $this->getAttrs('/system/interfaces', $attrs, ['depth' => 2]) ?: [];
         $out = [];
         foreach (self::items($data) as $it) {
@@ -232,6 +232,10 @@ class AosCxClient
             $trunks = self::refKeys($it['vlan_trunks'] ?? null);
             usort($trunks, fn($a, $b) => (ctype_digit($a) ? (int) $a : 0) <=> (ctype_digit($b) ? (int) $b : 0));
             $tag = self::refKeys($it['vlan_tag'] ?? null);
+            // cage SFP (pluggable) ou RJ45, et module inséré (« 1G-SX » = fibre, « 10G-DAC… » = câble direct)
+            $hw = is_array($it['hw_intf_info'] ?? null) ? $it['hw_intf_info'] : [];
+            $pm = is_array($it['pm_info'] ?? null) ? $it['pm_info'] : [];
+            $pmConn = (string) ($pm['connector'] ?? '');
             $out[$name] = [
                 'name' => $name,
                 'type' => $itype ?: (str_starts_with($name, 'lag') ? 'lag' : 'system'),
@@ -244,6 +248,9 @@ class AosCxClient
                 'native_vlan' => $tag[0] ?? '',
                 'trunks' => $trunks,
                 'members' => str_starts_with($name, 'lag') ? self::refKeys($it['interfaces'] ?? null) : [],
+                'connector' => !$hw ? '' : (in_array($hw['pluggable'] ?? '', [true, 'true'], true)
+                    || str_contains((string) ($hw['connector'] ?? ''), 'SFP') ? 'sfp' : 'rj45'),
+                'module' => in_array($pmConn, ['', 'absent', 'unknown'], true) ? '' : (string) (($pm['xcvr_desc'] ?? '') ?: $pmConn),
                 '_lldp_refs' => array_key_exists('lldp_neighbors', $it) ? $it['lldp_neighbors'] : '__absent__',
             ];
         }
