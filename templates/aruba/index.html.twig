@@ -286,7 +286,10 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
     }
     const postJson = url => getJson(url, {method:"POST", credentials:"same-origin", headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json","X-CSRF-TOKEN":CSRF_REFRESH}});
     let curSw = null, curPort = null;
-    const ROLE_FR = {access:"accès", uplink:"uplink", ap:"borne Wi-Fi", ext:"switch non géré", lag:"LAG"};
+    // rôle d'un port (mêmes termes que la légende de la façade)
+    const ROLE_FR = {access:"appareil", uplink:"vers un switch", ap:"borne Wi-Fi", ext:"switch non géré", lag:"Trunk"};
+    // façon dont un appareil trouvé par la recherche est raccordé
+    const ROLE_LOC = {access:"câblé", uplink:"liaison entre switchs", ap:"borne Wi-Fi", ext:"derrière un switch non géré", lag:"Trunk"};
 
     function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("on"); setTimeout(()=>t.classList.remove("on"),2600); }
     function fmtSpeed(b){ if(!b) return ""; return b>=1e9 ? (b/1e9)+" Gb/s" : (b/1e6)+" Mb/s"; }
@@ -744,7 +747,7 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
             ${NAMES.has(mac)?`<div style="font-size:15px;font-weight:650"><i class="fas fa-desktop me-1" style="color:var(--muted)"></i>${esc(NAMES.get(mac))}</div>`:""}
             <div class="mono"><b>${esc(mac)}</b> ${prim.ip?"· "+esc(prim.ip):""} ${prim.vendor?`<span class="muted">· ${esc(prim.vendor)}</span>`:""}</div>
             <div class="loc">${transitOnly?"Vu seulement en transit sur ":"Connecté sur "}<a data-sw="${esc(prim.switch)}" data-p="${esc(prim.port)}">${esc(prim.switch_name)} · port ${esc(prim.port)}</a>
-              <span class="tag ${prim.role}">${ROLE_FR[prim.role]}</span> · VLAN ${esc(prim.vlan)} ${prim.vlan_name?`(${esc(prim.vlan_name)})`:""}</div>
+              <span class="tag ${prim.role}">${ROLE_LOC[prim.role]}</span> · VLAN ${esc(prim.vlan)} ${prim.vlan_name?`(${esc(prim.vlan_name)})`:""}</div>
             ${pathHtml(prim.switch, prim.switch_name, prim.port, macTail(mac, prim))}
             ${glpiLine(mac)}
             ${prim.port_desc?`<div class="muted">Description du port : ${esc(prim.port_desc)}</div>`:""}
