@@ -78,6 +78,8 @@ class SaisieController extends AbstractController
 
             if (!$this->setPersonnelFromRequest($request, $saisie)) {
                 $this->addFlash('danger', 'Veuillez sélectionner au moins une personne.');
+            } elseif (!$this->checkTacheEquipe($form)) {
+                // L'erreur est affichée sous le champ Tâche
             } elseif ($multi && !$parcelles) {
                 $this->addFlash('danger', 'Veuillez sélectionner au moins une parcelle.');
             } elseif ($multi && $this->parcellesSansHeures($parcelles, $heuresParcelles)) {
@@ -89,7 +91,7 @@ class SaisieController extends AbstractController
                 $nb = $this->creerSaisiesMultiParcelles($saisie, $parcelles, $heuresParcelles);
                 $this->em->flush();
 
-                $this->addFlash('success', $nb . ' saisie(s) créée(s), une par parcelle, avec un avancement de 100 %.');
+                $this->addFlash('success', $nb . ' saisie(s) créée(s), une par parcelle, avec un avancement de ' . $saisie->getAvancement() . ' %.');
                 return $this->redirectToRoute('app_tracabilite_saisie_index');
             } else {
                 $this->hydrateSaisie($saisie);
@@ -127,13 +129,20 @@ class SaisieController extends AbstractController
         }
 
         $avant = $this->snapshot($saisie);
+        $tacheAvant = $saisie->getTacheNom();
+        $chefAvant  = $saisie->getChefNom();
 
         $form = $this->createForm(SaisieType::class, $saisie, $this->buildFormOptions());
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
+            // Une saisie existante reste modifiable même si sa tâche a changé de type depuis
+            $memeTache = $saisie->getTacheNom() === $tacheAvant && $saisie->getChefNom() === $chefAvant;
+
             if (!$this->setPersonnelFromRequest($request, $saisie)) {
                 $this->addFlash('danger', 'Veuillez sélectionner au moins une personne.');
+            } elseif (!$memeTache && !$this->checkTacheEquipe($form)) {
+                // L'erreur est affichée sous le champ Tâche
             } elseif (!$this->checkParcelle($form)) {
                 // L'erreur est affichée sous le champ Parcelle
             } else {
@@ -156,6 +165,8 @@ class SaisieController extends AbstractController
             'form'             => $form,
             'saisie'           => $saisie,
             'personnelsActuels'=> $personnelsActuels,
+            'tacheAvant'       => $tacheAvant,
+            'chefAvant'        => $chefAvant,
             'nbSaisonniers'    => $form->isSubmitted()
                 ? $this->nbSaisonniersFromRequest($request)
                 : $this->nbSaisonniersFromSaisie($saisie, $personnelsActuels),
@@ -287,8 +298,8 @@ class SaisieController extends AbstractController
     }
 
     /**
-     * Saisie multi-parcelles : une saisie par parcelle, chacune terminée (avancement 100 %),
-     * avec les heures ventilées sur cette parcelle.
+     * Saisie multi-parcelles : une saisie par parcelle, toutes au même avancement,
+     * avec les heures ventilées sur cette parcelle et les pieds réalisés qui en découlent.
      */
     private function creerSaisiesMultiParcelles(Saisie $modele, array $parcelles, array $heuresParcelles): int
     {
@@ -299,8 +310,7 @@ class SaisieController extends AbstractController
             $s->setDateTravail(clone $modele->getDateTravail());
             $s->setParcelleNom($parcelle->getSlug());
             $s->setHeures($heuresParcelles[$parcelle->getSlug()]);
-            $s->setAvancement(100.0);
-            $s->setPieds($pieds);
+            $s->setPieds(round($pieds * $modele->getAvancement() / 100));
             $s->setPiedsTotal($pieds);
             $this->hydrateSaisie($s);
             $s->setId($this->uuid4());
@@ -311,6 +321,17 @@ class SaisieController extends AbstractController
         }
 
         return count($parcelles);
+    }
+
+    /** Une tâche dont le type est rattaché à des équipes ne peut être saisie que par ces équipes */
+    private function checkTacheEquipe(FormInterface $form): bool
+    {
+        $tache = $this->tacheRepo->findByNom((string) $form->get('tacheNom')->getData());
+        if ($tache && !$tache->estDisponiblePour((string) $form->get('chefNom')->getData())) {
+            $form->get('tacheNom')->addError(new FormError('Cette tâche n\'est pas associée à l\'équipe choisie.'));
+            return false;
+        }
+        return true;
     }
 
     /** Une tâche de terrain doit avoir une parcelle */
@@ -401,7 +422,7 @@ class SaisieController extends AbstractController
     {
         $data = [];
         foreach ($this->tacheRepo->findAllSorted() as $t) {
-            $data[$t->getNom()] = ['sansParcel' => $t->isSansParcel()];
+            $data[$t->getNom()] = ['sansParcel' => $t->isSansParcel(), 'equipes' => $t->getEquipesAutorisees()];
         }
         return json_encode($data, JSON_UNESCAPED_UNICODE);
     }

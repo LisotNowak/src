@@ -346,5 +346,6 @@ updateParcelleTaches();
 syncPiedsFromAdv();
 updateAdvPieds();
 </script>
+{{ include('tracabilite/saisie/_filtre_taches.html.twig', {tacheConservee: tacheAvant, chefConserve: chefAvant}) }}
 {{ include('tracabilite/saisie/_validation.html.twig') }}
 {% endblock %}

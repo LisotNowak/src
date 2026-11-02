@@ -101,7 +101,7 @@
                     </div>
                 </details>
 
-                {# Parcelle sélectionnée #}
+                {# Parcelle(s) sélectionnée(s) #}
                 <div id="cp-selection" class="border rounded p-2 bg-light" style="display:none;">
                     <div class="d-flex justify-content-between align-items-center">
                         <span class="fw-bold" id="cp-sel-nom">—</span>
@@ -109,17 +109,21 @@
                     </div>
                     <div class="text-muted mb-1" id="cp-sel-decalage"></div>
                     <div class="d-flex flex-wrap gap-1">
-                        <button type="button" class="btn btn-sm btn-outline-primary py-0" id="cp-sel-centre" title="Amène la parcelle au centre de la vue actuelle">
+                        <button type="button" class="btn btn-sm btn-outline-primary py-0" id="cp-sel-centre" title="Amène la sélection au centre de la vue actuelle">
                             <i class="fas fa-crosshairs me-1"></i>Au centre de la vue
                         </button>
-                        <button type="button" class="btn btn-sm btn-outline-secondary py-0" id="cp-sel-reset" title="Remet la parcelle à sa position géographique réelle">
+                        <button type="button" class="btn btn-sm btn-outline-secondary py-0" id="cp-sel-reset" title="Remet la sélection à sa position géographique réelle">
                             <i class="fas fa-undo me-1"></i>Position réelle
                         </button>
-                        <button type="button" class="btn btn-sm btn-outline-danger py-0" id="cp-sel-retirer" title="Retire la parcelle de cette carte">
-                            <i class="fas fa-eye-slash"></i>
+                        <button type="button" class="btn btn-sm btn-outline-danger py-0" id="cp-sel-retirer" title="Retire la sélection de cette carte (touche Suppr)">
+                            <i class="fas fa-eye-slash me-1"></i>Retirer
                         </button>
                     </div>
-                    <div class="text-muted mt-1" style="font-size:0.7rem;">Glisser la parcelle à la souris · flèches du clavier : 5 m (Maj : 50 m)</div>
+                    <div class="text-muted mt-1" style="font-size:0.7rem;">Glisser à la souris · flèches du clavier : 5 m (Maj : 50 m) · Échap : désélectionner</div>
+                </div>
+
+                <div class="text-muted" style="font-size:0.7rem;">
+                    <i class="fas fa-object-ungroup me-1"></i>Sélection multiple : Ctrl+clic sur les parcelles, ou Maj+glisser sur la carte pour tracer un rectangle
                 </div>
 
                 {# Liste des parcelles #}
@@ -223,6 +227,7 @@
     padding: 2px 6px; font-weight: 700; font-size: .8rem; line-height: 1.1; text-align: center;
 }
 .cp-drag-actif, .cp-drag-actif * { cursor: grabbing !important; }
+.cp-rect-actif, .cp-rect-actif * { cursor: crosshair !important; user-select: none; }
 
 /* Préparation de l'impression : la zone prend la taille exacte de la page */
 body.cp-printing #cp-print-zone { flex: none !important; }
@@ -267,7 +272,7 @@ const MARGE_MM = 8;
 
 const options = Object.assign({}, CARTE.options);
 const parcelles = {};        // slug → { slug, parts, cx, cy, p, dx, dy, actif, polys, label }
-let selection = null;
+let selection = new Set();   // parcelles sélectionnées (déplacées / retirées ensemble)
 let modifie = false;
 
 // ── Carte sur fond blanc, coordonnées Lambert 93 en mètres ──────────────────
@@ -277,6 +282,7 @@ const map = L.map('cp-map', {
     minZoom: -7, maxZoom: 5,
     zoomSnap: 0.25, zoomDelta: 0.5,
     attributionControl: false,
+    boxZoom: false, // Maj+glisser sert à la sélection par rectangle
     renderer: L.svg({ padding: 1 }),
 });
 L.control.scale({ metric: true, imperial: false, maxWidth: 150 }).addTo(map);
@@ -299,7 +305,7 @@ function advColor(adv) {
 }
 
 function style(item) {
-    const sel = item === selection;
+    const sel = selection.has(item);
     return {
         color: sel ? '#800000' : '#333',
         weight: sel ? 3 : 1,
@@ -346,7 +352,6 @@ function deplacer(item) {
     if (!item.polys) return;
     item.polys.forEach((poly, i) => poly.setLatLngs(latlngs(item, item.parts[i])));
     item.label.setLatLng([item.cy + item.dy, item.cx + item.dx]);
-    if (item === selection) majSelection();
 }
 
 function restyler() {
@@ -355,22 +360,36 @@ function restyler() {
 }
 
 // ── Glisser-déposer des parcelles ───────────────────────────────────────────
+const SEUIL_GESTE_PX = 3;    // en dessous, le geste est un simple clic
 let glisse = null;
+let rectangle = null;
+let ignorerClic = false;     // le clic qui suit la fin d'un geste ne doit pas désélectionner
 
 function debutGlisser(item, e) {
     L.DomEvent.stopPropagation(e);
-    selectionner(item);
+    const souris = e.originalEvent;
+    if (souris.shiftKey) { debutRectangle(e, item); return; }
+    if (souris.ctrlKey || souris.metaKey) { basculerSelection(item); return; }
+    if (!selection.has(item)) selectionner([item]);
     map.dragging.disable();
-    glisse = { item, x: e.latlng.lng, y: e.latlng.lat, dx: item.dx, dy: item.dy, bouge: false };
+    glisse = {
+        item, x: e.latlng.lng, y: e.latlng.lat, point: e.containerPoint, bouge: false,
+        depart: [...selection].map(i => ({ i, dx: i.dx, dy: i.dy })),
+    };
     document.body.classList.add('cp-drag-actif');
 }
 
 map.on('mousemove', e => {
+    if (rectangle) { suivreRectangle(e); return; }
     if (!glisse) return;
-    glisse.item.dx = glisse.dx + (e.latlng.lng - glisse.x);
-    glisse.item.dy = glisse.dy + (e.latlng.lat - glisse.y);
+    if (!glisse.bouge && e.containerPoint.distanceTo(glisse.point) < SEUIL_GESTE_PX) return;
     glisse.bouge = true;
-    deplacer(glisse.item);
+    glisse.depart.forEach(({ i, dx, dy }) => {
+        i.dx = dx + (e.latlng.lng - glisse.x);
+        i.dy = dy + (e.latlng.lat - glisse.y);
+        deplacer(i);
+    });
+    majSelection();
 });
 
 function finGlisser() {
@@ -379,70 +398,147 @@ function finGlisser() {
     glisse = null;
     map.dragging.enable();
     document.body.classList.remove('cp-drag-actif');
-    if (bouge) { marquerModifie(); majLigne(item); }
+    if (bouge) {
+        ignorerClic = true;
+        marquerModifie();
+        selection.forEach(majLigne);
+    } else if (selection.size > 1) {
+        // Simple clic sur une parcelle du groupe : elle seule reste sélectionnée
+        selectionner([item]);
+    }
 }
 map.on('mouseup', finGlisser);
 document.addEventListener('mouseup', finGlisser);
 
-// Déplacement fin au clavier
+// Sélection par rectangle (Maj+glisser) : ajoute les parcelles dont le centre est dans le rectangle
+function debutRectangle(e, item = null) {
+    L.DomEvent.preventDefault(e.originalEvent);
+    rectangle = { depart: e.latlng, fin: e.latlng, point: e.containerPoint, item, trace: null };
+    document.body.classList.add('cp-rect-actif');
+}
+
+function suivreRectangle(e) {
+    rectangle.fin = e.latlng;
+    if (!rectangle.trace && e.containerPoint.distanceTo(rectangle.point) >= SEUIL_GESTE_PX) {
+        rectangle.trace = L.rectangle([rectangle.depart, rectangle.fin], {
+            color: '#800000', weight: 1, dashArray: '4', fillOpacity: 0.08, interactive: false,
+        }).addTo(map);
+    }
+    if (rectangle.trace) rectangle.trace.setBounds([rectangle.depart, rectangle.fin]);
+}
+
+function finRectangle() {
+    if (!rectangle) return;
+    const { depart, fin, item, trace } = rectangle;
+    rectangle = null;
+    ignorerClic = true;
+    document.body.classList.remove('cp-rect-actif');
+    if (trace) {
+        map.removeLayer(trace);
+        const zone = L.latLngBounds(depart, fin);
+        const dedans = Object.values(parcelles).filter(i => i.polys && zone.contains([i.cy + i.dy, i.cx + i.dx]));
+        selectionner([...selection, ...dedans]);
+    } else if (item) {
+        basculerSelection(item);
+    }
+}
+map.on('mousedown', e => { if (e.originalEvent.shiftKey) debutRectangle(e); });
+map.on('mouseup', finRectangle);
+document.addEventListener('mouseup', finRectangle);
+
+// Clavier : déplacement fin, retrait, désélection
 document.addEventListener('keydown', e => {
-    if (!selection || !selection.polys) return;
+    if (!selection.size) return;
     if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+    if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); retirerSelection(); return; }
+    if (e.key === 'Escape') { selectionner(null); return; }
     const pas = e.shiftKey ? 50 : 5;
     const d = { ArrowLeft: [-pas, 0], ArrowRight: [pas, 0], ArrowUp: [0, pas], ArrowDown: [0, -pas] }[e.key];
     if (!d) return;
     e.preventDefault();
-    selection.dx += d[0];
-    selection.dy += d[1];
-    deplacer(selection);
-    majLigne(selection);
-    marquerModifie();
+    e.stopImmediatePropagation(); // les flèches déplacent la sélection, pas la vue de la carte
+    selection.forEach(i => { i.dx += d[0]; i.dy += d[1]; deplacer(i); });
+    apresDeplacement();
 });
 
 // ── Sélection ───────────────────────────────────────────────────────────────
-function selectionner(item) {
+function selectionner(items) {
     const avant = selection;
-    selection = item;
-    [avant, item].forEach(i => i && i.polys && i.polys.forEach(p => { p.setStyle(style(i)); if (i === item) p.bringToFront(); }));
-    document.querySelectorAll('#cp-liste .cp-ligne').forEach(l => l.classList.toggle('cp-active', item && l.dataset.slug === item.slug));
+    selection = new Set(items);
+    [...avant, ...selection].forEach(i => i.polys && i.polys.forEach(p => p.setStyle(style(i))));
+    selection.forEach(i => i.polys && i.polys.forEach(p => p.bringToFront()));
+    document.querySelectorAll('#cp-liste .cp-ligne').forEach(l => l.classList.toggle('cp-active', selection.has(parcelles[l.dataset.slug])));
     majSelection();
+}
+
+// Ajoute la parcelle à la sélection, ou l'en retire si elle y est déjà
+function basculerSelection(item) {
+    const items = new Set(selection);
+    if (!items.delete(item)) items.add(item);
+    selectionner(items);
 }
 
 function majSelection() {
     const bloc = document.getElementById('cp-selection');
-    if (!selection || !selection.polys) { bloc.style.display = 'none'; return; }
+    if (!selection.size) { bloc.style.display = 'none'; return; }
     bloc.style.display = '';
-    document.getElementById('cp-sel-nom').textContent = selection.slug;
-    const dist = Math.round(Math.hypot(selection.dx, selection.dy));
+    const items = [...selection];
+    if (items.length > 1) {
+        const deplacees = items.filter(estDeplacee).length;
+        document.getElementById('cp-sel-nom').textContent = items.length + ' parcelles sélectionnées';
+        document.getElementById('cp-sel-decalage').textContent = deplacees
+            ? deplacees + ' déplacée(s) par rapport à leur position réelle'
+            : 'À leur position réelle';
+        return;
+    }
+    document.getElementById('cp-sel-nom').textContent = items[0].slug;
+    const dist = Math.round(Math.hypot(items[0].dx, items[0].dy));
     document.getElementById('cp-sel-decalage').textContent = dist >= 1
         ? 'Déplacée de ' + dist.toLocaleString('fr') + ' m par rapport à sa position réelle'
         : 'À sa position réelle';
 }
 
-document.getElementById('cp-sel-fermer').addEventListener('click', () => selectionner(null));
-map.on('click', () => selectionner(null));
+function apresDeplacement() {
+    selection.forEach(majLigne);
+    majSelection();
+    marquerModifie();
+}
 
+function retirerSelection() {
+    const items = [...selection];
+    if (items.length > 1 && !confirm('Retirer ces ' + items.length + ' parcelles de la carte ?')) return;
+    items.forEach(i => basculer(i, false));
+}
+
+document.getElementById('cp-sel-fermer').addEventListener('click', () => selectionner(null));
+map.getContainer().addEventListener('mousedown', () => { ignorerClic = false; }, true);
+map.on('click', () => {
+    if (ignorerClic) { ignorerClic = false; return; }
+    selectionner(null);
+});
+
+// Le groupe garde ses écarts : c'est le milieu de la sélection qui vient au centre de la vue
 document.getElementById('cp-sel-centre').addEventListener('click', () => {
-    if (!selection) return;
+    if (!selection.size) return;
     const c = map.getCenter();
-    selection.dx = c.lng - selection.cx;
-    selection.dy = c.lat - selection.cy;
-    deplacer(selection); majLigne(selection); marquerModifie();
+    const milieu = valeurs => (Math.min(...valeurs) + Math.max(...valeurs)) / 2;
+    const items = [...selection];
+    const mx = milieu(items.map(i => i.cx + i.dx));
+    const my = milieu(items.map(i => i.cy + i.dy));
+    items.forEach(i => { i.dx += c.lng - mx; i.dy += c.lat - my; deplacer(i); });
+    apresDeplacement();
 });
 document.getElementById('cp-sel-reset').addEventListener('click', () => {
-    if (!selection) return;
-    selection.dx = 0; selection.dy = 0;
-    deplacer(selection); majLigne(selection); marquerModifie();
+    if (!selection.size) return;
+    selection.forEach(i => { i.dx = 0; i.dy = 0; deplacer(i); });
+    apresDeplacement();
 });
-document.getElementById('cp-sel-retirer').addEventListener('click', () => {
-    if (!selection) return;
-    basculer(selection, false);
-});
+document.getElementById('cp-sel-retirer').addEventListener('click', retirerSelection);
 
 // ── Liste des parcelles ─────────────────────────────────────────────────────
 function basculer(item, actif) {
     item.actif = actif;
-    if (actif) afficher(item); else { masquer(item); if (item === selection) selectionner(null); }
+    if (actif) afficher(item); else { masquer(item); if (selection.has(item)) selectionner([...selection].filter(i => i !== item)); }
     const cb = document.querySelector('#cp-liste input[data-slug="' + CSS.escape(item.slug) + '"]');
     if (cb) cb.checked = actif;
     majLigne(item);
@@ -474,11 +570,12 @@ function construireListe() {
         marque.title = 'Parcelle déplacée';
 
         ligne.append(cb, nom, marque);
-        // Clic sur le nom : sélectionne et centre la vue sur la parcelle
+        // Clic sur le nom : sélectionne et centre la vue sur la parcelle (Ctrl+clic : ajoute à la sélection)
         nom.addEventListener('click', e => {
             if (!item.actif) return;
             e.preventDefault();
-            selectionner(item);
+            if (e.ctrlKey || e.metaKey) { basculerSelection(item); return; }
+            selectionner([item]);
             map.panTo([item.cy + item.dy, item.cx + item.dx]);
         });
         liste.appendChild(ligne);

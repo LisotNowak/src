@@ -13,10 +13,12 @@ class TacheRepository extends ServiceEntityRepository
         parent::__construct($registry, Tache::class);
     }
 
-    /** Toutes les tâches triées par nom */
+    /** Toutes les tâches triées par nom, avec leur type et les équipes de ce type */
     public function findAllSorted(): array
     {
         return $this->createQueryBuilder('t')
+            ->leftJoin('t.type', 'ty')->addSelect('ty')
+            ->leftJoin('ty.equipes', 'e')->addSelect('e')
             ->orderBy('t.nom', 'ASC')
             ->getQuery()
             ->getResult();

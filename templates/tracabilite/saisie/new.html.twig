@@ -89,8 +89,8 @@
                             {% endfor %}
                         </div>
                         <div class="form-text" id="parcelles-resume"></div>
-                        <div class="form-text text-warning-emphasis">
-                            <i class="fas fa-lock me-1"></i>Avancement bloqué à 100 % : une saisie terminée est créée par parcelle, avec les heures ventilées sur chacune.
+                        <div class="form-text">
+                            <i class="fas fa-info-circle me-1"></i>Une saisie est créée par parcelle, avec l'avancement indiqué ci-dessous et les heures ventilées sur chacune.
                         </div>
                     </div>
                 </div>
@@ -246,7 +246,9 @@ function updateAdvPieds() {
     if (!el || !piedsInput || !piedsTotalInput) return;
     if (isMultiParcelle()) {
         const total = piedsParcellesCochees();
-        el.textContent = total > 0 ? total.toLocaleString('fr') + ' / ' + total.toLocaleString('fr') + ' pieds' : '';
+        // Même arrondi que le serveur : parcelle par parcelle
+        const realises = parcellesCochees().reduce((s, slug) => s + Math.round(((PARCELLES[slug] && PARCELLES[slug].nombrePieds) || 0) * parseFloat(avancementRange.value) / 100), 0);
+        el.textContent = total > 0 ? realises.toLocaleString('fr') + ' / ' + total.toLocaleString('fr') + ' pieds' : '';
         return;
     }
     const total = parseFloat(piedsTotalInput.value) || 0;
@@ -333,7 +335,7 @@ function updateParcelleVisibility() {
     document.getElementById('piedsTotalBlock').style.display = piedsCaches ? 'none' : '';
 }
 
-// ── Saisie multi-parcelles (avancement bloqué à 100 %) ─────────────────────
+// ── Saisie multi-parcelles (même avancement pour chaque parcelle) ──────────
 
 const multiParcelleInput = document.getElementById('multiParcelle');
 
@@ -420,22 +422,13 @@ function setMultiParcelle() {
     document.getElementById('parcelleSimple').style.display = multi ? 'none' : '';
     document.getElementById('parcelleMulti').style.display  = multi ? '' : 'none';
 
-    const bloque = isMultiParcelle();
-    if (bloque) {
-        avancementRange.value = 100;
-        if (advDisplay) advDisplay.textContent = '100%';
-    }
-    // Le curseur reste soumis (un champ désactivé ne serait pas envoyé) mais n'est plus manipulable
-    avancementRange.style.pointerEvents = bloque ? 'none' : '';
-    avancementRange.style.opacity       = bloque ? '0.5' : '';
-    avancementRange.tabIndex            = bloque ? -1 : 0;
-
     // Heures : saisies parcelle par parcelle, le champ principal devient le total
-    document.getElementById('ventilationBlock').style.display = bloque ? '' : 'none';
-    heuresInput.readOnly = bloque;
-    heuresInput.classList.toggle('bg-light', bloque);
+    const ventile = isMultiParcelle();
+    document.getElementById('ventilationBlock').style.display = ventile ? '' : 'none';
+    heuresInput.readOnly = ventile;
+    heuresInput.classList.toggle('bg-light', ventile);
 
-    if (bloque) updateParcellesResume();
+    if (ventile) updateParcellesResume();
     else syncPiedsFromAdv();
 }
 
@@ -449,7 +442,14 @@ document.getElementById('parcelle-search').addEventListener('input', e => {
 });
 
 document.getElementById('parcelle-chips').addEventListener('change', updateParcellesResume);
-multiParcelleInput.addEventListener('change', setMultiParcelle);
+multiParcelleInput.addEventListener('change', () => {
+    // Pré-positionné à 100 % en passant en multi-parcelles, puis modifiable avec le curseur
+    if (multiParcelleInput.checked) {
+        avancementRange.value = 100;
+        if (advDisplay) advDisplay.textContent = '100%';
+    }
+    setMultiParcelle();
+});
 
 function updateParcelleInfo() {
     const slug = selParcelle.value;
@@ -530,5 +530,6 @@ updateParcelleTaches();
 setMultiParcelle();
 updateAdvPieds();
 </script>
+{{ include('tracabilite/saisie/_filtre_taches.html.twig') }}
 {{ include('tracabilite/saisie/_validation.html.twig') }}
 {% endblock %}

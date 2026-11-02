@@ -1,0 +1,28 @@
+{# Formulaire de saisie (new / edit) : ne propose que les tâches disponibles pour l'équipe choisie.
+   Une tâche sans équipe associée reste proposée à toutes. À inclure après le script qui définit TACHES, selChef et selTache. #}
+<script>
+(function () {
+    const toutesLesOptions = [...selTache.options];
+    // En modification, la tâche déjà enregistrée reste proposée à son équipe
+    const tacheConservee = {{ (tacheConservee ?? null)|json_encode|raw }};
+    const chefConserve   = {{ (chefConserve ?? null)|json_encode|raw }};
+
+    function estProposee(tache) {
+        if (!tache || !selChef.value) return true;
+        if (tache === tacheConservee && selChef.value === chefConserve) return true;
+        const equipes = (TACHES[tache] && TACHES[tache].equipes) || [];
+        return !equipes.length || equipes.includes(selChef.value);
+    }
+
+    function filtrerTaches() {
+        const courante = selTache.value;
+        selTache.replaceChildren(...toutesLesOptions.filter(o => estProposee(o.value)));
+        selTache.value = estProposee(courante) ? courante : '';
+        // La tâche choisie n'est plus disponible : le reste du formulaire doit se remettre à jour
+        if (selTache.value !== courante) selTache.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    selChef.addEventListener('change', filtrerTaches);
+    filtrerTaches();
+})();
+</script>
