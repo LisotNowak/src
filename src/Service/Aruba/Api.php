@@ -9,14 +9,15 @@ namespace App\Service\Aruba;
 
 class Api
 {
-    public function __construct(private Collector $collector)
+    public function __construct(private Collector $collector, private Store $store)
     {
     }
 
-    public function snapshot(): array
+    /** Photo du réseau en JSON, renvoyée telle qu'enregistrée en base (1 à 2 Mo : pas de décodage inutile). */
+    public function snapshotJson(): string
     {
-        return $this->collector->snapshot() ?? ['switches' => [], 'macs' => [], 'wifi' => [], 'glpi' => null,
-            'topology' => ['nodes' => [], 'links' => []], 'summary' => (object) [], 'collected_at' => null];
+        return $this->store->lastSnapshotJson() ?? (string) json_encode(['switches' => [], 'macs' => [], 'wifi' => [],
+            'glpi' => null, 'topology' => ['nodes' => [], 'links' => []], 'summary' => (object) [], 'collected_at' => null]);
     }
 
     public function status(): array
@@ -24,31 +25,69 @@ class Api
         return $this->collector->status();
     }
 
-    public function refresh(): array
+    /** $par : utilisateur connecté, enregistré avec la collecte */
+    public function refresh(?string $par = null): array
     {
-        return $this->collector->launch() ? ['started' => true]
+        return $this->collector->launch($par) ? ['started' => true]
             : ['started' => false, 'message' => 'Collecte déjà en cours'];
     }
 
+    /** Dernière position connue des appareils correspondant à la recherche (MAC, IP, nom, fiche GLPI). */
     public function history(string $q): array
     {
         $q = strtolower(trim($q));
-        $hexq = preg_replace('/[^0-9a-f]/', '', $q);
-        $out = [];
-        $glpi = $this->collector->snapshot()['glpi']['macs'] ?? [];
-        foreach ($this->collector->history() as $mac => $h) {
-            $mac = (string) $mac;
-            $g = $glpi[$mac] ?? [];
-            $names = strtolower(implode(' ', [$h['name'] ?? '', $h['glpi_name'] ?? '', $g['user'] ?? '', $g['contact'] ?? '',
-                $g['serial'] ?? '', $g['model'] ?? '']));
-            if ((strlen($hexq) >= 4 && preg_match('/^[0-9a-f:.\-\s]+$/', $q) && str_contains(str_replace(':', '', $mac), $hexq))
-                || ($q !== '' && $q === ($h['ip'] ?? ''))
-                || (strlen($q) >= 2 && str_contains($names, $q))) {
-                $out[] = ['mac' => $mac] + $h;
+        $hexq = (string) preg_replace('/[^0-9a-f]/', '', $q);
+        $hex = strlen($hexq) >= 4 && preg_match('/^[0-9a-f:.\-\s]+$/', $q) ? $hexq : '';
+        // fiche GLPI (utilisateur, contact, numéro de série, modèle) : connue par la dernière collecte
+        $glpiMacs = [];
+        if (strlen($q) >= 2) {
+            foreach ($this->collector->snapshot()['glpi']['macs'] ?? [] as $mac => $g) {
+                $text = strtolower(implode(' ', [$g['user'] ?? '', $g['contact'] ?? '', $g['serial'] ?? '', $g['model'] ?? '']));
+                if (str_contains($text, $q)) {
+                    $glpiMacs[] = (string) $mac;
+                }
             }
         }
-        usort($out, fn($a, $b) => strcmp($b['last_seen'] ?? '', $a['last_seen'] ?? ''));
-        return array_slice($out, 0, 200);
+        return $this->store->searchHistory($q, $hex, $glpiMacs);
+    }
+
+    /** Emplacements successifs d'un appareil (switch, port, VLAN, borne), du plus récent au plus ancien. */
+    public function mouvements(string $mac): array
+    {
+        return $this->store->mouvements($mac);
+    }
+
+    // ── vue Historique ──
+    /** Nombre de jours demandé, borné (1 jour à 3 ans) */
+    private static function days(mixed $v, int $default): int
+    {
+        return min(1095, max(1, (int) ($v ?: $default)));
+    }
+
+    public function deplacements(array $q): array
+    {
+        return ['rows' => $this->store->deplacements(self::days($q['jours'] ?? 7, 7), !empty($q['wifi']),
+            !empty($q['arrivees']), (string) ($q['switch'] ?? ''), trim((string) ($q['q'] ?? '')))];
+    }
+
+    public function evenements(array $q): array
+    {
+        return ['rows' => $this->store->evenements(self::days($q['jours'] ?? 7, 7), (string) ($q['switch'] ?? ''))];
+    }
+
+    public function portsInactifs(array $q): array
+    {
+        return $this->store->portsInactifs(self::days($q['jours'] ?? 30, 30), (string) ($q['switch'] ?? ''));
+    }
+
+    public function collectes(): array
+    {
+        return ['rows' => $this->store->collectes()];
+    }
+
+    public function portHistorique(string $switch, string $port): array
+    {
+        return $this->store->portHistorique($switch, $port);
     }
 
     public function macsCsv(): string

@@ -17,7 +17,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
  * Gestion switch > Configuration : ajout, modification, suppression des switchs et paramètres communs.
- * Tout est enregistré dans config/aruba/config.json, les mots de passe chiffrés dans config/aruba/secrets.
+ * Switchs et clusters Wi-Fi en base (gestion_switch.equipement), paramètres communs et GLPI dans
+ * config/aruba/config.json, mots de passe chiffrés dans config/aruba/secrets.
  * Les changements sont pris en compte à la prochaine actualisation.
  */
 #[Route('/gestion-switch/admin', name: 'app_gestion_switch_admin_')]
@@ -59,6 +60,7 @@ class ArubaAdminController extends AbstractController
             'parallel' => $this->config->get('parallel', 8),
             'other_switches' => $this->config->get('other_switches', []),
             'running' => $this->collector->isRunning(),
+            'auto' => $this->collector->autoState(),
             'glpi' => $this->config->glpi(),
             'glpi_last' => ($snap['glpi'] ?? null) ? $snap['glpi'] + ['matched' => $snap['summary']['glpi_matched'] ?? 0] : null,
         ]);
@@ -70,7 +72,7 @@ class ArubaAdminController extends AbstractController
     {
         $kind = $request->query->get('type') === 'wifi' ? 'wifi' : 'switch';
         $form = $this->createForm(SwitchType::class,
-            ['os' => 'aos-cx', 'protocol' => 'https', 'password_mode' => 'common', 'verify_ssl' => 'default'],
+            ['os' => 'aos-cx', 'protocol' => 'https', 'password_mode' => 'common', 'verify_ssl' => 'default', 'actif' => true],
             ['defaults' => $this->config->get('defaults', []), 'kind' => $kind]);
         $form->handleRequest($request);
 
@@ -103,6 +105,7 @@ class ArubaAdminController extends AbstractController
             'name' => $raw['name'] ?? '',
             'host' => $raw['host'] ?? '',
             'site' => $raw['site'] ?? '',
+            'actif' => $raw['actif'] ?? true,
             'os' => $raw['os'] ?? 'aos-cx',
             'protocol' => $raw['protocol'] ?? 'https',
             'username' => $raw['username'] ?? '',
@@ -183,6 +186,11 @@ class ArubaAdminController extends AbstractController
             'api_version' => $defaults['api_version'] ?? 'auto',
             'verify_ssl' => (bool) ($defaults['verify_ssl'] ?? false),
             'parallel' => $this->config->get('parallel', 8),
+            'auto_collect' => $this->collector->autoSettings()['enabled'],
+            'auto_interval' => $this->collector->autoSettings()['interval'],
+            'retention_days' => (int) $this->config->get('retention_days', 0),
+            'retention_presence_days' => (int) $this->config->get('retention_presence_days', 0),
+            'retention_full_days' => (int) $this->config->get('retention_full_days', 7),
             'other_switches' => implode("\n", array_map(fn($o) => trim(($o['host'] ?? '') . ' ; ' . ($o['name'] ?? ''), ' ;'),
                 $this->config->get('other_switches', []))),
         ], ['has_password' => $hasPassword]);
@@ -197,6 +205,11 @@ class ArubaAdminController extends AbstractController
             if ($form->isValid()) {
                 $this->config->saveSettings([
                     'parallel' => (int) $data['parallel'],
+                    'auto_collect' => (bool) $data['auto_collect'],
+                    'auto_interval' => (int) $data['auto_interval'],
+                    'retention_days' => (int) $data['retention_days'],
+                    'retention_presence_days' => (int) $data['retention_presence_days'],
+                    'retention_full_days' => (int) $data['retention_full_days'],
                     'defaults' => array_merge($defaults, [
                         'username' => trim($data['username']),
                         'verify_ssl' => (bool) $data['verify_ssl'],
@@ -311,6 +324,7 @@ class ArubaAdminController extends AbstractController
             'host' => trim($data['host']),
             'name' => trim((string) $data['name']),
             'site' => trim((string) $data['site']),
+            'actif' => (bool) $data['actif'],
             'os' => $os,
             'protocol' => $os === 'aos-switch' && ($data['protocol'] ?? '') === 'http' ? 'http' : null,
             'username' => trim((string) $data['username']),

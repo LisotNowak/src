@@ -25,6 +25,7 @@ class ArubaCollectCommand extends Command
     protected function configure(): void
     {
         $this->addOption('switch', null, InputOption::VALUE_REQUIRED, 'Interroge un seul switch (usage interne)');
+        $this->addOption('par', null, InputOption::VALUE_REQUIRED, 'Utilisateur ayant lancé la collecte (enregistré en base)');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -36,7 +37,8 @@ class ArubaCollectCommand extends Command
             return Command::SUCCESS;
         }
         $t0 = microtime(true);
-        if (!$this->collector->run(fn(string $m) => $output->writeln($m, OutputInterface::OUTPUT_RAW))) {
+        if (!$this->collector->run(fn(string $m) => $output->writeln($m, OutputInterface::OUTPUT_RAW),
+            $input->getOption('par') ?? 'console')) {
             return 2;
         }
         $output->writeln(sprintf('Collecte terminée en %.1f s', microtime(true) - $t0));

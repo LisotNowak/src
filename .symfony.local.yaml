@@ -1,0 +1,5 @@
+# Processus lancés et arrêtés avec le serveur Symfony (symfony serve), relancés s'ils s'arrêtent
+workers:
+    # Gestion switch : collecte automatique (intervalle réglé dans Configuration > Valeurs par défaut et options)
+    gestion_switch_auto:
+        cmd: ['symfony', 'console', 'aruba:auto', '--boucle']

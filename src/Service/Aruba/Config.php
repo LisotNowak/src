@@ -1,8 +1,12 @@
 <?php
 /**
- * Configuration : config/aruba/config.json (switchs, options) + identifiants.
+ * Configuration : switchs et clusters Wi-Fi en base (table gestion_switch.equipement), paramètres communs
+ * dans config/aruba/config.json (parallel, defaults, other_switches, glpi, retention_days, auto_collect,
+ * auto_interval) + identifiants.
  * Le tout se modifie depuis l'écran Gestion switch > Configuration (App\Controller\Aruba\ArubaAdminController).
- * Les utilisateurs sont dans config.json (defaults.username, username du switch). Les mots de passe sont
+ * Les switchs circulent sous forme de tableau (clés id, host, name… de l'ancien config.json, voir
+ * Equipement::toConfig()). Les utilisateurs sont en base (username du switch) ou dans config.json
+ * (defaults.username). Les mots de passe sont
  * chiffrés en AES dans config/aruba/secrets (format ConvertFrom-SecureString -Key de PowerShell, aussi
  * écrit par `bin/console aruba:password`). Les variables ARUBA_USER / ARUBA_PASSWORD (et _<ID>) des
  * fichiers .env restent acceptées et sont prioritaires. Un fichier .env dédié reste possible ($envFile),
@@ -12,17 +16,34 @@ declare(strict_types=1);
 
 namespace App\Service\Aruba;
 
+use App\Entity\gestion_switch\Equipement;
+use App\Repository\gestion_switch\EquipementRepository;
+use Doctrine\ORM\EntityManagerInterface;
+
 class Config
 {
     private array $cfg;
 
-    public function __construct(private string $configFile, private string $envFile = '')
+    /** @var Equipement[]|null lus une fois par requête (voir equipements()) */
+    private ?array $equipements = null;
+
+    public function __construct(
+        private string $configFile,
+        private EntityManagerInterface $em,
+        private EquipementRepository $equipementRepository,
+        private string $envFile = '',
+    ) {
+        $this->reload();
+    }
+
+    /** Relit config.json (processus qui tourne en continu : collecte automatique). */
+    public function reload(): void
     {
-        if (!is_file($configFile)) {
-            throw new \RuntimeException("Fichier de configuration introuvable : {$configFile}\n"
+        if (!is_file($this->configFile)) {
+            throw new \RuntimeException("Fichier de configuration introuvable : {$this->configFile}\n"
                 . 'Copiez config/aruba/config.example.json en config.json et renseignez vos switchs.');
         }
-        $cfg = json_decode((string) file_get_contents($configFile), true);
+        $cfg = json_decode((string) file_get_contents($this->configFile), true);
         if (!is_array($cfg)) {
             throw new \RuntimeException("config.json invalide : " . json_last_error_msg());
         }
@@ -71,27 +92,33 @@ class Config
         return str_replace(' ', '_', (string) (($s['id'] ?? '') ?: (($s['name'] ?? '') ?: $s['host'])));
     }
 
-    public function switches(): array
+    /** @return Equipement[] dans l'ordre d'affichage */
+    private function equipements(): array
     {
-        $defaults = $this->cfg['defaults'] ?? [];
-        $out = [];
-        foreach ($this->cfg['switches'] ?? [] as $s) {
-            $sw = array_merge($defaults, $s);
-            $sw['id'] = self::idOf($s);
-            $out[] = $sw;
-        }
-        return $out;
+        return $this->equipements ??= $this->equipementRepository->findOrdered();
     }
 
-    /** Entrée du switch telle qu'écrite dans config.json (sans les valeurs par défaut), null si inconnu. */
-    public function rawSwitch(string $id): ?array
+    private function equipement(string $id): ?Equipement
     {
-        foreach ($this->cfg['switches'] ?? [] as $s) {
-            if (self::idOf($s) === $id) {
-                return $s;
+        foreach ($this->equipements() as $e) {
+            if ($e->getCode() === $id) {
+                return $e;
             }
         }
         return null;
+    }
+
+    /** Tous les switchs et clusters Wi-Fi, désactivés compris (clé actif), complétés par les valeurs par défaut. */
+    public function switches(): array
+    {
+        $defaults = $this->cfg['defaults'] ?? [];
+        return array_map(fn(Equipement $e) => array_merge($defaults, $e->toConfig()), $this->equipements());
+    }
+
+    /** Switch tel qu'enregistré (sans les valeurs par défaut), null si inconnu. */
+    public function rawSwitch(string $id): ?array
+    {
+        return $this->equipement($id)?->toConfig();
     }
 
     public function switch(string $id): array
@@ -169,52 +196,72 @@ class Config
         }
     }
 
-    /** Ajoute ou remplace un switch (les clés vides sont omises : valeurs par défaut). */
+    /** Ajoute (en dernière position) ou remplace un switch (les clés vides reviennent aux valeurs par défaut). */
     public function saveSwitch(array $sw): void
     {
-        $sw = array_filter($sw, fn($v) => $v !== null && $v !== '');
-        $list = $this->cfg['switches'] ?? [];
-        foreach ($list as $i => $s) {
-            if (self::idOf($s) === $sw['id']) {
-                $list[$i] = $sw;
-                $this->cfg['switches'] = $list;
-                $this->write();
-                return;
-            }
+        $e = $this->equipement($sw['id']);
+        if ($e === null) {
+            $last = max([0, ...array_map(fn(Equipement $x) => $x->getPosition(), $this->equipements())]);
+            $e = (new Equipement())->setCode($sw['id'])->setPosition($last + 1);
+            $this->em->persist($e);
         }
-        $list[] = $sw;
-        $this->cfg['switches'] = $list;
-        $this->write();
+        $e->fromConfig($sw);
+        $this->em->flush();
+        $this->equipements = null;
     }
 
     public function deleteSwitch(string $id): void
     {
-        $this->cfg['switches'] = array_values(array_filter($this->cfg['switches'] ?? [],
-            fn($s) => self::idOf($s) !== $id));
-        $this->write();
+        if ($e = $this->equipement($id)) {
+            // en base : résultats de collecte supprimés, appareils détachés (ON DELETE CASCADE / SET NULL)
+            $this->em->remove($e);
+            $this->em->flush();
+            $this->equipements = null;
+        }
         $this->removePassword($id);
     }
 
     /** Déplace un switch d'un rang ($delta = -1 : vers le haut, 1 : vers le bas). */
     public function moveSwitch(string $id, int $delta): void
     {
-        $list = $this->cfg['switches'] ?? [];
-        $wifi = fn(array $s) => ($s['os'] ?? '') === 'instant';
-        foreach ($list as $i => $s) {
-            if (self::idOf($s) !== $id) {
+        $list = $this->equipements();
+        foreach ($list as $i => $e) {
+            $e->setPosition($i + 1);   // renumérotation : positions uniques et continues
+        }
+        foreach ($list as $i => $e) {
+            if ($e->getCode() !== $id) {
                 continue;
             }
             // échange avec le voisin de même nature (switchs et clusters Wi-Fi sont listés à part)
             for ($j = $i + $delta; isset($list[$j]); $j += $delta) {
-                if ($wifi($list[$j]) === $wifi($s)) {
-                    [$list[$i], $list[$j]] = [$list[$j], $list[$i]];
-                    $this->cfg['switches'] = $list;
-                    $this->write();
-                    return;
+                if ($list[$j]->isWifi() === $e->isWifi()) {
+                    $e->setPosition($j + 1);
+                    $list[$j]->setPosition($i + 1);
+                    break;
                 }
             }
+            break;
+        }
+        $this->em->flush();
+        $this->equipements = null;
+    }
+
+    // ------------------------------------------------------------ reprise de l'ancien config.json
+    /** Switchs encore présents dans config.json (avant leur passage en base par aruba:import). */
+    public function fileSwitches(): array
+    {
+        return array_map(fn(array $s) => ['id' => self::idOf($s)] + $s, $this->cfg['switches'] ?? []);
+    }
+
+    /** Retire la liste des switchs de config.json (copie de l'ancien fichier dans config.json.avant-bdd). */
+    public function removeFileSwitches(): void
+    {
+        if (!isset($this->cfg['switches'])) {
             return;
         }
+        copy($this->configFile, $this->configFile . '.avant-bdd');
+        unset($this->cfg['switches']);
+        $this->write();
     }
 
     // ------------------------------------------------------------ GLPI

@@ -285,6 +285,9 @@ class Inventory
                 'macs' => count($r['macs'] ?? []),
                 'lldp' => array_sum(array_map('count', $lldp)),
                 'vlans' => count($vlans)];
+            // VLAN déclarés (enregistrés en base par Store)
+            $sw['vlans'] = array_map(fn($id, $name) => ['id' => (string) $id, 'name' => (string) $name],
+                array_keys($vlans), array_values($vlans));
             $switches[] = $sw;
         }
 

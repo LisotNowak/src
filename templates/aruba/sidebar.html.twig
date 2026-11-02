@@ -81,6 +81,9 @@
     <a href="{{ path('app_gestion_switch_index') }}#wifi" class="nav-link" data-aruba-view="wifi">
         <i class="fas fa-wifi"></i> Bornes Wi-Fi
     </a>
+    <a href="{{ path('app_gestion_switch_index') }}#historique" class="nav-link" data-aruba-view="historique">
+        <i class="fas fa-clock-rotate-left"></i> Historique
+    </a>
 
     <div class="sidebar-title mt-3">Export</div>
     <a href="{{ path('app_gestion_switch_export_csv') }}" class="nav-link">
@@ -100,5 +103,6 @@
     <a href="{{ path('app_gestion_switch_index') }}#search" data-aruba-view="search"><i class="fas fa-magnifying-glass"></i>Recherche</a>
     <a href="{{ path('app_gestion_switch_index') }}#map" data-aruba-view="map"><i class="fas fa-diagram-project"></i>Carte</a>
     <a href="{{ path('app_gestion_switch_index') }}#wifi" data-aruba-view="wifi"><i class="fas fa-wifi"></i>Wi-Fi</a>
+    <a href="{{ path('app_gestion_switch_index') }}#historique" data-aruba-view="historique"><i class="fas fa-clock-rotate-left"></i>Historique</a>
     <a href="{{ path('app_gestion_switch_admin_index') }}" class="{{ admin_active ? 'active' }}"><i class="fas fa-sliders"></i>Config</a>
 </nav>

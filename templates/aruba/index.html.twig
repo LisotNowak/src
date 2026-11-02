@@ -131,6 +131,18 @@
     #aruba-app .npath .ln a:hover{text-decoration:underline}
     #aruba-app .empty{padding:30px;text-align:center;color:var(--muted)}
 
+    /* historique (base de données) */
+    #aruba-app .hist-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+    #aruba-app .hist-tabs button{border:1px solid var(--line);background:var(--panel);color:var(--text);padding:6px 12px;border-radius:8px}
+    #aruba-app .hist-tabs button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+    #aruba-app .toolbar select{padding:6px 8px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--text);font:inherit}
+    #aruba-app .note{font-size:12.5px;color:var(--muted);margin:0 0 10px}
+    #aruba-app .nat{display:inline-block;padding:0 6px;border-radius:5px;font-size:11.5px;font-weight:600;color:#fff;white-space:nowrap}
+    #aruba-app .nat.filaire{background:var(--up)}
+    #aruba-app .nat.wifi{background:var(--ap)}
+    #aruba-app .nat.arrivee{background:var(--muted)}
+    #aruba-app td a[data-sw], #aruba-app details.mv a[data-sw]{color:var(--accent);cursor:pointer;text-decoration:none;font-weight:600}
+
     /* carte */
     #map-wrap{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);height:calc(100vh - 230px);min-height:460px;overflow:hidden}
     #map{width:100%;height:100%;touch-action:none;cursor:grab}
@@ -259,6 +271,31 @@
             </div>
             <div id="wifi"></div>
         </section>
+
+        <section class="view" id="v-historique">
+            <div class="hist-tabs" id="htabs">
+                <button type="button" data-t="moves" class="on"><i class="fas fa-shuffle me-1"></i>Déplacements</button>
+                <button type="button" data-t="events"><i class="fas fa-ethernet me-1"></i>Changements des ports</button>
+                <button type="button" data-t="idle"><i class="fas fa-plug-circle-xmark me-1"></i>Ports inutilisés</button>
+                <button type="button" data-t="runs"><i class="fas fa-list-check me-1"></i>Collectes</button>
+            </div>
+            <div class="toolbar" id="htools">
+                <label id="hdays-l"><span id="hdays-t">Période</span>
+                    <select id="hdays">
+                        <option value="1">24 heures</option>
+                        <option value="7" selected>7 jours</option>
+                        <option value="30">30 jours</option>
+                        <option value="90">90 jours</option>
+                        <option value="365">1 an</option>
+                    </select>
+                </label>
+                <label id="hsw-l"><select id="hsw"><option value="">Tous les équipements</option></select></label>
+                <input type="text" id="hq" placeholder="Appareil, MAC ou IP">
+                <label data-only="moves"><input type="checkbox" id="hwifi"> Changements de borne Wi-Fi</label>
+                <label data-only="moves"><input type="checkbox" id="hnew"> Nouveaux appareils</label>
+            </div>
+            <div id="hist"></div>
+        </section>
     </div>
     <div class="ax-toast" id="toast"></div>
 </div>
@@ -270,13 +307,20 @@ const API = {
     status:   '{{ path('app_gestion_switch_status')|e('js') }}',
     refresh:  '{{ path('app_gestion_switch_refresh')|e('js') }}',
     history:  '{{ path('app_gestion_switch_history')|e('js') }}',
-    admin:    '{{ path('app_gestion_switch_admin_index')|e('js') }}',
+    mouvements: '{{ path('app_gestion_switch_mouvements')|e('js') }}',
+    deplacements: '{{ path('app_gestion_switch_deplacements')|e('js') }}',
+    evenements: '{{ path('app_gestion_switch_evenements')|e('js') }}',
+    portsInactifs: '{{ path('app_gestion_switch_ports_inactifs')|e('js') }}',
+    collectes: '{{ path('app_gestion_switch_collectes')|e('js') }}',
+    portHistorique: '{{ path('app_gestion_switch_port_historique')|e('js') }}',
+    admin:   '{{ path('app_gestion_switch_admin_index')|e('js') }}',
 };
 const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
 {% verbatim %}
     const $ = s => document.querySelector(s);
     const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
     let S = null;             // snapshot
+    let AUTO = null;          // collecte automatique (réglage, prochaine heure), d'après /api/status
     async function getJson(url, opts){
       const r = await fetch(url, Object.assign({credentials:"same-origin", headers:{"X-Requested-With":"XMLHttpRequest","Accept":"application/json"}}, opts||{}));
       if(!(r.headers.get("Content-Type")||"").includes("application/json")) throw new Error("Session expirée : rechargez la page");
@@ -311,12 +355,13 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
     }
 
     /* ---------------- navigation ---------------- */
-    const VIEWS = ["overview","ports","search","map","wifi"];
+    const VIEWS = ["overview","ports","search","map","wifi","historique"];
     function show(v){
       if(!VIEWS.includes(v)) v = "overview";
       document.querySelectorAll("[data-aruba-view]").forEach(a=>a.classList.toggle("active", a.dataset.arubaView===v));
       document.querySelectorAll("#aruba-app .view").forEach(s=>s.classList.toggle("on", s.id==="v-"+v));
       if(v==="map") drawMap();
+      if(v==="historique") loadHist();
       history.replaceState(null,"","#"+v);
     }
     window.addEventListener("hashchange", ()=>show(location.hash.slice(1)));
@@ -331,6 +376,8 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
       renderWifi();
       if(!curSw && S.switches.length) curSw = (S.switches.find(s=>!s.error)||S.switches[0]).id;
       renderPorts();
+      fillHistSwitches();
+      if($("#v-historique").classList.contains("on")) loadHist();
       mapState.built = false;
       if($("#v-map").classList.contains("on")) drawMap();
       if($("#sq").value) doSearch($("#sq").value);
@@ -338,12 +385,14 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
 
     function setLast(){
       if(!S) return;
-      $("#last").textContent = S.collected_at
+      $("#last").textContent = (S.collected_at
         ? `Dernière collecte : ${fmtDate(S.collected_at)} (${fmtAgo(S.collected_at)})`
-        : "Aucune collecte : cliquez sur Actualiser";
+        : "Aucune collecte : cliquez sur Actualiser")
+        + (AUTO && AUTO.enabled && AUTO.scheduler && AUTO.next_at
+          ? ` · prochaine collecte automatique vers ${new Date(AUTO.next_at).toLocaleTimeString("fr-FR",{timeStyle:"short"})}` : "");
     }
 
-    /* ---------------- actualisation (uniquement à la demande) ---------------- */
+    /* ---------------- actualisation (bouton ou collecte automatique) ---------------- */
     const REFRESH_LABEL = $("#refresh").innerHTML;
     const STEP = {"en attente":["wait","far fa-clock","en attente"], "en cours":["run","fas fa-spinner fa-spin",""],
                   ok:["ok","fas fa-check",""], erreur:["err","fas fa-xmark","erreur"]};
@@ -385,6 +434,7 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
       try{
         for(;;){
           const st = await getJson(API.status);
+          AUTO = st.auto;
           ko = renderProgress(st);
           const p = Object.values(st.progress||{}), done = p.filter(x=>x==="ok"||x==="erreur").length;
           b.innerHTML = `<i class="fas fa-spinner fa-spin me-1"></i>` + (st.phase==="analyse" ? "Analyse…" : p.length && st.phase!=="demarrage" ? `Collecte ${done}/${p.length}` : "Démarrage…");
@@ -568,8 +618,35 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
        ${p.role==="uplink"?`<div class="muted" style="font-size:12.5px;margin-bottom:6px">Port d'uplink : ces MAC sont vues en transit, les équipements sont branchés ailleurs.</div>`:""}
        ${p.mac_count?`<div class="scroll" style="max-height:300px"><table><thead><tr><th>MAC</th><th>Nom</th><th>Utilisateur</th><th>Modèle</th><th>VLAN</th><th>IP</th><th>Constructeur</th></tr></thead><tbody>${
          p.macs.map(m=>`<tr><td class="mono">${esc(m.mac)}</td><td>${glpiLink(m.mac, NAMES.get(m.mac))}</td><td>${esc(glpiUser(m.mac))}</td>
-           <td class="muted">${esc(GLPI.get(m.mac)?.model||"")}</td><td class="mono">${esc(m.vlan)}</td><td class="mono">${esc(m.ip)}</td><td>${esc(m.vendor)}</td></tr>`).join("")}</tbody></table></div>`:'<div class="muted">Aucune.</div>'}`;
+           <td class="muted">${esc(GLPI.get(m.mac)?.model||"")}</td><td class="mono">${esc(m.vlan)}</td><td class="mono">${esc(m.ip)}</td><td>${esc(m.vendor)}</td></tr>`).join("")}</tbody></table></div>`:'<div class="muted">Aucune.</div>'}
+       <div id="port-hist"><h2 style="font-size:14px;margin-top:14px">Historique du port</h2><div class="muted">Chargement…</div></div>`;
       el.querySelectorAll("[data-goto]").forEach(a=>a.onclick=e=>{ e.preventDefault(); curSw=a.dataset.goto; renderPorts(); selectPort(a.dataset.port,true); });
+      loadPortHist(s.id, p.name);
+    }
+
+    // historique d'un port (base de données) : état du lien, changements, appareils qui y ont été branchés
+    let portHistSeq = 0;
+    async function loadPortHist(sw, port){
+      const seq = ++portHistSeq;
+      try{
+        const d = await getJson(API.portHistorique+"?"+new URLSearchParams({switch:sw, port}));
+        const el = $("#port-hist");
+        if(seq!==portHistSeq || !el) return;
+        let html = `<h2 style="font-size:14px;margin-top:14px">Historique du port</h2>`;
+        if(d.state && d.state.since) html += `<div class="note">${d.state.link==="up" ? "Lien actif" : "Sans lien"} depuis le ${fmtDate(d.state.since)}${d.state.since===d.tracked_since ? " (début du suivi)" : ` (${fmtAgo(d.state.since)})`}</div>`;
+        if(d.events.length) html += `<details class="mb-2" ${d.events.length<=5?"open":""}><summary>${d.events.length} changement${d.events.length>1?"s":""} du port</summary><table>
+          <thead><tr><th>Date</th><th>Changement</th><th>Avant</th><th>Après</th></tr></thead><tbody>${
+          d.events.map(v=>`<tr><td class="text-nowrap">${fmtDate(v.seen)}</td><td>${esc(FIELD_FR[v.field]||v.field)}</td>
+            <td>${eventValue(v.field, v.before)}</td><td>${eventValue(v.field, v.after)}</td></tr>`).join("")}</tbody></table></details>`;
+        html += d.devices.length ? `<div class="scroll" style="max-height:300px"><table>
+          <thead><tr><th>Appareil branché</th><th>IP</th><th>VLAN</th><th>Depuis le</th><th>Jusqu'au</th></tr></thead><tbody>${
+          d.devices.map(x=>`<tr><td>${deviceCell(x.mac, x.name)}</td><td class="mono">${esc(x.ip)}</td><td class="mono">${esc(x.vlan)}</td>
+            <td class="text-nowrap">${fmtDate(x.from)}</td>
+            <td class="text-nowrap">${x.here && x.until===S.collected_at ? `<span style="color:var(--up)">toujours branché</span>`
+              : fmtDate(x.until) + (x.here ? ` <span class="muted">(vu pour la dernière fois)</span>` : "")}</td></tr>`).join("")}</tbody></table></div>`
+          : `<div class="muted">Aucun appareil enregistré sur ce port.</div>`;
+        el.innerHTML = html;
+      }catch(e){ const el = $("#port-hist"); if(seq===portHistSeq && el) el.innerHTML = `<div class="err-msg">${esc(e.message)}</div>`; }
     }
 
     function gotoPort(sw, port){ curSw=sw; show("ports"); renderPorts(); selectPort(port,true); }
@@ -724,6 +801,7 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
           ${pathHtml(c.switch, c.switch_name, c.port, apTail(c.ap, c.band, c.name&&c.name!==c.mac?c.name:c.mac))}
           ${glpiLine(c.mac)}
           <div class="muted">Réseau ${esc(c.essid)} · ${esc(c.band)} ${esc(c.standard)} · signal ${c.signal} dB · ${c.speed} Mb/s${c.os?" · "+esc(c.os):""}</div>
+          ${mvBox(c.mac)}
         </div>`).join("");
       }
       if(nbHits.length){
@@ -753,6 +831,7 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
             ${prim.port_desc?`<div class="muted">Description du port : ${esc(prim.port_desc)}</div>`:""}
             ${WIFI.has(mac) ? wifiLine(WIFI.get(mac)) : ""}
             ${others.length?`<details><summary>Trafic vu aussi sur ${others.length} liaison${others.length>1?"s":""} entre switchs</summary>${others.map(o=>`${esc(o.switch_name)} · ${esc(o.port)} (${ROLE_FR[o.role]})`).join("<br>")}</details>`:""}
+            ${mvBox(mac)}
           </div>`;}).join("");
       }
       if(!html){
@@ -766,13 +845,124 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
               <div class="loc">Vue pour la dernière fois ${x.ap?`en Wi-Fi sur la borne <b>${esc(x.ap)}</b> (réseau ${esc(x.essid)})${x.switch?", branchée sur ":""}`:"sur "}${x.switch?`<a data-sw="${esc(x.switch)}" data-p="${esc(x.port)}">${esc(x.switch_name)} · port ${esc(x.port)}</a>`:""}${x.vlan&&!x.ap?` · VLAN ${esc(x.vlan)}`:""}</div>
               ${x.switch||x.ap ? pathHtml(x.switch, x.switch_name, x.port, x.ap ? apTail(x.ap, "", x.name||x.glpi_name||x.mac) : [devNode(x.name||x.glpi_name||x.mac)]) : ""}
               ${glpiLine(x.mac)}
-              <div class="muted">Le ${fmtDate(x.last_seen)} · première fois le ${fmtDate(x.first_seen)}</div></div>`).join("");
+              <div class="muted">Le ${fmtDate(x.last_seen)} · première fois le ${fmtDate(x.first_seen)}</div>
+              ${mvBox(x.mac)}</div>`).join("");
           }catch(e){}
         }
       }
       out.innerHTML = html;
       out.querySelectorAll("a[data-sw]").forEach(a=>a.onclick=()=>gotoPort(a.dataset.sw,a.dataset.p));
+      bindMv(out);
     }
+
+    // emplacements successifs d'un appareil (enregistrés en base à chaque collecte), chargés à l'ouverture
+    function mvBox(mac){
+      return `<details class="mv" data-mac="${esc(mac)}"><summary>Historique des emplacements</summary><div class="muted">Chargement…</div></details>`;
+    }
+    function bindMv(root){
+      root.querySelectorAll("details.mv").forEach(d=>d.addEventListener("toggle", async ()=>{
+        if(!d.open || d.dataset.loaded) return;
+        d.dataset.loaded = "1";
+        const box = d.querySelector("div");
+        try{
+          const list = await getJson(API.mouvements+"?mac="+encodeURIComponent(d.dataset.mac));
+          box.innerHTML = list.length ? list.map(m=>`<div>${fmtDate(m.seen)} · ${m.switch
+            ? `<a data-sw="${esc(m.switch)}" data-p="${esc(m.port)}">${esc(m.switch_name)} · port ${esc(m.port)}</a>` : "emplacement inconnu"}${m.vlan?` · VLAN ${esc(m.vlan)}`:""}${m.ap?` · <i class="fas fa-wifi"></i> ${esc(m.ap)}`:""}${m.ip?` · ${esc(m.ip)}`:""}${m.nature==="arrivee"?" (première fois vu)":""}</div>`).join("")
+            : "Aucun emplacement enregistré.";
+          box.querySelectorAll("a[data-sw]").forEach(a=>a.onclick=()=>gotoPort(a.dataset.sw,a.dataset.p));
+        }catch(e){ box.textContent = e.message; }
+      }));
+    }
+
+    /* ---------------- historique (base de données) ---------------- */
+    let histTab = "moves", histSeq = 0, hqTimer = null;
+    const NATURE = {filaire:["filaire","Câble"], wifi:["wifi","Wi-Fi"], arrivee:["arrivee","Nouveau"]};
+    const natTag = n=>{ const [c,l] = NATURE[n]||NATURE.filaire; return `<span class="nat ${c}">${l}</span>`; };
+    const FIELD_FR = {lien:"Lien", admin:"Activation", vitesse:"Vitesse", description:"Description", vlan:"VLAN",
+                      voisin:"Voisin LLDP", apparu:"Port apparu", retire:"Port retiré"};
+    const RUN_ST = {ok:["var(--up)","OK"], partiel:["var(--ext)","partielle"], erreur:["var(--admin)","en erreur"]};
+    function posHtml(p){
+      if(!p) return `<span class="muted">—</span>`;
+      return (p.switch ? `<a data-sw="${esc(p.switch)}" data-p="${esc(p.port)}">${esc(p.switch_name)} · ${esc(p.port)}</a>` : `<span class="muted">emplacement inconnu</span>`)
+        + (p.vlan ? ` <span class="muted">VLAN ${esc(p.vlan)}</span>` : "") + (p.ap ? `<br><span class="muted"><i class="fas fa-wifi me-1"></i>${esc(p.ap)}</span>` : "");
+    }
+    function eventValue(field, v){
+      if(v==null || v==="") return `<span class="muted">—</span>`;
+      if(field==="vitesse") return esc(fmtSpeed(+v)||v);
+      if(field==="lien") return v==="up" ? `<span style="color:var(--up)">● actif</span>` : `<span class="muted">○ inactif</span>`;
+      if(field==="admin") return v==="up" ? "activé" : `<span style="color:var(--admin)">désactivé</span>`;
+      return esc(v);
+    }
+    function deviceCell(mac, name){
+      const label = name || NAMES.get(mac) || "";
+      return `${label ? `<b>${glpiLink(mac, label)}</b><br>` : ""}<span class="mono muted">${esc(mac)}</span>`;
+    }
+    function fillHistSwitches(){
+      const sel = $("#hsw"), cur = sel.value;
+      sel.innerHTML = `<option value="">Tous les équipements</option>` + [...S.switches, ...(S.wifi||[])]
+        .map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("");
+      sel.value = cur;
+    }
+    async function loadHist(){
+      const seq = ++histSeq, box = $("#hist");
+      document.querySelectorAll("#htabs button").forEach(b=>b.classList.toggle("on", b.dataset.t===histTab));
+      document.querySelectorAll("#htools [data-only]").forEach(l=>l.hidden = l.dataset.only!==histTab);
+      $("#hq").hidden = histTab!=="moves";
+      $("#hdays-l").hidden = $("#hsw-l").hidden = histTab==="runs";
+      $("#hdays-t").textContent = histTab==="idle" ? "Sans lien depuis plus de" : "Période";
+      const params = new URLSearchParams({jours:$("#hdays").value, switch:$("#hsw").value, q:$("#hq").value.trim(),
+        wifi:$("#hwifi").checked?"1":"", arrivees:$("#hnew").checked?"1":""});
+      const url = {moves:API.deplacements, events:API.evenements, idle:API.portsInactifs, runs:API.collectes}[histTab];
+      box.innerHTML = `<div class="empty">Chargement…</div>`;
+      try{
+        const d = await getJson(url+"?"+params);
+        if(seq!==histSeq) return;
+        box.innerHTML = {moves:histMoves, events:histEvents, idle:histIdle, runs:histRuns}[histTab](d);
+        box.querySelectorAll("a[data-sw]").forEach(a=>a.onclick=()=>gotoPort(a.dataset.sw,a.dataset.p));
+      }catch(e){ if(seq===histSeq) box.innerHTML = `<div class="err-msg">${esc(e.message)}</div>`; }
+    }
+    function histMoves(d){
+      if(!d.rows.length) return `<div class="empty">Aucun déplacement sur la période.</div>`;
+      return `<div class="panel"><div class="note">${d.rows.length}${d.rows.length>=500?" (500 au plus)":""} ligne${d.rows.length>1?"s":""}, de la plus récente à la plus ancienne.</div>
+        <div class="scroll" style="max-height:none"><table>
+        <thead><tr><th>Date</th><th>Appareil</th><th>IP</th><th>Type</th><th>Avant</th><th>Après</th></tr></thead><tbody>${
+        d.rows.map(r=>`<tr><td class="text-nowrap">${fmtDate(r.seen)}</td><td>${deviceCell(r.mac, r.name)}</td><td class="mono">${esc(r.ip)}</td>
+          <td>${natTag(r.nature)}</td><td>${posHtml(r.before)}</td><td>${posHtml(r.after)}</td></tr>`).join("")}</tbody></table></div></div>`;
+    }
+    function histEvents(d){
+      if(!d.rows.length) return `<div class="empty">Aucun changement de port sur la période.</div>`;
+      return `<div class="panel"><div class="scroll" style="max-height:none"><table>
+        <thead><tr><th>Date</th><th>Port</th><th>Changement</th><th>Avant</th><th>Après</th></tr></thead><tbody>${
+        d.rows.map(r=>`<tr><td class="text-nowrap">${fmtDate(r.seen)}</td>
+          <td><a data-sw="${esc(r.switch)}" data-p="${esc(r.port)}">${esc(r.switch_name)} · ${esc(r.port)}</a>${r.description?`<br><span class="muted">${esc(r.description)}</span>`:""}</td>
+          <td>${esc(FIELD_FR[r.field]||r.field)}</td><td>${eventValue(r.field, r.before)}</td><td>${eventValue(r.field, r.after)}</td></tr>`).join("")}</tbody></table></div></div>`;
+    }
+    function histIdle(d){
+      const since = d.tracked_since ? `<div class="note">État des ports suivi depuis le ${fmtDate(d.tracked_since)} : la durée sans lien ne peut pas remonter plus loin.</div>` : "";
+      if(!d.ports.length) return since + `<div class="empty">Aucun port activé resté sans lien aussi longtemps.</div>`;
+      return since + `<div class="panel"><div class="note">${d.ports.length} port${d.ports.length>1?"s":""} activé${d.ports.length>1?"s":""} sans appareil branché : disponibles pour un nouveau branchement.</div>
+        <div class="scroll" style="max-height:none"><table>
+        <thead><tr><th>Switch</th><th>Port</th><th>Description</th><th>VLAN</th><th>Connecteur</th><th>Sans lien depuis</th></tr></thead><tbody>${
+        d.ports.map(p=>`<tr><td>${esc(p.switch_name)}${p.site?`<br><span class="muted">${esc(p.site)}</span>`:""}</td>
+          <td class="mono"><a data-sw="${esc(p.switch)}" data-p="${esc(p.port)}">${esc(p.port)}</a></td><td>${esc(p.description)}</td>
+          <td class="mono">${esc(p.vlan)}</td><td class="muted">${esc(connText({connector:p.connector, module:p.module}))}</td>
+          <td class="text-nowrap">${fmtDate(p.since)} <span class="muted">(${fmtAgo(p.since)})</span></td></tr>`).join("")}</tbody></table></div></div>`;
+    }
+    function histRuns(d){
+      if(!d.rows.length) return `<div class="empty">Aucune collecte enregistrée.</div>`;
+      const n = v=>v==null ? `<span class="muted">—</span>` : esc(v);
+      return `<div class="panel"><div class="scroll" style="max-height:none"><table>
+        <thead><tr><th>Date</th><th>Lancée par</th><th>Durée</th><th>Résultat</th><th>Équipements</th><th>Ports actifs</th><th>MAC</th><th>Bornes · clients Wi-Fi</th><th>GLPI</th></tr></thead><tbody>${
+        d.rows.map(r=>{ const [col,lab] = RUN_ST[r.status]||["var(--muted)",r.status];
+          return `<tr><td class="text-nowrap">${fmtDate(r.start)}${r.snapshot?"":` <i class="fas fa-box-archive muted" title="Photo du réseau effacée (durée de conservation)"></i>`}</td>
+          <td>${esc(r.by)}</td><td class="text-nowrap">${r.duration!=null?fmtSec(r.duration):"—"}</td>
+          <td><span style="color:${col};font-weight:600">${lab}</span>${r.errors.map(e=>`<div class="err-msg" style="margin-top:2px">${esc(e.switch_name)} : ${esc(errFr(e.error))}</div>`).join("")}</td>
+          <td>${r.devices!=null?`${r.devices_ok}/${r.devices}`:"—"}</td><td>${r.ports_up!=null?`${r.ports_up}/${r.ports_total}`:"—"}</td>
+          <td>${n(r.macs)}</td><td>${r.aps!=null?`${r.aps} · ${r.wifi_clients}`:"—"}</td><td>${n(r.glpi)}</td></tr>`;}).join("")}</tbody></table></div></div>`;
+    }
+    document.querySelectorAll("#htabs button").forEach(b=>b.onclick=()=>{ histTab=b.dataset.t; loadHist(); });
+    ["#hdays","#hsw","#hwifi","#hnew"].forEach(id=>$(id).addEventListener("change", loadHist));
+    $("#hq").addEventListener("input", ()=>{ clearTimeout(hqTimer); hqTimer = setTimeout(loadHist, 350); });
     $("#sform").onsubmit = e=>{ e.preventDefault(); doSearch($("#sq").value); };
 
     /* ---------------- bornes Wi-Fi ---------------- */
@@ -1023,10 +1213,11 @@ const CSRF_REFRESH = '{{ csrf_token('aruba_refresh')|e('js') }}';
 
     /* ---------------- démarrage ---------------- */
     load().then(()=>show(location.hash.slice(1))).catch(e=>{ show(location.hash.slice(1)); $("#last").textContent=e.message; toast(e.message); });
-    // aucune collecte automatique : on suit seulement celle lancée par un utilisateur (ici ou sur un autre poste)
+    // suit les collectes lancées ailleurs : autre poste ou collecte automatique (bin/console aruba:auto)
     const checkStatus = async ()=>{
       try{
         const st = await getJson(API.status);
+        AUTO = st.auto;
         if(st.running) watch();
         else if(S && st.collected_at && st.collected_at!==S.collected_at) load();
         else setLast();

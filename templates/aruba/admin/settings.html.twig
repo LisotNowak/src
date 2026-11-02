@@ -31,6 +31,19 @@
                     <div class="col-12">{{ form_row(form.verify_ssl) }}</div>
                 </div>
 
+                <h2 class="h6 text-muted text-uppercase mt-4 mb-3">Collecte automatique</h2>
+                <div class="row g-3 align-items-center">
+                    <div class="col-md-6">{{ form_row(form.auto_collect) }}</div>
+                    <div class="col-md-6">{{ form_row(form.auto_interval) }}</div>
+                </div>
+
+                <h2 class="h6 text-muted text-uppercase mt-4 mb-3">Historique en base</h2>
+                <div class="row g-3">
+                    <div class="col-md-4">{{ form_row(form.retention_full_days) }}</div>
+                    <div class="col-md-4">{{ form_row(form.retention_days) }}</div>
+                    <div class="col-md-4">{{ form_row(form.retention_presence_days) }}</div>
+                </div>
+
                 <h2 class="h6 text-muted text-uppercase mt-4 mb-3">Switchs sans API</h2>
                 {{ form_row(form.other_switches) }}
 

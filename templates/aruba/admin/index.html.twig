@@ -29,6 +29,20 @@
         <div class="alert alert-info"><i class="fas fa-spinner fa-spin me-2"></i>Une collecte est en cours : les modifications s'appliqueront à la suivante.</div>
     {% endif %}
 
+    {% if auto.enabled and not auto.scheduler %}
+        <div class="alert alert-warning">
+            <i class="fas fa-triangle-exclamation me-2"></i><b>La collecte automatique ne tourne pas</b>
+            {% if auto.checked_at %}(dernier passage du planificateur : {{ auto.checked_at|date('d/m/Y H:i', 'Europe/Paris') }}){% endif %}.
+            Elle est assurée par la commande <code>bin/console aruba:auto</code> :
+            <ul class="mb-0 mt-1">
+                <li>avec le serveur Symfony (<code>symfony serve</code>), elle démarre et s'arrête avec lui
+                    (fichier <code>.symfony.local.yaml</code>) : redémarrez le serveur ;</li>
+                <li>sinon, créez une tâche planifiée Windows qui lance <code>php bin/console aruba:auto</code>
+                    chaque minute, ou laissez tourner <code>php bin/console aruba:auto --boucle</code>.</li>
+            </ul>
+        </div>
+    {% endif %}
+
     {# ── Paramètres communs ── #}
     <div class="card shadow-sm mb-4">
         <div class="card-body d-flex flex-wrap align-items-center gap-4">
@@ -37,6 +51,14 @@
             </div>
             <div><span class="text-muted small d-block">Délai de réponse</span>{{ defaults.timeout ?? 15 }} s</div>
             <div><span class="text-muted small d-block">Interrogés en même temps</span>{{ parallel }} équipements</div>
+            <div><span class="text-muted small d-block">Collecte automatique</span>
+                {% if auto.enabled %}
+                    toutes les {{ auto.interval }} min
+                    {% if auto.scheduler %}<span class="text-muted">· prochaine vers {{ auto.next_at|date('H:i', 'Europe/Paris') }}</span>{% endif %}
+                {% else %}
+                    <span class="text-muted">désactivée</span>
+                {% endif %}
+            </div>
             <div>
                 <span class="text-muted small d-block">Switchs sans API</span>
                 {% for o in other_switches %}
@@ -82,7 +104,8 @@
                                 {% endfor %}
                             </td>
                             <td>
-                                <div class="fw-semibold">{{ sw.name ?: sw.id }}</div>
+                                <div class="fw-semibold">{{ sw.name ?: sw.id }}
+                                    {% if not sw.actif %}<span class="badge bg-warning-subtle text-warning-emphasis ms-1">désactivé</span>{% endif %}</div>
                                 <div class="small text-muted"><code>{{ sw.id }}</code>{% if sw.site is defined and sw.site %} · {{ sw.site }}{% endif %}</div>
                             </td>
                             <td class="font-monospace small">{{ sw.host }}</td>
@@ -152,7 +175,8 @@
         <div class="card shadow-sm mb-3" id="sw-{{ cl.id }}">
             <div class="card-body d-flex flex-wrap align-items-center gap-4">
                 <div>
-                    <div class="fw-semibold">{{ cl.name ?: cl.id }}</div>
+                    <div class="fw-semibold">{{ cl.name ?: cl.id }}
+                        {% if not cl.actif %}<span class="badge bg-warning-subtle text-warning-emphasis ms-1">désactivé</span>{% endif %}</div>
                     <div class="small text-muted"><code>{{ cl.id }}</code>{% if cl.site is defined and cl.site %} · {{ cl.site }}{% endif %}</div>
                 </div>
                 <div><span class="text-muted small d-block">Contrôleur virtuel</span><span class="font-monospace small">{{ cl.host }}</span></div>

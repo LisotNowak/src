@@ -5,8 +5,9 @@
  * PHP n'a pas de threads : la collecte tourne dans un processus en ligne de commande
  * (bin/console aruba:collect) qui lance lui-même un processus par switch (`--switch <id>`), jusqu'à
  * `parallel` à la fois. L'avancement est écrit dans status.json, un verrou sur collect.lock
- * empêche deux collectes simultanées. La page web ne fait que lancer ce processus en
- * arrière-plan et lire les fichiers produits.
+ * empêche deux collectes simultanées. Le résultat (photo du réseau, appareils vus) est enregistré
+ * en base à la fin par ce seul processus (App\Service\Aruba\Store). La page web ne fait que lancer
+ * ce processus en arrière-plan, suivre status.json et lire la base.
  */
 declare(strict_types=1);
 
@@ -17,8 +18,12 @@ class Collector
     /** Identifiant réservé : GLPI est interrogé comme un équipement de plus, dans son propre processus */
     public const GLPI = 'glpi';
 
+    /** Ligne ajoutée à l'avancement si l'enregistrement en base échoue */
+    private const DB = 'base';
+
     public function __construct(
         private Config $config,
+        private Store $store,
         private string $dataDir,
         /** Arguments donnés à php pour lancer la collecte : ['bin/console', 'aruba:collect'] */
         private array $collectCommand,
@@ -60,14 +65,10 @@ class Collector
         @unlink($tmp);
     }
 
+    /** Photo du réseau de la dernière collecte (en base), null si aucune collecte. */
     public function snapshot(): ?array
     {
-        return self::loadJson($this->file('snapshot.json'), null);
-    }
-
-    public function history(): array
-    {
-        return self::loadJson($this->file('history.json'), []);
+        return $this->store->lastSnapshot();
     }
 
     // ------------------------------------------------------------ état
@@ -86,11 +87,16 @@ class Collector
         return !$free;
     }
 
+    /** Lancée depuis la page (ou le planificateur) mais le processus n'a pas encore pris le verrou ? */
+    private static function queued(array $st): bool
+    {
+        return ($st['state'] ?? '') === 'queued' && time() - ($st['requested_at'] ?? 0) < 30;
+    }
+
     public function status(): array
     {
         $st = self::loadJson($this->file('status.json'), []);
-        $queued = ($st['state'] ?? '') === 'queued' && time() - ($st['requested_at'] ?? 0) < 30;
-        // lancée depuis la page mais le processus n'a pas encore pris le verrou
+        $queued = self::queued($st);
         $running = $this->lockHeld() || $queued;
         $show = $running || ($st['state'] ?? '') === 'done';
         $details = $show ? ($st['details'] ?? []) : [];
@@ -108,13 +114,96 @@ class Collector
             'elapsed' => $show && isset($st['started_at']) ? (($st['finished_at'] ?? time()) - $st['started_at']) : null,
             'progress' => (object) ($show ? ($st['progress'] ?? []) : []),
             'details' => (object) $details,
-            'collected_at' => $this->snapshot()['collected_at'] ?? null,
+            'collected_at' => $this->store->lastCollectedAt(),
+            'auto' => $this->autoState(),
         ];
     }
 
     public function isRunning(): bool
     {
-        return $this->status()['running'];
+        return $this->lockHeld() || self::queued(self::loadJson($this->file('status.json'), []));
+    }
+
+    // ------------------------------------------------------------ collecte automatique
+    /**
+     * Le planificateur (bin/console aruba:auto, voir ArubaAutoCommand) passe toutes les 30 s (--boucle) ou
+     * toutes les minutes (tâche planifiée) et lance une collecte quand l'intervalle est écoulé depuis la
+     * précédente, qu'elle ait été lancée à la main ou non. Il note son passage dans auto.json : l'écran
+     * Configuration signale ainsi un planificateur arrêté.
+     */
+    public const AUTO = 'automatique';
+
+    /** Lancement avec un peu d'avance : le planificateur ne passe qu'à intervalle régulier */
+    private const AUTO_TOLERANCE = 30;
+
+    /** Au-delà, le planificateur est considéré comme arrêté */
+    private const AUTO_SILENCE = 180;
+
+    /** Heure locale (PHP tourne en UTC) pour les journaux du planificateur */
+    public static function heure(?int $ts = null): string
+    {
+        return (new \DateTimeImmutable('@' . ($ts ?? time())))->setTimezone(new \DateTimeZone('Europe/Paris'))->format('H:i:s');
+    }
+
+    /** @return array{enabled: bool, interval: int} intervalle en minutes */
+    public function autoSettings(): array
+    {
+        return ['enabled' => (bool) $this->config->get('auto_collect', true),
+            'interval' => max(5, (int) $this->config->get('auto_interval', 15))];
+    }
+
+    /** Début de la dernière collecte ou tentative automatique (timestamp), null si aucune */
+    private function autoLast(array $state): ?int
+    {
+        $last = max((int) $this->store->lastDebut(), (int) ($state['last_launch'] ?? 0));
+        return $last ?: null;
+    }
+
+    /** État affiché : réglage, heure de la prochaine collecte, planificateur actif ou non. */
+    public function autoState(): array
+    {
+        $cfg = $this->autoSettings();
+        $state = self::loadJson($this->file('auto.json'), []);
+        $checked = $state['checked_at'] ?? null;
+        $last = $cfg['enabled'] ? $this->autoLast($state) : null;
+        $next = $last === null ? time() : max(time(), $last + $cfg['interval'] * 60);
+        return $cfg + [
+            'next_at' => $cfg['enabled'] ? gmdate('Y-m-d\TH:i:s', $next) . '+00:00' : null,
+            'scheduler' => $checked !== null && time() - $checked < self::AUTO_SILENCE,
+            'checked_at' => $checked !== null ? gmdate('Y-m-d\TH:i:s', $checked) . '+00:00' : null,
+            'mode' => $state['mode'] ?? null,
+        ];
+    }
+
+    /**
+     * Un passage du planificateur : lance la collecte si elle est due.
+     * $detach : collecte dans un processus à part (mode boucle), sinon dans ce processus (tâche planifiée).
+     * Retourne ce qui a été fait, pour le journal.
+     */
+    public function autoTick(bool $detach): string
+    {
+        $this->config->reload();
+        $cfg = $this->autoSettings();
+        $state = self::loadJson($this->file('auto.json'), []);
+        $state = ['checked_at' => time(), 'mode' => $detach ? 'boucle' : 'tache', 'pid' => getmypid()] + $state;
+        self::saveJson($this->file('auto.json'), $state);
+        if (!$cfg['enabled']) {
+            return 'désactivée';
+        }
+        $last = $this->autoLast($state);
+        if ($last !== null && time() < $last + $cfg['interval'] * 60 - self::AUTO_TOLERANCE) {
+            return 'prochaine à ' . self::heure($last + $cfg['interval'] * 60);
+        }
+        if ($this->isRunning()) {
+            return 'collecte déjà en cours';
+        }
+        // noté avant le lancement : une collecte qui échoue avant d'arriver en base n'est pas relancée en boucle
+        $state['last_launch'] = time();
+        self::saveJson($this->file('auto.json'), $state);
+        if ($detach) {
+            return $this->launch(self::AUTO) ? 'collecte lancée' : 'collecte déjà en cours';
+        }
+        return $this->run(null, self::AUTO) ? 'collecte terminée' : 'collecte déjà en cours';
     }
 
     // ------------------------------------------------------------ lancement depuis le web
@@ -133,14 +222,21 @@ class Collector
         return PHP_BINARY !== '' && is_file($cli) ? $cli : 'php';
     }
 
-    /** Lance une collecte en arrière-plan. Retourne false si une collecte est déjà en cours. */
-    public function launch(): bool
+    /**
+     * Lance une collecte en arrière-plan. Retourne false si une collecte est déjà en cours.
+     * $par : identifiant de l'utilisateur, enregistré avec la collecte.
+     */
+    public function launch(?string $par = null): bool
     {
         if ($this->isRunning()) {
             return false;
         }
         self::saveJson($this->file('status.json'), ['state' => 'queued', 'requested_at' => time(), 'progress' => []]);
-        $cmd = implode(' ', array_map('escapeshellarg', [$this->phpBinary(), ...$this->collectCommand]));
+        $args = [$this->phpBinary(), ...$this->collectCommand];
+        if ($par !== null && $par !== '') {
+            array_push($args, '--par', $par);
+        }
+        $cmd = implode(' ', array_map('escapeshellarg', $args));
         if (PHP_OS_FAMILY === 'Windows') {
             // processus détaché : sans quoi il hériterait de la connexion HTTP et la bloquerait
             pclose(popen("start \"\" /B {$cmd} >NUL 2>&1", 'r'));
@@ -152,7 +248,7 @@ class Collector
 
     // ------------------------------------------------------------ collecte (ligne de commande)
     /** Collecte complète. Retourne false si une collecte est déjà en cours. */
-    public function run(?callable $log = null): bool
+    public function run(?callable $log = null, ?string $par = null): bool
     {
         $log ??= fn(string $m) => null;
         $lock = fopen($this->file('collect.lock'), 'c');
@@ -162,7 +258,8 @@ class Collector
         }
         set_time_limit(0);
         try {
-            $switches = $this->config->switches();
+            // les équipements désactivés restent dans la configuration mais ne sont pas interrogés
+            $switches = array_values(array_filter($this->config->switches(), fn(array $sw) => $sw['actif'] ?? true));
             $jobs = $switches;
             $glpi = $this->config->glpi();
             if ($glpi && ($glpi['enabled'] ?? true)) {
@@ -229,11 +326,25 @@ class Collector
             if (is_file($oui)) {
                 Inventory::loadOui($oui);
             }
-            $history = $this->history();
-            $snap = Inventory::build($switches, $raw, $history, $this->config->get('other_switches', []),
-                isset($raw[self::GLPI]) ? $raw[self::GLPI] : null);
-            self::saveJson($this->file('snapshot.json'), $snap);
-            self::saveJson($this->file('history.json'), (object) $history);
+            try {
+                $previous = $history = $this->store->loadHistory();
+                $snap = Inventory::build($switches, $raw, $history, $this->config->get('other_switches', []),
+                    isset($raw[self::GLPI]) ? $raw[self::GLPI] : null);
+                $results = [];
+                foreach ($progress as $id => $state) {
+                    $results[$id] = ['statut' => $state === 'ok' ? 'ok' : 'erreur',
+                        'duree' => $details[$id]['duration'] ?? null, 'erreur' => $details[$id]['error'] ?? null];
+                }
+                $this->store->record($snap, $results, $history, $previous, new \DateTimeImmutable('@' . $startedAt),
+                    $par, (int) $this->config->get('retention_days', 0), (int) $this->config->get('retention_presence_days', 0),
+                    (int) $this->config->get('retention_full_days', 7));
+            } catch (\Throwable $e) {
+                // affiché dans le suivi de la collecte comme un équipement en erreur
+                $progress[self::DB] = 'erreur';
+                $details[self::DB] = ['name' => 'Enregistrement en base', 'error' => mb_substr($e->getMessage(), 0, 300)];
+                $saveStatus('done');
+                throw $e;
+            }
             $saveStatus('done');
         } finally {
             flock($lock, LOCK_UN);

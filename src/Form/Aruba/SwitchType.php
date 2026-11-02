@@ -3,6 +3,7 @@
 namespace App\Form\Aruba;
 
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\IntegerType;
 use Symfony\Component\Form\Extension\Core\Type\PasswordType;
@@ -15,8 +16,8 @@ use Symfony\Component\Validator\Constraints\Range;
 use Symfony\Component\Validator\Constraints\Regex;
 
 /**
- * Switch ou cluster Wi-Fi (option kind) de config/aruba/config.json (données sous forme de tableau,
- * voir ArubaAdminController).
+ * Switch ou cluster Wi-Fi (option kind), enregistré dans la table gestion_switch.equipement (données
+ * sous forme de tableau, voir ArubaAdminController et Equipement::toConfig()).
  */
 class SwitchType extends AbstractType
 {
@@ -54,6 +55,11 @@ class SwitchType extends AbstractType
                 'label' => 'Emplacement',
                 'required' => false,
                 'attr' => ['placeholder' => $wifi ? 'ex. Château' : 'ex. Bureaux étage 2'],
+            ])
+            ->add('actif', CheckboxType::class, [
+                'label' => 'Interroger à l\'actualisation',
+                'required' => false,
+                'help' => 'Décoché : conservé dans la configuration (et son historique) mais plus interrogé.',
             ])
         ;
         if (!$wifi) {

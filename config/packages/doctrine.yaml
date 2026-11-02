@@ -8,6 +8,10 @@ doctrine:
 
         profiling_collect_backtrace: '%kernel.debug%'
         use_savepoints: true
+        # types PostgreSQL du schéma gestion_switch (adresses MAC et IP), lus comme des chaînes
+        mapping_types:
+            macaddr: string
+            inet: string
     orm:
         auto_generate_proxy_classes: true
         enable_lazy_ghost_objects: true
