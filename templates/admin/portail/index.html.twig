@@ -37,7 +37,9 @@
                                 <span class="badge bg-secondary">{{ tile.position }}</span>
                             </td>
                             <td class="text-center">
-                                {% if tile.icone %}
+                                {% if tile.image %}
+                                    {% include 'admin/portail/_icone_svg.html.twig' with {src: tile.image, size: '1.25em', color: tile.couleur ?: '#800000'} only %}
+                                {% elseif tile.icone %}
                                     <i class="{{ tile.icone }} fa-lg" style="color: {{ tile.couleur ?: '#800000' }};"></i>
                                 {% else %}
                                     <span class="d-inline-block rounded-circle" style="width:14px;height:14px;background:{{ tile.couleur ?: '#ccc' }};"></span>

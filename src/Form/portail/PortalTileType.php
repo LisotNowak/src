@@ -43,11 +43,11 @@ class PortalTileType extends AbstractType
                 'constraints' => [new NotBlank()],
                 'attr' => ['placeholder' => '/tracabilite ou https://...'],
             ])
-            ->add('icone', TextType::class, [
-                'label' => 'Icône (classe Font Awesome, ex: fas fa-box)',
+            ->add('image', ChoiceType::class, [
+                'label' => 'Icône',
                 'required' => false,
-                'help' => '<a href="https://fontawesome.com/search?ic=free-collection" target="_blank" rel="noopener">Voir les icônes disponibles <i class="fas fa-external-link-alt"></i></a>',
-                'help_html' => true,
+                'placeholder' => 'Aucune icône',
+                'choices' => PortalIconChoices::CHOICES,
             ])
             ->add('couleur', ChoiceType::class, [
                 'label' => 'Couleur de la tuile',

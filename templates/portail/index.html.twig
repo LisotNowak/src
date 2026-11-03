@@ -25,7 +25,7 @@
                                     <div class="card h-100 shadow-sm portal-tile" style="{% if tile.couleur %}border-top: 4px solid {{ tile.couleur }};{% endif %}">
                                         <div class="card-body text-center">
                                             {% if tile.image %}
-                                                <img src="{{ tile.image }}" alt="{{ tile.titre }}" class="mb-3" style="max-height:64px;">
+                                                {% include 'admin/portail/_icone_svg.html.twig' with {src: tile.image, size: '2em', color: tile.couleur ?: '#800000', class: 'mb-3'} only %}
                                             {% elseif tile.icone %}
                                                 <i class="{{ tile.icone }} fa-2x mb-3" style="{% if tile.couleur %}color: {{ tile.couleur }};{% endif %}"></i>
                                             {% endif %}
