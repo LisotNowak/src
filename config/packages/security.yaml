@@ -55,9 +55,9 @@ security:
         - { path: ^/dev/, roles: ROLE_ADMIN }
         - { path: ^/files, roles: IS_AUTHENTICATED_FULLY }
         - { path: ^/calculette, roles: ROLE_MANAGER }
-        # Tracabilité : paramétrage et historique réservés à l'admin, le reste au manager
-        - { path: ^/tracabilite/(historique|cartes-perso|parcelles), roles: ROLE_ADMIN }
-        - { path: ^/tracabilite/parametrage, roles: ROLE_ADMIN_TRACABILITE }
+        # Tracabilité : historique réservé à l'admin, paramétrage, parcelles et cartes perso à l'admin tracabilité, le reste au manager
+        - { path: ^/tracabilite/historique, roles: ROLE_ADMIN }
+        - { path: ^/tracabilite/(parametrage|cartes-perso|parcelles), roles: ROLE_ADMIN_TRACABILITE }
         - { path: ^/tracabilite, roles: ROLE_MANAGER_TRACABILITE }
         - { path: ^/admin/portail, roles: ROLE_ADMIN }
         - { path: ^/admin/users, roles: ROLE_ADMIN }

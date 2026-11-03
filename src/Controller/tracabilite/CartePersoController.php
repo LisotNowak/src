@@ -14,7 +14,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/tracabilite/cartes-perso', name: 'app_tracabilite_carte_perso_')]
-#[IsGranted('ROLE_ADMIN')]
+#[IsGranted('ROLE_ADMIN_TRACABILITE')]
 class CartePersoController extends AbstractController
 {
     private const OPTIONS_DEFAUT = [

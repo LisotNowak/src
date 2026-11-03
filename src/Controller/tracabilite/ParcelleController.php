@@ -12,9 +12,9 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
-/** Gestion du référentiel des parcelles (super admin) */
+/** Gestion du référentiel des parcelles (admin tracabilité) */
 #[Route('/tracabilite/parcelles', name: 'app_tracabilite_parcelle_')]
-#[IsGranted('ROLE_ADMIN')]
+#[IsGranted('ROLE_ADMIN_TRACABILITE')]
 class ParcelleController extends AbstractController
 {
     public function __construct(
