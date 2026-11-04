@@ -8,10 +8,15 @@ use App\Entity\client\Signataire;
 use App\Entity\client\Categorie;
 use App\Form\ClientType; // <-- Ajoutez cette ligne
 use Doctrine\Persistence\ManagerRegistry;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\ResponseHeaderBag;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\HttpFoundation\JsonResponse; // <-- Ajoutez cette ligne
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
@@ -33,7 +38,7 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
     $categorieRepo = $doctrine->getRepository(Categorie::class);
     $associationRepo = $doctrine->getRepository(AssociationSignataire::class);
 
-    $signataires = $signataireRepo->findAll();
+    $signataires = $signataireRepo->findBy([], ['nom' => 'ASC']);
     $categories = $categorieRepo->findAll();
 
     $associations = [];
@@ -132,6 +137,83 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
 
 }
 
+    // Export Excel des contacts d'un signataire, avec les mêmes filtres que la liste
+    #[Route('/clients/export', name: 'app_clients_export', methods: ['GET'])]
+    #[IsGranted('ROLE_ADMIN_CLIENTS')]
+    public function export(Request $request, ManagerRegistry $doctrine): StreamedResponse
+    {
+        $signataire = $doctrine->getRepository(Signataire::class)->find($request->query->getInt('signataire'));
+        if (!$signataire) {
+            throw $this->createNotFoundException('Signataire introuvable');
+        }
+
+        $qb = $doctrine->getRepository(AssociationSignataire::class)->createQueryBuilder('a')
+            ->innerJoin('a.client', 'c')
+            ->addSelect('c')
+            ->andWhere('a.signataire = :signataire')
+            ->setParameter('signataire', $signataire)
+            ->orderBy('c.triNom', 'ASC')
+            ->addOrderBy('c.triPrenom', 'ASC');
+
+        $categorieId = $request->query->getInt('categorie');
+        if ($categorieId) {
+            $qb->andWhere('c.categorieEntity = :categorie')
+               ->setParameter('categorie', $categorieId);
+
+            // Comme dans la liste, le filtre société n'existe qu'avec une catégorie
+            $societe = trim((string) $request->query->get('societe', ''));
+            if ($societe !== '') {
+                $qb->andWhere('c.societeNom = :societe')
+                   ->setParameter('societe', $societe);
+            }
+        }
+
+        $ouiNon = fn(?bool $valeur) => $valeur === null ? '' : ($valeur ? 'Oui' : 'Non');
+        $lignes = [['Nom', 'Prénom', 'Adresse 1', 'Code postal', 'Ville', 'Pays', 'Société', 'Catégorie', 'Conserver', 'Mot imprimé']];
+        foreach ($qb->getQuery()->getResult() as $association) {
+            $client = $association->getClient();
+            $lignes[] = [
+                $client->getTriNom(),
+                $client->getTriPrenom(),
+                $client->getAdresse1(),
+                $client->getCodePostal(),
+                $client->getVille(),
+                $client->getPays(),
+                $client->getSocieteNom(),
+                $client->getCategorieEntity()?->getNomCategorie(),
+                $ouiNon($association->getConserver()),
+                $ouiNon($association->getImprimer()),
+            ];
+        }
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Contacts');
+        foreach ($lignes as $numLigne => $ligne) {
+            foreach ($ligne as $numColonne => $valeur) {
+                // Toujours en texte : garde le zéro des codes postaux et n'interprète aucune formule
+                $sheet->setCellValueExplicit([$numColonne + 1, $numLigne + 1], (string) $valeur, DataType::TYPE_STRING);
+            }
+        }
+        $sheet->getStyle('A1:J1')->getFont()->setBold(true);
+        $sheet->freezePane('A2');
+        foreach (range('A', 'J') as $colonne) {
+            $sheet->getColumnDimension($colonne)->setAutoSize(true);
+        }
+
+        $response = new StreamedResponse(fn() => (new Xlsx($spreadsheet))->save('php://output'));
+        $date = date('Y-m-d');
+        $nomFichier = 'contacts_' . trim(preg_replace('/[^\p{L}\p{N}]+/u', '_', $signataire->getNom()), '_') . '_' . $date . '.xlsx';
+        $response->headers->set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $response->headers->set('Content-Disposition', $response->headers->makeDisposition(
+            ResponseHeaderBag::DISPOSITION_ATTACHMENT,
+            $nomFichier,
+            'contacts_' . $signataire->getId() . '_' . $date . '.xlsx'
+        ));
+
+        return $response;
+    }
+
     #[Route('/client/new', name: 'app_client_new', methods: ['GET', 'POST'])]
     public function new(Request $request, ManagerRegistry $doctrine): Response
     {
@@ -140,7 +222,7 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
         $form->handleRequest($request);
 
         $signataireRepo = $doctrine->getRepository(Signataire::class);
-        $signataires = $signataireRepo->findAll();
+        $signataires = $signataireRepo->findBy([], ['nom' => 'ASC']);
 
         if ($form->isSubmitted() && $form->isValid()) {
             $entityManager = $doctrine->getManager();
@@ -183,7 +265,7 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
         $form = $this->createForm(ClientType::class, $client);
         $form->handleRequest($request);
 
-        $signataires = $signataireRepo->findAll();
+        $signataires = $signataireRepo->findBy([], ['nom' => 'ASC']);
         $existingAssociations = $associationRepo->findBy(['client' => $client]);
         $selectedSignataires = array_map(fn($a) => $a->getSignataire()->getId(), $existingAssociations);
 
@@ -286,7 +368,7 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
         $clients = $clientRepo->findBy([], ['triNom' => 'ASC', 'triPrenom' => 'ASC']);
 
         return $this->render('client/associate.html.twig', [
-            'signataires' => $signataireRepo->findAll(),
+            'signataires' => $signataireRepo->findBy([], ['nom' => 'ASC']),
             'clients' => $clients,
         ]);
     }
