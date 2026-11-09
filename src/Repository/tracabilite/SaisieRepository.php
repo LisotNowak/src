@@ -3,6 +3,7 @@
 namespace App\Repository\tracabilite;
 
 use App\Entity\tracabilite\Saisie;
+use App\Entity\tracabilite\Tache;
 use App\Service\tracabilite\EquipeAccess;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\ORM\QueryBuilder;
@@ -36,9 +37,24 @@ class SaisieRepository extends ServiceEntityRepository
     }
 
     /**
+     * Limite à une tâche et/ou à un type de tâche.
+     * Une saisie ne conserve que le nom de sa tâche : son type est celui de la tâche dans le référentiel.
+     */
+    private function filtrerTache(QueryBuilder $qb, string $tache, string $typeTache): void
+    {
+        if ($tache !== '') {
+            $qb->andWhere('s.tacheNom = :tache')->setParameter('tache', $tache);
+        }
+        if ($typeTache !== '') {
+            $qb->andWhere('s.tacheNom IN (SELECT tt.nom FROM ' . Tache::class . ' tt WHERE IDENTITY(tt.type) = :typeTache)')
+               ->setParameter('typeTache', (int) $typeTache);
+        }
+    }
+
+    /**
      * Saisies filtrées selon les critères de la page avancement/rendement.
      *
-     * @param array{mois?: string, chef?: string, tache?: string, parcel?: string} $filtres
+     * @param array{mois?: string, chef?: string, typeTache?: string, tache?: string, parcel?: string} $filtres
      */
     public function findFiltered(array $filtres): array
     {
@@ -52,9 +68,7 @@ class SaisieRepository extends ServiceEntityRepository
         if (!empty($filtres['chef'])) {
             $qb->andWhere('s.chefNom = :chef')->setParameter('chef', $filtres['chef']);
         }
-        if (!empty($filtres['tache'])) {
-            $qb->andWhere('s.tacheNom = :tache')->setParameter('tache', $filtres['tache']);
-        }
+        $this->filtrerTache($qb, $filtres['tache'] ?? '', $filtres['typeTache'] ?? '');
         if (!empty($filtres['parcel'])) {
             $qb->andWhere('s.parcelleNom = :parcel')
                ->setParameter('parcel', $filtres['parcel']);
@@ -86,7 +100,7 @@ class SaisieRepository extends ServiceEntityRepository
      * Avancement par parcelle+tâche : max(avancement) groupé.
      * Retourne des tableaux ['parcelleNom', 'tacheNom', 'maxAdv', 'piedsTotal', 'totalHeures'].
      */
-    public function getAvancementParParcelle(string $mois, string $chef = '', string $tache = ''): array
+    public function getAvancementParParcelle(string $mois, string $chef = '', string $tache = '', string $typeTache = ''): array
     {
         $qb = $this->qb()
             ->select(
@@ -111,9 +125,7 @@ class SaisieRepository extends ServiceEntityRepository
         if ($chef !== '') {
             $qb->andWhere('s.chefNom = :chef')->setParameter('chef', $chef);
         }
-        if ($tache !== '') {
-            $qb->andWhere('s.tacheNom = :tache')->setParameter('tache', $tache);
-        }
+        $this->filtrerTache($qb, $tache, $typeTache);
 
         return $qb->getQuery()->getArrayResult();
     }
@@ -122,7 +134,7 @@ class SaisieRepository extends ServiceEntityRepository
      * Rendement par personne+tâche sur un mois.
      * Ne retourne que les lignes avec pieds > 0.
      */
-    public function getRendementParPersonne(string $mois, string $chef = '', string $tache = ''): array
+    public function getRendementParPersonne(string $mois, string $chef = '', string $tache = '', string $typeTache = ''): array
     {
         $qb = $this->qb()
             ->select(
@@ -143,9 +155,7 @@ class SaisieRepository extends ServiceEntityRepository
         if ($chef !== '') {
             $qb->andWhere('s.chefNom = :chef')->setParameter('chef', $chef);
         }
-        if ($tache !== '') {
-            $qb->andWhere('s.tacheNom = :tache')->setParameter('tache', $tache);
-        }
+        $this->filtrerTache($qb, $tache, $typeTache);
 
         return $qb->getQuery()->getArrayResult();
     }
@@ -177,7 +187,7 @@ class SaisieRepository extends ServiceEntityRepository
     }
 
     /** Parcelles commencées mais pas terminées (avancement < 100 et > 0) */
-    public function findParcellesNonTerminees(string $mois = '', string $tache = ''): array
+    public function findParcellesNonTerminees(string $mois = '', string $tache = '', string $typeTache = ''): array
     {
         $qb = $this->qb()
             ->select(
@@ -199,9 +209,7 @@ class SaisieRepository extends ServiceEntityRepository
         if ($mois !== '') {
             $qb->andWhere('s.mois = :mois')->setParameter('mois', $mois);
         }
-        if ($tache !== '') {
-            $qb->andWhere('s.tacheNom = :tache')->setParameter('tache', $tache);
-        }
+        $this->filtrerTache($qb, $tache, $typeTache);
 
         return $qb->getQuery()->getArrayResult();
     }

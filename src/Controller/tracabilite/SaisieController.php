@@ -11,6 +11,7 @@ use App\Repository\tracabilite\ParcelleRepository;
 use App\Repository\tracabilite\SaisieRepository;
 use App\Repository\tracabilite\TacheRepository;
 use App\Service\tracabilite\EquipeAccess;
+use App\Service\tracabilite\FiltreTaches;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormError;
@@ -34,16 +35,19 @@ class SaisieController extends AbstractController
         private readonly TacheRepository    $tacheRepo,
         private readonly ParcelleRepository $parcelleRepo,
         private readonly EquipeAccess       $equipeAccess,
+        private readonly FiltreTaches       $filtreTaches,
         private readonly EntityManagerInterface $em,
     ) {}
 
     #[Route('', name: 'index')]
     public function index(Request $request): Response
     {
+        $filtreTaches = $this->filtreTaches->resoudre($request, $this->saisieRepo->findDistinctTaches());
         $filtres = [
             'mois'  => $request->query->get('mois', date('Y-m')),
             'chef'  => $request->query->get('chef', ''),
-            'tache' => $request->query->get('tache', ''),
+            'typeTache' => $filtreTaches['typeTache'],
+            'tache' => $filtreTaches['tache'],
             'parcel'=> $request->query->get('parcel', ''),
         ];
 
@@ -51,7 +55,8 @@ class SaisieController extends AbstractController
             'active_link' => 'saisie',
             'saisies'     => $this->saisieRepo->findFiltered($filtres),
             'equipes'     => $this->saisieRepo->findDistinctChefs(),
-            'taches'      => $this->saisieRepo->findDistinctTaches(),
+            'typesTache'  => $filtreTaches['typesTache'],
+            'taches'      => $filtreTaches['taches'],
             'parcelles'   => $this->saisieRepo->findDistinctParcelles(),
             'filtres'     => $filtres,
         ]);

@@ -4,6 +4,7 @@ namespace App\Controller\tracabilite;
 
 use App\Repository\tracabilite\SaisieRepository;
 use App\Service\tracabilite\EquipeAccess;
+use App\Service\tracabilite\FiltreTaches;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -16,6 +17,7 @@ class RendementController extends AbstractController
     public function __construct(
         private readonly SaisieRepository $saisieRepo,
         private readonly EquipeAccess     $equipeAccess,
+        private readonly FiltreTaches     $filtreTaches,
     ) {}
 
     #[Route('/tracabilite/rendement', name: 'app_tracabilite_rendement')]
@@ -23,21 +25,21 @@ class RendementController extends AbstractController
     {
         $mois = $request->query->get('mois', date('Y-m'));
         $chef  = $request->query->get('chef', '');
-        $tache = (string) $request->query->get('tache', '');
 
-        $taches = $this->saisieRepo->findTachesTerrainSurPeriode($mois, true);
-        if (!in_array($tache, $taches, true)) {
-            $tache = '';
-        }
+        $filtre = $this->filtreTaches->resoudre($request, $this->saisieRepo->findTachesTerrainSurPeriode($mois, true));
+        $tache = $filtre['tache'];
+        $typeTache = $filtre['typeTache'];
 
         return $this->render('tracabilite/rendement/index.html.twig', [
             'active_link' => 'rendement',
             'mois'        => $mois,
             'chef'        => $chef,
+            'typeTache'   => $typeTache,
+            'typesTache'  => $filtre['typesTache'],
             'tache'       => $tache,
-            'rendements'  => $this->saisieRepo->getRendementParPersonne($mois, $chef, $tache),
+            'rendements'  => $this->saisieRepo->getRendementParPersonne($mois, $chef, $tache, $typeTache),
             'equipes'     => $this->equipeAccess->equipesVisibles(),
-            'taches'      => $taches,
+            'taches'      => $filtre['taches'],
         ]);
     }
 }

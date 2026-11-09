@@ -15,15 +15,15 @@
     <form method="get" class="card border-0 shadow-sm mb-4">
         <div class="card-body py-2">
             <div class="row g-2 align-items-end">
-                <div class="col-sm-4">
+                <div class="col-sm-6 col-lg-3">
                     <label class="form-label mb-1 small fw-semibold">Mois</label>
                     <div class="input-group input-group-sm">
                         <input type="month" name="mois" value="{{ mois }}" class="form-control form-control-sm" onchange="this.form.submit()">
-                        <a href="{{ path('app_tracabilite_avancement', {mois: '', chef: chef, tache: tache}) }}"
+                        <a href="{{ path('app_tracabilite_avancement', {mois: '', chef: chef, typeTache: typeTache, tache: tache}) }}"
                            class="btn {{ mois == '' ? 'btn-secondary' : 'btn-outline-secondary' }}">Tous les mois</a>
                     </div>
                 </div>
-                <div class="col-sm-4">
+                <div class="col-sm-6 col-lg-3">
                     <label class="form-label mb-1 small fw-semibold">Équipe</label>
                     <select name="chef" class="form-select form-select-sm" onchange="this.form.submit()">
                         <option value="">Toutes les équipes</option>
@@ -32,7 +32,16 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-sm-4">
+                <div class="col-sm-6 col-lg-3">
+                    <label class="form-label mb-1 small fw-semibold">Type de tâche</label>
+                    <select name="typeTache" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <option value="">Tous les types</option>
+                        {% for id, ty in typesTache %}
+                            <option value="{{ id }}" {{ typeTache == id ? 'selected' : '' }}>{{ ty.nom }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-sm-6 col-lg-3">
                     <label class="form-label mb-1 small fw-semibold">Tâche</label>
                     <select name="tache" class="form-select form-select-sm" onchange="this.form.submit()">
                         <option value="">Toutes les tâches</option>

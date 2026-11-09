@@ -5,6 +5,7 @@ namespace App\Controller\tracabilite;
 use App\Repository\tracabilite\CartePersoRepository;
 use App\Repository\tracabilite\ParcelleRepository;
 use App\Repository\tracabilite\SaisieRepository;
+use App\Service\tracabilite\FiltreTaches;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -19,6 +20,7 @@ class CarteController extends AbstractController
         private readonly ParcelleRepository $parcelleRepo,
         private readonly SaisieRepository   $saisieRepo,
         private readonly CartePersoRepository $cartePersoRepo,
+        private readonly FiltreTaches $filtreTaches,
     ) {}
 
     /** Page d'accueil de la carte : choix entre les positions réelles et les cartes personnalisées */
@@ -48,15 +50,15 @@ class CarteController extends AbstractController
         // Avec une carte personnalisée, seules les tâches de ses parcelles sont proposées
         $parcelles = $cartePerso ? array_map('strval', array_keys($cartePerso->getDisposition())) : null;
         $taches = $this->saisieRepo->findTachesTerrainSurPeriode($mois, false, $parcelles);
-        $tache  = (string) $request->query->get('tache', '');
-        if (!in_array($tache, $taches, true)) {
-            $tache = '';
-        }
+        $filtre = $this->filtreTaches->resoudre($request, $taches);
 
         return $this->render('tracabilite/carte/index.html.twig', [
             'active_link' => 'carte',
             'mois'        => $mois,
-            'tache'       => $tache,
+            'typeTache'   => $filtre['typeTache'],
+            'typesTache'  => $filtre['typesTache'],
+            'tache'       => $filtre['tache'],
+            // Toutes les tâches : le type filtre la liste en direct dans le navigateur
             'taches'      => $taches,
             'cartePerso'  => $cartePerso,
         ]);

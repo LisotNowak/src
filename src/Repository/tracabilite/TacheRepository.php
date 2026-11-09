@@ -48,4 +48,34 @@ class TacheRepository extends ServiceEntityRepository
     {
         return $this->findOneBy(['nom' => $nom]);
     }
+
+    /**
+     * Types de ces tâches, triés par nom, avec pour chacun ses tâches parmi celles données.
+     *
+     * @param string[] $noms
+     * @return array<int, array{nom: string, taches: string[]}> indexé par id du type
+     */
+    public function findTypesDesTaches(array $noms): array
+    {
+        if ($noms === []) {
+            return [];
+        }
+
+        $lignes = $this->createQueryBuilder('t')
+            ->select('ty.id AS typeId', 'ty.nom AS typeNom', 't.nom AS tacheNom')
+            ->innerJoin('t.type', 'ty')
+            ->where('t.nom IN (:noms)')
+            ->setParameter('noms', $noms)
+            ->orderBy('ty.nom', 'ASC')
+            ->addOrderBy('t.nom', 'ASC')
+            ->getQuery()
+            ->getArrayResult();
+
+        $types = [];
+        foreach ($lignes as $l) {
+            $types[$l['typeId']]['nom'] = $l['typeNom'];
+            $types[$l['typeId']]['taches'][] = $l['tacheNom'];
+        }
+        return $types;
+    }
 }

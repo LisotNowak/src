@@ -4,6 +4,7 @@ namespace App\Controller\tracabilite;
 
 use App\Repository\tracabilite\SaisieRepository;
 use App\Service\tracabilite\EquipeAccess;
+use App\Service\tracabilite\FiltreTaches;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -16,6 +17,7 @@ class AvancementController extends AbstractController
     public function __construct(
         private readonly SaisieRepository $saisieRepo,
         private readonly EquipeAccess     $equipeAccess,
+        private readonly FiltreTaches     $filtreTaches,
     ) {}
 
     #[Route('/tracabilite/avancement', name: 'app_tracabilite_avancement')]
@@ -27,26 +29,26 @@ class AvancementController extends AbstractController
             $mois = date('Y-m');
         }
         $chef  = $request->query->get('chef', '');
-        $tache = (string) $request->query->get('tache', '');
 
-        $taches = $this->saisieRepo->findTachesTerrainSurPeriode($mois);
-        if (!in_array($tache, $taches, true)) {
-            $tache = '';
-        }
+        $filtre = $this->filtreTaches->resoudre($request, $this->saisieRepo->findTachesTerrainSurPeriode($mois));
+        $tache = $filtre['tache'];
+        $typeTache = $filtre['typeTache'];
 
-        $avancements = $this->saisieRepo->getAvancementParParcelle($mois, $chef, $tache);
+        $avancements = $this->saisieRepo->getAvancementParParcelle($mois, $chef, $tache, $typeTache);
 
         return $this->render('tracabilite/avancement/index.html.twig', [
             'active_link'  => 'avancement',
             'mois'         => $mois,
             'chef'         => $chef,
+            'typeTache'    => $typeTache,
+            'typesTache'   => $filtre['typesTache'],
             'tache'        => $tache,
             'avancements'  => $avancements,
             // Nombre de tâches menées en parallèle sur chaque parcelle
             'nbTachesParcelle' => array_count_values(array_column($avancements, 'parcelleNom')),
             'equipes'      => $this->equipeAccess->equipesVisibles(),
-            'taches'       => $taches,
-            'nonTerminees' => $this->saisieRepo->findParcellesNonTerminees('', $tache),
+            'taches'       => $filtre['taches'],
+            'nonTerminees' => $this->saisieRepo->findParcellesNonTerminees('', $tache, $typeTache),
         ]);
     }
 }

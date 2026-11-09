@@ -20,13 +20,19 @@
             </h4>
         </div>
         <div class="d-flex flex-wrap gap-1 align-items-center">
-            {# ── Filtres période + tâche (le changement de mois recharge la page, la tâche filtre en direct) ── #}
+            {# ── Filtres période + type + tâche (le changement de mois recharge la page, le type et la tâche filtrent en direct) ── #}
             <form method="get" id="carte-filtres" class="d-flex flex-wrap gap-1 align-items-center me-2">
                 <div class="input-group input-group-sm" style="width:auto;">
                     <input type="month" name="mois" value="{{ mois }}" class="form-control form-control-sm" onchange="this.form.submit()" title="Période">
-                    <a href="{{ path('app_tracabilite_carte_vue', {mois: '', tache: tache}|merge(cartePerso ? {carte: cartePerso.id} : {})) }}"
+                    <a id="carte-tous-mois" href="{{ path('app_tracabilite_carte_vue', {mois: '', typeTache: typeTache, tache: tache}|merge(cartePerso ? {carte: cartePerso.id} : {})) }}"
                        class="btn {{ mois == '' ? 'btn-secondary' : 'btn-outline-secondary' }}">Tous les mois</a>
                 </div>
+                <select id="type-tache-filter" name="typeTache" class="form-select form-select-sm" style="width:auto; max-width:180px;" title="Filtrer par type de tâche">
+                    <option value="">Tous les types</option>
+                    {% for id, ty in typesTache %}
+                        <option value="{{ id }}" {{ typeTache == id ? 'selected' : '' }}>{{ ty.nom }}</option>
+                    {% endfor %}
+                </select>
                 <select id="tache-filter" name="tache" class="form-select form-select-sm" style="width:auto; max-width:220px;" title="Filtrer par tâche">
                     <option value="">Toutes les tâches</option>
                     {% for t in taches %}
@@ -165,7 +171,11 @@ new Cartouche().addTo(map);
 
 function majCartouche() {
     const el = document.querySelector('.carte-cartouche-tache');
-    if (el) el.textContent = 'Tâche : ' + (currentTache || 'Toutes les tâches');
+    if (el) {
+        el.textContent = !currentTache && currentType
+            ? 'Type de tâche : ' + TYPES_TACHE[currentType].nom
+            : 'Tâche : ' + (currentTache || 'Toutes les tâches');
+    }
     // Date du jour au format français (jj/mm/aaaa), recalculée à chaque impression
     const date = document.querySelector('.carte-cartouche-date');
     if (date) date.textContent = 'Le ' + new Date().toLocaleDateString('fr-FR');
@@ -286,20 +296,34 @@ let selectedLayer  = null;   // calque polygon original sélectionné
 let selectedProps  = null;   // propriétés de la parcelle sélectionnée
 let globalBounds = null;
 
-// ── Filtre par tâche ─────────────────────────────────────────────────────────
+// ── Filtres par type de tâche et par tâche ───────────────────────────────────
+const TYPES_TACHE = {{ typesTache|json_encode|raw }};   // id du type → { nom, taches }
+let currentType  = {{ typeTache|json_encode|raw }};   // '' = tous les types
 let currentTache = {{ tache|json_encode|raw }};   // '' = toutes les tâches
 majCartouche();
 const parcelLayers = [];     // { layer, p }
 
-// Avancement d'une parcelle selon le filtre de tâche actif
-// (toutes tâches : avancement de la tâche la moins avancée)
+function estDuType(tache) {
+    return !currentType || TYPES_TACHE[currentType].taches.includes(tache);
+}
+
+// Avancement de chaque tâche de la parcelle retenue par le filtre de type
+function advsDuType(p) {
+    const advs = p.avancements || {};
+    return Object.fromEntries(Object.entries(advs).filter(([t]) => estDuType(t)));
+}
+
+// Avancement d'une parcelle selon les filtres actifs
+// (plusieurs tâches : avancement de la tâche la moins avancée)
 function advFor(p) {
-    if (!currentTache) return p.avancement || 0;
-    return (p.avancements && p.avancements[currentTache]) || 0;
+    if (currentTache) return (p.avancements && p.avancements[currentTache]) || 0;
+    if (!currentType) return p.avancement || 0;
+    const advs = Object.values(advsDuType(p));
+    return advs.length ? Math.min(...advs) : 0;
 }
 
 function nbTaches(p) {
-    return Object.keys(p.avancements || {}).length;
+    return Object.keys(advsDuType(p)).length;
 }
 
 // Plusieurs tâches menées en parallèle sur la parcelle (visible seulement sans filtre de tâche)
@@ -360,7 +384,7 @@ function ordonnerCalques() {
 // Tâches de la parcelle (en parallèle) avec leur avancement, ou la seule tâche filtrée
 function setTachesInfo(p) {
     const el = document.getElementById('infoTaches');
-    const advs = p.avancements || {};
+    const advs = advsDuType(p);
     // Les moins avancées d'abord : ce qui reste à faire en tête
     const taches = currentTache
         ? [currentTache]
@@ -404,15 +428,43 @@ function setTachesInfo(p) {
     });
 }
 
-document.getElementById('tache-filter')
-    ?.addEventListener('change', e => {
-        setTacheFilter(e.target.value);
-        // Garde la tâche dans l'URL pour qu'un rechargement la conserve
-        const url = new URL(window.location.href);
-        url.searchParams.set('mois', {{ mois|json_encode|raw }});
-        url.searchParams.set('tache', e.target.value);
-        history.replaceState(null, '', url);
+// Garde les filtres dans l'URL pour qu'un rechargement les conserve, et dans le lien « Tous les mois »
+function memoriserFiltres() {
+    const url = new URL(window.location.href);
+    url.searchParams.set('mois', {{ mois|json_encode|raw }});
+    const lienTousMois = document.getElementById('carte-tous-mois');
+    const lien = new URL(lienTousMois.href);
+    [url, lien].forEach(u => {
+        u.searchParams.set('typeTache', currentType);
+        u.searchParams.set('tache', currentTache);
     });
+    history.replaceState(null, '', url);
+    lienTousMois.href = lien;
+}
+
+const selTache = document.getElementById('tache-filter');
+const optionsTaches = [...selTache.options];
+
+// La liste des tâches se limite au type choisi ; une tâche d'un autre type est désélectionnée
+function proposerTaches() {
+    const courante = estDuType(currentTache) ? currentTache : '';
+    selTache.replaceChildren(...optionsTaches.filter(o => !o.value || estDuType(o.value)));
+    selTache.value = courante;
+}
+proposerTaches();
+
+document.getElementById('type-tache-filter')
+    .addEventListener('change', e => {
+        currentType = e.target.value;
+        proposerTaches();
+        setTacheFilter(selTache.value);
+        memoriserFiltres();
+    });
+
+selTache.addEventListener('change', e => {
+    setTacheFilter(e.target.value);
+    memoriserFiltres();
+});
 
 fetch('{{ path("app_tracabilite_carte_geojson", {mois: mois}) }}')
     .then(r => r.json())

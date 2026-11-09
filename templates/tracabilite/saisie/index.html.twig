@@ -30,12 +30,21 @@
                     <label class="form-label mb-0 small fw-semibold">Mois</label>
                     <input type="month" name="mois" value="{{ filtres.mois }}" class="form-control form-control-sm" onchange="this.form.submit()">
                 </div>
-                <div class="col-6 col-sm-3 col-md-3">
+                <div class="col-6 col-sm-3 col-md-2">
                     <label class="form-label mb-0 small fw-semibold">Équipe</label>
                     <select name="chef" class="form-select form-select-sm" onchange="this.form.submit()">
                         <option value="">Toutes</option>
                         {% for e in equipes %}
                             <option value="{{ e }}" {{ filtres.chef == e ? 'selected' : '' }}>{{ e }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-6 col-sm-3 col-md-2 d-none d-sm-block">
+                    <label class="form-label mb-0 small fw-semibold">Type de tâche</label>
+                    <select name="typeTache" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <option value="">Tous</option>
+                        {% for id, ty in typesTache %}
+                            <option value="{{ id }}" {{ filtres.typeTache == id ? 'selected' : '' }}>{{ ty.nom }}</option>
                         {% endfor %}
                     </select>
                 </div>
