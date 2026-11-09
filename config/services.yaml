@@ -56,17 +56,5 @@ services:
     App\Command\ArubaAutoCommand:
         arguments:
             $dataDir: '%kernel.project_dir%/var/aruba'
-
-    # Réservation de salles Outlook (/salles) : Microsoft Graph avec l'application Azure AD du site,
-    # autorisations d'application Place.Read.All + Calendars.ReadWrite (consentement administrateur)
-    App\Service\Salles\GraphClient:
-        arguments:
-            $tenant: '%env(OAUTH_MICROSOFT_TENANT)%'
-            $clientId: '%env(OAUTH_MICROSOFT_CLIENT_ID)%'
-            $clientSecret: '%env(OAUTH_MICROSOFT_CLIENT_SECRET)%'
-
-    App\Service\Salles\SalleService:
-        arguments:
-            $sallesFiltre: '%env(SALLES_OUTLOOK)%'
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

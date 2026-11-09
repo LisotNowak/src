@@ -66,9 +66,8 @@
                 <a class="nav-item nav-link text-white" href="/portail">Portail</a>
                 <a class="nav-item nav-link text-white" href="/getAllEvents">Tous les évènements Latour</a>
 
-                {# Réservation de salles Outlook #}
-                {% if app.user and is_granted('ROLE_GESTION_SALLE') %}
-                <a class="nav-item nav-link text-white" href="{{ path('app_salles_index') }}">Réservation de salles</a>
+                {% if app.user %}
+                <!-- Liste déroulante pour les autres liens -->
                 {% endif %}
 
                 {# Onglet Admin visible seulement pour les utilisateurs ayant le rôle admin #}

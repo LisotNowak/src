@@ -24,7 +24,6 @@ class UserType extends AbstractType
                     'Manager tracabilité' => 'ROLE_MANAGER_TRACABILITE',
                     'Admin tracabilité' => 'ROLE_ADMIN_TRACABILITE',
                     'Admin gestion switch' => 'ROLE_GESTION_SWITCH',
-                    'Gestion salles (réservation Outlook)' => 'ROLE_GESTION_SALLE',
                 ],
                 'multiple' => true,
                 'expanded' => true,
