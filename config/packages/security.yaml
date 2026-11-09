@@ -40,7 +40,7 @@ security:
                 always_remember_me: true
 
     role_hierarchy:
-        ROLE_ADMIN: [ROLE_ADMIN_CLIENTS, ROLE_ADMIN_TRACABILITE, ROLE_GESTION_SWITCH]
+        ROLE_ADMIN: [ROLE_ADMIN_CLIENTS, ROLE_ADMIN_TRACABILITE, ROLE_GESTION_SWITCH, ROLE_GESTION_SALLE]
         ROLE_ADMIN_TRACABILITE: [ROLE_MANAGER_TRACABILITE]
 
     access_control:
@@ -64,4 +64,6 @@ security:
         - { path: ^/admin/logs, roles: ROLE_ADMIN }
         # Gestion switch (Aruba CX)
         - { path: ^/gestion-switch, roles: ROLE_GESTION_SWITCH }
+        # Réservation de salles Outlook
+        - { path: ^/salles, roles: ROLE_GESTION_SALLE }
         - { path: ^/profil, roles: ROLE_USER }
