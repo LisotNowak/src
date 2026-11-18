@@ -12,19 +12,21 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 
 class UserType extends AbstractType
 {
+    public const ROLE_CHOICES = [
+        'Utilisateur' => 'ROLE_USER',
+        'Administrateur' => 'ROLE_ADMIN',
+        'Admin clients' => 'ROLE_ADMIN_CLIENTS',
+        'Manager tracabilité' => 'ROLE_MANAGER_TRACABILITE',
+        'Admin tracabilité' => 'ROLE_ADMIN_TRACABILITE',
+        'Admin gestion switch' => 'ROLE_GESTION_SWITCH',
+    ];
+
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder
             ->add('email', EmailType::class)
             ->add('roles', ChoiceType::class, [
-                'choices' => [
-                    'Utilisateur' => 'ROLE_USER',
-                    'Administrateur' => 'ROLE_ADMIN',
-                    'Admin clients' => 'ROLE_ADMIN_CLIENTS',
-                    'Manager tracabilité' => 'ROLE_MANAGER_TRACABILITE',
-                    'Admin tracabilité' => 'ROLE_ADMIN_TRACABILITE',
-                    'Admin gestion switch' => 'ROLE_GESTION_SWITCH',
-                ],
+                'choices' => self::ROLE_CHOICES,
                 'multiple' => true,
                 'expanded' => true,
             ])

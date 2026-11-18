@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use Symfony\Component\Filesystem\Filesystem;
+use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 
 class MaintenanceService
 {
@@ -11,7 +12,7 @@ class MaintenanceService
     private const DEFAULT_MESSAGE = 'Cette partie du site est actuellement en maintenance. <br> Elle sera de retour très prochainement. Merci de votre patience.';
     private const DEFAULT_MODAL_MESSAGE = 'Cette section est en cours de mise à jour.';
 
-    public function __construct(string $projectDir)
+    public function __construct(string $projectDir, private readonly AuthorizationCheckerInterface $authorizationChecker)
     {
         $this->configPath = $projectDir . '/var/maintenance.json';
         $this->filesystem = new Filesystem();
@@ -73,6 +74,36 @@ class MaintenanceService
     }
 
     /**
+     * Récupère les rôles autorisés à accéder à une catégorie bloquée.
+     */
+    public function getAllowedRolesForCategory(string $category): array
+    {
+        $config = $this->getConfig();
+        return $config[$category]['allowed_roles'] ?? [];
+    }
+
+    /**
+     * Vérifie si l'utilisateur courant possède un des rôles autorisés pour la catégorie (hiérarchie des rôles incluse).
+     */
+    public function hasAllowedAccess(string $category): bool
+    {
+        foreach ($this->getAllowedRolesForCategory($category) as $role) {
+            if ($this->authorizationChecker->isGranted($role)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Vérifie si une catégorie est bloquée pour l'utilisateur courant.
+     */
+    public function isCategoryBlockedForCurrentUser(string $category): bool
+    {
+        return $this->isCategoryBlocked($category) && !$this->hasAllowedAccess($category);
+    }
+
+    /**
      * Vérifie si une catégorie affiche un modal d'avertissement (mode 'modal').
      */
     public function isCategoryModal(string $category): bool
@@ -83,8 +114,9 @@ class MaintenanceService
     /**
      * Active le mode maintenance pour une catégorie avec un message personnalisé.
      * @param string $mode 'block' pour bloquer l'accès, 'modal' pour afficher un modal sans bloquer
+     * @param string[] $allowedRoles rôles qui gardent l'accès malgré le blocage
      */
-    public function activate(string $category, ?string $message, string $mode = 'block'): void
+    public function activate(string $category, ?string $message, string $mode = 'block', array $allowedRoles = []): void
     {
         $config = $this->getConfig();
         
@@ -93,7 +125,8 @@ class MaintenanceService
         
         $config[$category] = [
             'message' => !empty($message) ? $message : $defaultMsg,
-            'mode' => $mode
+            'mode' => $mode,
+            'allowed_roles' => array_values(array_unique($allowedRoles)),
         ];
         $this->saveConfig($config);
     }

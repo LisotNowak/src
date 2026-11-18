@@ -3,6 +3,28 @@
 
 {% block title %}Liste des Routes et Maintenance{% endblock %}
 
+{% macro roles_dropdown(availableRoles, selectedRoles, category) %}
+    <div class="dropdown roles-dropdown">
+        <button class="btn btn-sm btn-outline-secondary dropdown-toggle text-nowrap" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+            <i class="fas fa-user-shield"></i>
+            <span class="roles-dropdown-label">
+                {% if selectedRoles is empty %}Accès autorisé : aucun rôle{% else %}Accès autorisé : {{ selectedRoles|length }} rôle(s){% endif %}
+            </span>
+        </button>
+        <div class="dropdown-menu p-2" style="max-height: 300px; overflow-y: auto; min-width: 260px;">
+            <small class="text-muted d-block mb-2">Ces rôles gardent l'accès malgré le blocage (hiérarchie des rôles incluse).</small>
+            {% for code, label in availableRoles %}
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="allowed_roles[]" value="{{ code }}" id="role-{{ category }}-{{ code }}" {% if code in selectedRoles %}checked{% endif %}>
+                    <label class="form-check-label" for="role-{{ category }}-{{ code }}">
+                        {{ label }}{% if label != code %} <small class="text-muted">({{ code }})</small>{% endif %}
+                    </label>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+{% endmacro %}
+
 {% block body %}
 <div class="container mt-4">
     <h1>Gestion des Routes et de la Maintenance</h1>
@@ -25,6 +47,8 @@
                                 <option value="block" {% if currentMode == 'block' %}selected{% endif %}>Bloquer l'accès</option>
                                 <option value="modal" {% if currentMode == 'modal' %}selected{% endif %}>Afficher un modal</option>
                             </select>
+
+                            {{ _self.roles_dropdown(availableRoles, categoryConfig.allowed_roles|default([]), category) }}
                             
                             <button type="submit" class="btn btn-sm btn-info text-nowrap">Mettre à jour</button>
                         </form>
@@ -42,6 +66,8 @@
                             <option value="block">Bloquer l'accès</option>
                             <option value="modal">Afficher un modal</option>
                         </select>
+
+                        {{ _self.roles_dropdown(availableRoles, [], category) }}
                         
                         <button type="submit" class="btn btn-sm btn-danger text-nowrap">Activer</button>
                     </form>
@@ -79,6 +105,27 @@
         <div class="alert alert-info">Aucune route correspondante trouvée.</div>
     {% endfor %}
 </div>
+
+<script>
+    document.querySelectorAll('form').forEach(function (form) {
+        const mode = form.querySelector('select[name="mode"]');
+        const dropdown = form.querySelector('.roles-dropdown');
+        if (!mode || !dropdown) return;
+
+        // Les rôles autorisés n'ont de sens qu'en mode blocage
+        const toggle = function () { dropdown.classList.toggle('d-none', mode.value !== 'block'); };
+        mode.addEventListener('change', toggle);
+        toggle();
+
+        const label = dropdown.querySelector('.roles-dropdown-label');
+        dropdown.querySelectorAll('input[type="checkbox"]').forEach(function (cb) {
+            cb.addEventListener('change', function () {
+                const count = dropdown.querySelectorAll('input[type="checkbox"]:checked').length;
+                label.textContent = count === 0 ? 'Accès autorisé : aucun rôle' : 'Accès autorisé : ' + count + ' rôle(s)';
+            });
+        });
+    });
+</script>
 
 <style>
     .gap-2 {

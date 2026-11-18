@@ -2,10 +2,13 @@
 
 namespace App\Controller;
 
+use App\Form\UserType;
+use App\Repository\UserRepository;
 use App\Service\MaintenanceService;
 use ReflectionClass;
 use ReflectionMethod;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
@@ -14,8 +17,12 @@ use Symfony\Component\Routing\RouterInterface;
 class DebugController extends AbstractController
 {
     #[Route('/dev/routes', name: 'dev_routes_list')]
-    public function listRenderRoutes(RouterInterface $router, MaintenanceService $maintenanceService): Response
-    {
+    public function listRenderRoutes(
+        RouterInterface $router,
+        MaintenanceService $maintenanceService,
+        UserRepository $userRepository,
+        #[Autowire('%security.role_hierarchy.roles%')] array $roleHierarchy,
+    ): Response {
         $this->denyAccessUnlessGranted('ROLE_ADMIN');
         $allRoutes = $router->getRouteCollection()->all();
         $categorizedRoutes = [];
@@ -86,7 +93,38 @@ class DebugController extends AbstractController
         return $this->render('routes_list.html.twig', [
             'categorizedRoutes' => $categorizedRoutes,
             'maintenance' => $maintenanceService,
+            'availableRoles' => $this->getAvailableRoles($userRepository, $roleHierarchy),
         ]);
+    }
+
+    /**
+     * Construit la liste des rôles sélectionnables : rôles du formulaire utilisateur,
+     * de la hiérarchie de sécurité et rôles réellement attribués en base.
+     * @return array<string, string> rôle => libellé
+     */
+    private function getAvailableRoles(UserRepository $userRepository, array $roleHierarchy): array
+    {
+        $roles = array_flip(UserType::ROLE_CHOICES);
+
+        $codes = array_keys($roleHierarchy);
+        foreach ($roleHierarchy as $children) {
+            $codes = array_merge($codes, $children);
+        }
+
+        $userRoles = $userRepository->createQueryBuilder('u')
+            ->select('u.roles')
+            ->getQuery()
+            ->getSingleColumnResult();
+        foreach ($userRoles as $list) {
+            $codes = array_merge($codes, is_string($list) ? (json_decode($list, true) ?? []) : (array) $list);
+        }
+
+        foreach ($codes as $code) {
+            $roles[$code] ??= $code;
+        }
+        ksort($roles);
+
+        return $roles;
     }
 
     #[Route('/dev/maintenance/activate/{category}', name: 'dev_maintenance_activate', methods: ['POST'])]
@@ -95,7 +133,8 @@ class DebugController extends AbstractController
         $this->denyAccessUnlessGranted('ROLE_ADMIN');
         $message = $request->request->get('message');
         $mode = $request->request->get('mode', 'block');
-        $maintenanceService->activate($category, $message, $mode);
+        $allowedRoles = array_filter($request->request->all('allowed_roles'), fn($r) => is_string($r) && str_starts_with($r, 'ROLE_'));
+        $maintenanceService->activate($category, $message, $mode, $allowedRoles);
         
         $modeLabel = $mode === 'modal' ? 'un modal' : 'le blocage';
         $this->addFlash('success', "Le mode maintenance ({$modeLabel}) a été activé pour la catégorie '{$category}'.");

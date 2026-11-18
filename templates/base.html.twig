@@ -113,7 +113,7 @@
         {% set current_category = path_parts|first %}
 
         {# MODAL DE BLOCAGE (Accès refusé complètement) #}
-        {% if current_category and maintenance.isCategoryBlocked(current_category) %}
+        {% if current_category and maintenance.isCategoryBlockedForCurrentUser(current_category) %}
             <div id="maintenance-container">
                 <div class="maintenance-backdrop"></div>
                 <div class="maintenance-modal">
