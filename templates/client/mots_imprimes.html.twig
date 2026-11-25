@@ -1,0 +1,102 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Mots imprimés{% endblock %}
+
+{% block body %}
+<div class="container mt-4 mb-5">
+    <a href="{{ path('app_clients_list') }}" class="btn btn-outline-secondary mb-3">
+        <i class="fas fa-arrow-left me-1"></i>Retour à la liste
+    </a>
+
+    <h2 class="mb-4">Contacts souhaitant un mot imprimé</h2>
+
+    <form method="get" class="row g-2 align-items-center mb-4">
+        <div class="col-auto">
+            <label for="signataire" class="col-form-label fw-bold">Choisir un signataire :</label>
+        </div>
+        <div class="col-auto">
+            <select id="signataire" name="signataire" class="form-select" onchange="this.form.submit()">
+                <option value="">-- Tous les signataires --</option>
+                {% for signataire in signataires %}
+                    <option value="{{ signataire.id }}" {% if signataire_selected == signataire.id %}selected{% endif %}>
+                        {{ signataire.nom }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+    </form>
+
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-md-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <div class="display-6 fw-bold">{{ nb_contacts }}</div>
+                    <div class="text-muted">contact(s) souhaitant un mot imprimé</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-md-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <div class="display-6 fw-bold">{{ nb_mots }}</div>
+                    <div class="text-muted">mot(s) à imprimer (contact × signataire)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if par_signataire is not empty %}
+        <h4 class="mb-3">Récapitulatif par signataire</h4>
+        <table class="table table-bordered table-hover align-middle mb-5" style="max-width: 600px;">
+            <thead class="table-dark">
+                <tr>
+                    <th>Signataire</th>
+                    <th style="width: 160px;" class="text-center">Mots imprimés</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for groupe in par_signataire %}
+                    <tr>
+                        <td><a href="#signataire-{{ groupe.signataire.id }}">{{ groupe.signataire.nom }}</a></td>
+                        <td class="text-center">{{ groupe.associations|length }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        {% for groupe in par_signataire %}
+            <h4 id="signataire-{{ groupe.signataire.id }}" class="mb-3">
+                {{ groupe.signataire.nom }}
+                <span class="badge bg-primary">{{ groupe.associations|length }}</span>
+            </h4>
+            <table class="table table-striped table-hover align-middle mb-5">
+                <thead class="table-dark">
+                    <tr>
+                        <th>#</th>
+                        <th>Nom</th>
+                        <th>Prénom</th>
+                        <th>Société</th>
+                        <th>Catégorie</th>
+                        <th>Ville</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for association in groupe.associations %}
+                        {% set client = association.client %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>{{ client.triNom }}</td>
+                            <td>{{ client.triPrenom }}</td>
+                            <td>{{ client.societeNom }}</td>
+                            <td>{{ client.categorieEntity ? client.categorieEntity.nomCategorie : '' }}</td>
+                            <td>{{ client.ville }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endfor %}
+    {% else %}
+        <div class="alert alert-info">Aucun contact ne souhaite de mot imprimé.</div>
+    {% endif %}
+</div>
+{% endblock %}

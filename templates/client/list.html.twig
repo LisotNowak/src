@@ -63,21 +63,36 @@
                 <i class="bi bi-tags"></i> Associer une catégorie de contacts
             </button>
             <a href="{{ path('app_client_new') }}" class="btn btn-primary me-2">Ajouter un contact</a>
-            {% if is_granted('ROLE_ADMIN_CLIENTS') %}
-                <a href="{{ path('app_client_delete_list') }}" class="btn btn-danger me-2">Supprimer un contact</a>
-                <a href="{{ path('app_signataire_list') }}" class="btn btn-secondary me-2">
-                    <i class="bi bi-person-gear"></i> Gérer les signataires
-                </a>
-            {% endif %}
-            {% if signataire_selected and is_granted('ROLE_ADMIN_CLIENTS') %}
-                <a href="{{ path('app_clients_export', {signataire: signataire_selected, categorie: categorie_selected, societe: societe_selected}) }}" class="btn btn-success me-2">
-                    <i class="bi bi-file-earmark-excel"></i> Exporter en Excel
-                </a>
-            {% endif %}
             <button type="button" id="toggleVillePaysBtn" class="btn btn-outline-secondary">
                 <i class="bi bi-eye-slash"></i> Masquer Ville / Pays
             </button>
         </div>
+
+        {% if is_granted('ROLE_ADMIN_CLIENTS') %}
+            <div class="border rounded p-3 mb-4 bg-light">
+                <div class="fw-bold text-muted small text-uppercase mb-2">
+                    <i class="bi bi-shield-lock"></i> Administration
+                </div>
+                <a href="{{ path('app_signataire_list') }}" class="btn btn-secondary me-2">
+                    <i class="bi bi-person-gear"></i> Gérer les signataires
+                </a>
+                <a href="{{ path('app_clients_mots_imprimes') }}" class="btn btn-dark me-2">
+                    <i class="bi bi-printer"></i> Mots imprimés
+                </a>
+                {% if signataire_selected %}
+                    <a href="{{ path('app_clients_export', {signataire: signataire_selected, categorie: categorie_selected, societe: societe_selected}) }}" class="btn btn-success me-2">
+                        <i class="bi bi-file-earmark-excel"></i> Exporter en Excel
+                    </a>
+                {% else %}
+                    <span class="d-inline-block me-2" tabindex="0" title="Choisir un signataire pour exporter">
+                        <button type="button" class="btn btn-success" disabled>
+                            <i class="bi bi-file-earmark-excel"></i> Exporter en Excel
+                        </button>
+                    </span>
+                {% endif %}
+                <a href="{{ path('app_client_delete_list') }}" class="btn btn-danger me-2">Supprimer un contact</a>
+            </div>
+        {% endif %}
 
     </div>
 

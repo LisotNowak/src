@@ -214,6 +214,47 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
         return $response;
     }
 
+    // Récapitulatif des contacts souhaitant un mot imprimé, par signataire
+    #[Route('/clients/mots-imprimes', name: 'app_clients_mots_imprimes', methods: ['GET'])]
+    #[IsGranted('ROLE_ADMIN_CLIENTS')]
+    public function motsImprimes(Request $request, ManagerRegistry $doctrine): Response
+    {
+        $signataires = $doctrine->getRepository(Signataire::class)->findBy([], ['nom' => 'ASC']);
+        $signataireId = $request->query->getInt('signataire');
+
+        $qb = $doctrine->getRepository(AssociationSignataire::class)->createQueryBuilder('a')
+            ->innerJoin('a.client', 'c')
+            ->innerJoin('a.signataire', 's')
+            ->leftJoin('c.categorieEntity', 'cat')
+            ->addSelect('c', 's', 'cat')
+            ->andWhere('a.imprimer = true')
+            ->orderBy('s.nom', 'ASC')
+            ->addOrderBy('c.triNom', 'ASC')
+            ->addOrderBy('c.triPrenom', 'ASC');
+        if ($signataireId) {
+            $qb->andWhere('a.signataire = :signataire')
+               ->setParameter('signataire', $signataireId);
+        }
+
+        // Regroupe les associations par signataire, et compte les contacts distincts
+        $parSignataire = [];
+        $contactIds = [];
+        foreach ($qb->getQuery()->getResult() as $association) {
+            $signataire = $association->getSignataire();
+            $parSignataire[$signataire->getId()]['signataire'] = $signataire;
+            $parSignataire[$signataire->getId()]['associations'][] = $association;
+            $contactIds[$association->getClient()->getId()] = true;
+        }
+
+        return $this->render('client/mots_imprimes.html.twig', [
+            'signataires' => $signataires,
+            'signataire_selected' => $signataireId ?: null,
+            'par_signataire' => $parSignataire,
+            'nb_contacts' => count($contactIds),
+            'nb_mots' => array_sum(array_map(fn($groupe) => count($groupe['associations']), $parSignataire)),
+        ]);
+    }
+
     #[Route('/client/new', name: 'app_client_new', methods: ['GET', 'POST'])]
     public function new(Request $request, ManagerRegistry $doctrine): Response
     {
