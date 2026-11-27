@@ -46,6 +46,12 @@
     </div>
 
     {% if par_signataire is not empty %}
+        <p class="small text-muted mb-4">
+            Colonne « Autres signataires » :
+            <span class="badge bg-primary"><i class="bi bi-printer"></i> en bleu</span> = mot imprimé aussi pour ce signataire,
+            <span class="badge bg-light text-dark border">en gris</span> = associé sans mot imprimé.
+        </p>
+
         <h4 class="mb-3">Récapitulatif par signataire</h4>
         <table class="table table-bordered table-hover align-middle mb-5" style="max-width: 600px;">
             <thead class="table-dark">
@@ -78,11 +84,13 @@
                         <th>Société</th>
                         <th>Catégorie</th>
                         <th>Ville</th>
+                        <th>Autres signataires</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for association in groupe.associations %}
                         {% set client = association.client %}
+                        {% set autres = (associations_par_contact[client.id] ?? [])|filter(a => a.signataire.id != groupe.signataire.id) %}
                         <tr>
                             <td>{{ loop.index }}</td>
                             <td>{{ client.triNom }}</td>
@@ -90,6 +98,15 @@
                             <td>{{ client.societeNom }}</td>
                             <td>{{ client.categorieEntity ? client.categorieEntity.nomCategorie : '' }}</td>
                             <td>{{ client.ville }}</td>
+                            <td>
+                                <span class="badge {{ autres|length ? 'bg-secondary' : 'bg-light text-muted border' }} me-1">{{ autres|length }}</span>
+                                {% for autre in autres %}
+                                    <span class="badge {{ autre.imprimer ? 'bg-primary' : 'bg-light text-dark border' }}"
+                                          {% if autre.imprimer %}title="Mot imprimé aussi pour ce signataire"{% endif %}>
+                                        {% if autre.imprimer %}<i class="bi bi-printer"></i> {% endif %}{{ autre.signataire.nom }}
+                                    </span>
+                                {% endfor %}
+                            </td>
                         </tr>
                     {% endfor %}
                 </tbody>

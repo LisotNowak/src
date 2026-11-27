@@ -246,10 +246,27 @@ public function list(Request $request, ManagerRegistry $doctrine): Response
             $contactIds[$association->getClient()->getId()] = true;
         }
 
+        // Toutes les associations de ces contacts, pour afficher leurs autres signataires
+        $associationsParContact = [];
+        if ($contactIds) {
+            $toutes = $doctrine->getRepository(AssociationSignataire::class)->createQueryBuilder('a')
+                ->innerJoin('a.signataire', 's')
+                ->addSelect('s')
+                ->andWhere('a.client IN (:clients)')
+                ->setParameter('clients', array_keys($contactIds))
+                ->orderBy('s.nom', 'ASC')
+                ->getQuery()
+                ->getResult();
+            foreach ($toutes as $association) {
+                $associationsParContact[$association->getClient()->getId()][] = $association;
+            }
+        }
+
         return $this->render('client/mots_imprimes.html.twig', [
             'signataires' => $signataires,
             'signataire_selected' => $signataireId ?: null,
             'par_signataire' => $parSignataire,
+            'associations_par_contact' => $associationsParContact,
             'nb_contacts' => count($contactIds),
             'nb_mots' => array_sum(array_map(fn($groupe) => count($groupe['associations']), $parSignataire)),
         ]);
